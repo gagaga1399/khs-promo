@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KHS — Убей привычную структуру</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --panel: #141414;
+    --card: #111;
+    --line: #2b2b2b;
+    --ink: #f2f2f2;
+    --muted: #8a8a8a;
+    --faint: #555;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    letter-spacing: .1px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 26px 0; }
+  .logo {
+    display: flex; align-items: center; gap: 14px;
+    font-weight: 800; font-size: 22px; letter-spacing: 2px;
+  }
+  .logo img {
+    width: 40px; height: 40px; border-radius: 6px; object-fit: cover;
+    border: 1px solid var(--line);
+  }
+  .logo small { color: var(--faint); font-weight: 400; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; }
+  .hero { padding: 40px 0 24px; }
+  .hero .kicker {
+    color: var(--muted); font-size: 13px; letter-spacing: 4px;
+    text-transform: uppercase; margin-bottom: 18px;
+  }
+  .hero h1 {
+    font-size: clamp(34px, 6vw, 58px); font-weight: 800;
+    letter-spacing: -1px; line-height: 1.05; text-transform: uppercase;
+  }
+  .hero .sub { color: var(--muted); font-size: clamp(15px, 2vw, 18px); margin: 20px 0 0; max-width: 680px; }
+  .btns { display: flex; gap: 14px; justify-content: flex-start; flex-wrap: wrap; margin-top: 32px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 14px 26px; border-radius: 4px; text-decoration: none;
+    font-weight: 700; font-size: 14px; letter-spacing: .5px;
+    text-transform: uppercase; border: 1px solid var(--ink);
+    transition: all .15s;
+  }
+  .btn-primary { background: var(--ink); color: var(--bg); }
+  .btn-primary:hover { background: transparent; color: var(--ink); }
+  .btn-ghost { background: transparent; color: var(--ink); }
+  .btn-ghost:hover { background: var(--ink); color: var(--bg); }
+  .btn small { opacity: .7; font-weight: 400; text-transform: none; }
+  .meta { margin-top: 18px; color: var(--faint); font-size: 13px; }
+  #verline { color: var(--ink); font-weight: 700; }
+  section { padding: 48px 0; }
+  .sec-title {
+    font-size: 15px; font-weight: 700; margin-bottom: 26px;
+    letter-spacing: 4px; text-transform: uppercase; color: var(--muted);
+  }
+  .manifest {
+    max-width: 760px;
+    border-left: 3px solid var(--ink); padding-left: 26px;
+    font-size: 17px;
+  }
+  .manifest p { margin-bottom: 18px; }
+  .manifest .lead { font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+  .manifest .em { color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .card { background: var(--card); padding: 22px; }
+  .card h3 { font-size: 15px; margin-bottom: 10px; letter-spacing: .5px; text-transform: uppercase; }
+  .card p { color: var(--muted); font-size: 14px; }
+  .card .ico { display: block; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 4px; margin-bottom: 14px; display: grid; place-items: center; font-size: 16px; color: var(--ink); }
+  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--line); }
+  .shot {
+    aspect-ratio: 9/16; background: var(--panel);
+    display: grid; place-items: center; color: var(--faint); font-size: 13px;
+  }
+  .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #shotsSection { display: none; }
+  #shotsSection.show { display: block; }
+  footer {
+    padding: 30px 0 44px; text-align: center; color: var(--faint); font-size: 13px;
+    border-top: 1px solid var(--line); margin-top: 20px;
+  }
+  footer a { color: var(--ink); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="logo"><img src="cover.png" alt="KHS"> KHS <small>метод</small></div>
+  </div>
+</header>
+
+<div class="hero wrap">
+  <div class="kicker">Метод пересборки себя</div>
+  <h1>Убей<br>привычную<br>структуру</h1>
+  <p class="sub">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS не разрушает ради хаоса — он заменяет то, что держит тебя в покое, на то, что ведёт в движение.</p>
+  <div class="btns">
+    <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.17.apk" id="btnAndroid" target="_blank" rel="noopener">Скачать для Android <small id="apkSize"></small></a>
+    <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.17-windows.zip" id="btnWindows" target="_blank" rel="noopener">Скачать для Windows <small id="zipSize"></small></a>
+  </div>
+  <div class="meta">Версия <span id="verline">1.2.17</span> · обновление по Wi-Fi из приложения</div>
+</div>
+
+<section class="wrap">
+  <div class="manifest">
+    <p class="lead">KHS — это метод пересборки себя.</p>
+    <p>Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS предлагает не разрушать ради хаоса, а заменять то, что держит тебя в покое, на то, что ведёт в движение.</p>
+    <p>В основе — действие. Нет молитв, нет ритуалов. Есть <span class="em">выбор</span>.</p>
+    <p>Каждый день ты либо укрепляешь старую рутину, либо строишь новую. KHS не говорит, что правильно. Он говорит: <span class="em">выбери и делай</span>.</p>
+    <p>Цель — не «стать лучше». Цель — создать систему, в которой ты действуешь без борьбы. Когда привычка становится не обязанностью, а естественным состоянием.</p>
+    <p>KHS не имеет конца. Ты не заканчиваешь. Ты продолжаешь. И всё завязано на <span class="em">дисциплине</span>.</p>
+  </div>
+</section>
+
+<section id="shotsSection" class="wrap">
+  <div class="sec-title">Скриншоты</div>
+  <div class="shots" id="shotsGrid"></div>
+</section>
+
+<section class="wrap">
+  <div class="sec-title">Инструменты метода</div>
+  <div class="grid">
+    <div class="card"><span class="ico">✔</span><h3>Задачи и приоритеты</h3><p>Высокие / средние / низкие, фильтры, ежедневное планирование — выбор каждый день.</p></div>
+    <div class="card"><span class="ico">⌛</span><h3>Календарь</h3><p>Все задачи на датах с маркерами — видно загруженные дни, ритм держится сам.</p></div>
+    <div class="card"><span class="ico">✎</span><h3>Заметки дня</h3><p>Ежедневная заметка с датой и отдельные заметки — фиксируй, а не забывай.</p></div>
+    <div class="card"><span class="ico">▤</span><h3>Статистика и графики</h3><p>Прогресс за день и по категориям — честная картина без самообмана.</p></div>
+    <div class="card"><span class="ico">⇄</span><h3>Синк по Wi-Fi</h3><p>Телефон и ПК обмениваются данными в одной сети — система всегда с тобой.</p></div>
+    <div class="card"><span class="ico">▦</span><h3>Obsidian</h3><p>Заметки пишутся в vault: ежедневные файлы в папке дат, остальные — в «заметки».</p></div>
+    <div class="card"><span class="ico">◐</span><h3>Темы и цвет</h3><p>Тёмная и светлая тема, акцент любого цвета — палитра прямо в настройках.</p></div>
+    <div class="card"><span class="ico">●</span><h3>Напоминания</h3><p>Уведомления в нужное время, оптимизация батареи подскажет. Действуй по сигналу.</p></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    KHS · метод, а не приложение · выбери и делай · <a href="https://github.com/gagaga1399/khs-promo">update.json</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var shots = ['shot-1.png','shot-2.png','shot-3.png','shot-4.png','shot-5.png','shot-6.png'];
+  var grid = document.getElementById('shotsGrid');
+  var shown = 0;
+  shots.forEach(function (name) {
+    var img = new Image();
+    img.onload = function () {
+      var d = document.createElement('div');
+      d.className = 'shot';
+      d.appendChild(img);
+      grid.appendChild(d);
+      shown++;
+      if (shown > 0) document.getElementById('shotsSection').classList.add('show');
+    };
+    img.src = name;
+  });
+
+      document.getElementById('verline').textContent = '1.2.17';
+    document.getElementById('apkSize').textContent = '62.0 MB';
+    document.getElementById('zipSize').textContent = '13.7 MB';
+function fmt(b) {
+    var mb = b / 1024 / 1024;
+    return (mb >= 1000 ? (mb/1024).toFixed(1) + ' GB' : mb.toFixed(1) + ' MB');
+  }
+})();
+</script>
+
+</body>
+</html>
