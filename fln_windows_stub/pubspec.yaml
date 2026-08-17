@@ -1,0 +1,13 @@
+name: flutter_local_notifications_windows
+description: Local Dart stub for flutter_local_notifications_windows to avoid native (ATL) build on Windows.
+version: 3.1.1
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_local_notifications_platform_interface: ^12.2.0
+  timezone: ^0.11.0
