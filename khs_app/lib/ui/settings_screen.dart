@@ -13,6 +13,7 @@ import '../state/app_state.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'widgets/color_picker_dialog.dart';
 import 'widgets/time_wheel_picker.dart';
+import 'changelog_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   /// [embedded] — вкладка нижней навигации на телефоне (без собственного
@@ -30,10 +31,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _addressController;
   late final TextEditingController _tokenController;
   late final TextEditingController _portController;
+  late final TextEditingController _bindHostController;
   bool _inited = false;
   bool _checking = false;
   bool _checkingServer = false;
   bool _showPcAddresses = false;
+  bool _showToken = false;
   String? _version;
 
   @override
@@ -43,6 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _addressController = TextEditingController();
     _tokenController = TextEditingController();
     _portController = TextEditingController();
+    _bindHostController = TextEditingController();
     AppInfo.version().then((v) {
       if (mounted) setState(() => _version = v);
     });
@@ -55,6 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _addressController.text = state.syncAddress;
     _tokenController.text = state.syncToken;
     _portController.text = '${state.syncPort}';
+    _bindHostController.text = state.syncBindHost;
   }
 
   @override
@@ -69,6 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _addressController.dispose();
     _tokenController.dispose();
     _portController.dispose();
+    _bindHostController.dispose();
     super.dispose();
   }
 
@@ -90,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         for (final change in r.changes)
           Padding(
             padding: const EdgeInsets.only(left: 12, bottom: 3),
-            child: Text('• $change'),
+            child: Text('• ${change.text}'),
           ),
         const SizedBox(height: 12),
       ],
@@ -280,7 +286,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ReleaseInfo(
                     version: info.version,
                     date: '',
-                    changes: info.notes.split('\n'),
+                    changes: [
+                      for (final line in info.notes.split('\n'))
+                        if (line.trim().isNotEmpty) ChangeEntry(line.trim()),
+                    ],
                   ),
                 ]);
     final wantUpdate = await showDialog<bool>(
@@ -331,7 +340,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     messenger.showSnackBar(SnackBar(content: Text(strings.t('downloading'))));
     File saved;
     try {
-      saved = await state.downloadUpdate(file, dir);
+      final expectedSha = Platform.isAndroid
+          ? info.androidSha256
+          : info.windowsSha256;
+      saved = await state.downloadUpdate(file, dir, expectedSha256: expectedSha);
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -621,14 +633,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _bindHostController,
+              keyboardType: TextInputType.url,
+              decoration: InputDecoration(
+                labelText: strings.t('syncBindHost'),
+                hintText: strings.t('syncBindHostHint'),
+                prefixIcon: const Icon(Icons.podcasts_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              onChanged: (v) => state.setSyncBindHost(v),
+            ),
+          ),
+          Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: TextField(
               controller: _tokenController,
-              obscureText: true,
+              obscureText: !_showToken,
               decoration: InputDecoration(
                 labelText: strings.t('syncToken'),
                 hintText: strings.t('syncTokenHint'),
                 prefixIcon: const Icon(Icons.key_outlined),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _showToken ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed: () => setState(() => _showToken = !_showToken),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -757,11 +791,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: TextField(
                 controller: _tokenController,
-                obscureText: true,
+                obscureText: !_showToken,
                 decoration: InputDecoration(
                   labelText: strings.t('syncToken'),
                   hintText: strings.t('syncTokenHint'),
                   prefixIcon: const Icon(Icons.key_outlined),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _showToken ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () =>
+                        setState(() => _showToken = !_showToken),
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -942,105 +983,165 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: Theme.of(context).textTheme.titleSmall,
           ),
         ),
-        SwitchListTile(
-          secondary: Icon(
-            state.isDarkTheme ? Icons.dark_mode : Icons.light_mode,
+        ListTile(
+          leading: const Icon(Icons.brightness_auto),
+          title: Text(strings.t('themeSystem')),
+          subtitle: Text(strings.t('themeSystemHelp')),
+          trailing: Icon(
+            state.themeMode == 'system' ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+            color: state.themeMode == 'system' ? Theme.of(context).colorScheme.primary : null,
           ),
-          title: Text(
-            strings.t(state.isDarkTheme ? 'darkTheme' : 'lightTheme'),
-          ),
-          value: state.isDarkTheme,
-          onChanged: (v) => state.setDarkTheme(v),
+          onTap: () => state.setThemeMode('system'),
         ),
-        const Divider(),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            strings.t('progressBars'),
-            style: Theme.of(context).textTheme.titleSmall,
+        ListTile(
+          leading: const Icon(Icons.light_mode),
+          title: Text(strings.t('themeLight')),
+          subtitle: Text(strings.t('themeLightHelp')),
+          trailing: Icon(
+            state.themeMode == 'light' ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+            color: state.themeMode == 'light' ? Theme.of(context).colorScheme.primary : null,
           ),
+          onTap: () => state.setThemeMode('light'),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Text(
-            strings.t('progressBarsSubtitle'),
-            style: Theme.of(context).textTheme.bodySmall,
+        ListTile(
+          leading: const Icon(Icons.dark_mode),
+          title: Text(strings.t('themeDark')),
+          subtitle: Text(strings.t('themeDarkHelp')),
+          trailing: Icon(
+            state.themeMode == 'dark' ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+            color: state.themeMode == 'dark' ? Theme.of(context).colorScheme.primary : null,
           ),
+          onTap: () => state.setThemeMode('dark'),
         ),
-        for (final bar in [
-          AppState.barGoal,
-          AppState.barPriorities,
-          AppState.barWeek,
-          AppState.barMonth,
-          AppState.barOverdue,
-          AppState.barSidebar,
-        ])
-          CheckboxListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-            controlAffinity: ListTileControlAffinity.leading,
-            title: Text(strings.t(bar)),
-            value: state.barEnabled(bar),
-            onChanged: (v) => state.setBarEnabled(bar, v ?? false),
+        ListTile(
+          leading: const Icon(Icons.palette),
+          title: Text(strings.t('themeCustom')),
+          subtitle: Text(strings.t('themeCustomHelp')),
+          trailing: Icon(
+            state.themeMode == 'custom' ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+            color: state.themeMode == 'custom' ? Theme.of(context).colorScheme.primary : null,
           ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          onTap: () => state.setThemeMode('custom'),
+        ),
+        if (state.themeMode == 'custom') ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      strings.t('dailyGoal'),
-                      style: Theme.of(context).textTheme.bodyLarge,
+                    GestureDetector(
+                      onTap: () async {
+                        final picked = await showColorPickerDialog(
+                          context,
+                          initial: state.accentColor,
+                          title: strings.t('themeBgColor'),
+                          cancelLabel: strings.t('cancel'),
+                          okLabel: strings.t('ok'),
+                        );
+                        if (picked != null && mounted) {
+                          await state.setAccentColor(picked);
+                        }
+                      },
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: state.accentColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                            width: 2,
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${state.dailyGoal}',
-                      style: Theme.of(context).textTheme.titleLarge,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        strings.t('themeBgColorTap'),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.remove_circle_outline),
-                onPressed: () => state.setDailyGoal(state.dailyGoal - 1),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline),
-                onPressed: () => state.setDailyGoal(state.dailyGoal + 1),
-              ),
-            ],
-          ),
-        ),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.palette_outlined),
-          title: Text(strings.t('themeColor')),
-          subtitle: Text(strings.t('themeColorSubtitle')),
-          trailing: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: state.accentColor,
-              shape: BoxShape.circle,
-              border: Border.all(color: Theme.of(context).dividerColor),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () async {
+                        final picked = await showColorPickerDialog(
+                          context,
+                          initial: state.customTextColor,
+                          title: strings.t('themeTextColor'),
+                          cancelLabel: strings.t('cancel'),
+                          okLabel: strings.t('ok'),
+                        );
+                        if (picked != null && mounted) {
+                          await state.setCustomTextColor(picked);
+                        }
+                      },
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: state.customTextColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        strings.t('themeTextColorTap'),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          onTap: () async {
-            final picked = await showColorPickerDialog(
-              context,
-              initial: state.accentColor,
-              title: strings.t('themeColor'),
-              cancelLabel: strings.t('cancel'),
-              okLabel: strings.t('ok'),
-            );
-            if (picked != null && mounted) {
-              await state.setAccentColor(picked);
-            }
-          },
+        ],
+        const Divider(),
+        if (state.themeMode != 'custom')
+          ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: Text(strings.t('themeColor')),
+            subtitle: Text(strings.t('themeColorSubtitle')),
+            trailing: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: state.accentColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
+            ),
+            onTap: () async {
+              final picked = await showColorPickerDialog(
+                context,
+                initial: state.accentColor,
+                title: strings.t('themeColor'),
+                cancelLabel: strings.t('cancel'),
+                okLabel: strings.t('ok'),
+              );
+              if (picked != null && mounted) {
+                await state.setAccentColor(picked);
+              }
+            },
+          ),
+        SwitchListTile(
+          secondary: const Icon(Icons.animation),
+          title: Text(strings.t('splashAnimation')),
+          subtitle: Text(strings.t('splashAnimationHelp')),
+          value: state.showSplashAnimation,
+          onChanged: (v) => state.setSplashAnimation(v),
         ),
         const Divider(),
         Padding(
@@ -1200,7 +1301,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           leading: const Icon(Icons.new_releases_outlined),
           title: Text(strings.t('whatsNew')),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => _showChangelog(strings),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ChangelogScreen()),
+          ),
         ),
         ListTile(
           leading: const Icon(Icons.public),

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../models/note.dart';
 import '../models/task.dart';
+import 'sync_crypto.dart';
 import 'sync_engine.dart';
 import 'task_database.dart';
 
@@ -72,7 +73,9 @@ class SyncClient {
     final tasks = await db.getAllTasks();
     final notes = notesBefore;
 
-    final payload = {'tasks': tasks, 'notes': notes, 'token': token};
+    final inner = jsonEncode({'tasks': tasks, 'notes': notes});
+    final data = await SyncCrypto.encrypt(token, inner);
+    final payload = {'v': 2, 'data': data};
 
     final client = await _client();
     try {
@@ -88,7 +91,18 @@ class SyncClient {
           notesBefore: notesBefore,
         );
       }
-      final body = jsonDecode(text) as Map<String, dynamic>;
+      final outer = jsonDecode(text) as Map<String, dynamic>;
+      if ((outer['v'] as int?) != 2) {
+        return SyncClientResult(
+          status: 'error',
+          error: 'bad protocol',
+          notesBefore: notesBefore,
+        );
+      }
+      final body = jsonDecode(
+            await SyncCrypto.decrypt(token, outer['data'] as String),
+          )
+          as Map<String, dynamic>;
 
       final serverTasks = (body['tasks'] as List? ?? [])
           .map((e) => Map<String, dynamic>.from(e as Map))

@@ -8,6 +8,7 @@ import '../models/note.dart';
 import '../models/task.dart';
 import 'obsidian_service.dart';
 import 'releases.dart';
+import 'sync_crypto.dart';
 import 'sync_engine.dart';
 import 'task_database.dart';
 
@@ -36,17 +37,24 @@ class SyncServer {
   final int port;
   final String token;
 
+  /// IP-интерфейс для приёма соединений. Пустая строка = любой (0.0.0.0).
+  final String bindHost;
+
   /// Вызывается после того, как данные изменились — чтобы UI обновился.
   final Future<void> Function() onChanged;
 
   HttpServer? _server;
   bool _running = false;
 
+  static const _maxSyncBody = 40 * 1024 * 1024;
+  Future<void> _syncQueue = Future.value();
+
   SyncServer({
     required this.db,
     required this.obsidian,
     required this.port,
     required this.token,
+    this.bindHost = '',
     required this.onChanged,
   });
 
@@ -71,10 +79,65 @@ class SyncServer {
 
   Future<void> start() async {
     if (_running) return;
-    final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
+    InternetAddress address = InternetAddress.anyIPv4;
+    final host = bindHost.trim();
+    if (host.isNotEmpty && host != '0.0.0.0') {
+      try {
+        address = InternetAddress(host);
+      } catch (_) {
+        address = InternetAddress.anyIPv4;
+      }
+    }
+    final server = await HttpServer.bind(address, port);
     _server = server;
     _running = true;
     server.listen(_handle);
+  }
+
+  /// Выбирает «самый подходящий» локальный IP для привязки сервера:
+  /// приватный IPv4, не виртуальный адаптер. Если не выйдет — null (любой).
+  static Future<String?> preferredBindHost() async {
+    try {
+      const virtualNames = [
+        'loopback',
+        'virtualbox',
+        'vmware',
+        'hyper-v',
+        'wsl',
+        'tailscale',
+        'zerotier',
+        'docker',
+        'npcap',
+        'bluetooth',
+        'wireguard',
+        'vethernet',
+        'hamachi',
+      ];
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLinkLocal: false,
+      );
+      String? firstPrivate;
+      for (final ni in interfaces) {
+        final name = ni.name.toLowerCase();
+        if (virtualNames.any((v) => name.contains(v))) continue;
+        for (final addr in ni.addresses) {
+          if (addr.isLoopback) continue;
+          if (addr.isLinkLocal) continue;
+          final parts = addr.address.split('.');
+          final a = int.tryParse(parts[0]) ?? 0;
+          final b = int.tryParse(parts[1]) ?? 0;
+          final private = a == 10 ||
+              (a == 172 && b >= 16 && b <= 31) ||
+              (a == 192 && b == 168);
+          if (private) return addr.address;
+          firstPrivate ??= addr.address;
+        }
+      }
+      return firstPrivate;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> stop() async {
@@ -86,8 +149,7 @@ class SyncServer {
   Future<void> _handle(HttpRequest req) async {
     try {
       final path = req.uri.path;
-      final query = req.uri.hasQuery ? '?${req.uri.query}' : '';
-      await _logRequest('${req.method} $path$query');
+      await _logRequest('${req.method} $path');
       if (path == '/api/v1/health' && req.method == 'GET') {
         await _respondJson(req, 200, {
           'ok': true,
@@ -97,7 +159,7 @@ class SyncServer {
         return;
       }
       if (path == '/api/v1/sync' && req.method == 'POST') {
-        await _handleSync(req);
+        await _enqueueSync(() => _handleSync(req));
         return;
       }
       if (path == '/api/v1/update' && req.method == 'GET') {
@@ -122,14 +184,27 @@ class SyncServer {
     }
   }
 
+  Future<void> _enqueueSync(Future<void> Function() task) {
+    final result = _syncQueue.then((_) => task());
+    _syncQueue = result.catchError((_) {});
+    return result;
+  }
+
   /// Журнал запросов для отладки обновлений (рядом с базой данных).
   static File _logFile() =>
       File(p.join(TaskDatabase.desktopDataDir(), 'server.log'));
 
   static Future<void> _logRequest(String line) async {
     try {
-      await _logFile().writeAsString(
-        '${DateTime.now().toIso8601String()} $line\n',
+      final clean = line.replaceAll(RegExp(r'[\r\n]'), ' ');
+      final file = _logFile();
+      if (await file.exists() && await file.length() > 5 * 1024 * 1024) {
+        try {
+          await file.delete();
+        } catch (_) {}
+      }
+      await file.writeAsString(
+        '${DateTime.now().toIso8601String()} $clean\n',
         mode: FileMode.append,
       );
     } catch (_) {}
@@ -181,11 +256,18 @@ class SyncServer {
 
   /// GET /api/v1/update — метаданные доступного обновления (из update.json).
   Future<void> _handleUpdate(HttpRequest req) async {
-    final token = req.uri.queryParameters['token'];
+    final key = 'update:${_remote(req)}';
+    if (_tokenRateBlocked(key)) {
+      await _respondJson(req, 403, {'error': 'too_many_failures'});
+      return;
+    }
+    final token = _sentToken(req);
     if (!_tokenOk(token)) {
+      _tokenFailure(key);
       await _respondJson(req, 401, {'error': 'unauthorized'});
       return;
     }
+    _tokenSuccess(key);
     final file = _findUpdateFile('update.json');
     if (file == null) {
       await _respondJson(req, 404, {'error': 'no_update'});
@@ -210,6 +292,10 @@ class SyncServer {
           {'version': r.version, 'date': r.date, 'changes': r.changes},
       ],
     };
+    final signature = meta['signature'] as String?;
+    if (signature != null && signature.trim().isNotEmpty) {
+      result['signature'] = signature.trim();
+    }
     for (final key in ['android', 'windows']) {
       final name = meta[key] as String?;
       if (name == null) continue;
@@ -217,6 +303,10 @@ class SyncServer {
       if (f.existsSync()) {
         result[key] = name;
         result['${key}_size'] = f.lengthSync();
+        final sha = meta['${key}_sha256'] as String?;
+        if (sha != null && sha.trim().isNotEmpty) {
+          result['${key}_sha256'] = sha.trim().toLowerCase();
+        }
       }
     }
     await _respondJson(req, 200, result);
@@ -232,11 +322,18 @@ class SyncServer {
       await _respondJson(req, 400, {'error': 'bad_name'});
       return;
     }
-    final token = req.uri.queryParameters['token'];
+    final key = 'files:${_remote(req)}';
+    if (_tokenRateBlocked(key)) {
+      await _respondJson(req, 403, {'error': 'too_many_failures'});
+      return;
+    }
+    final token = _sentToken(req);
     if (!_tokenOk(token)) {
+      _tokenFailure(key);
       await _respondJson(req, 401, {'error': 'unauthorized'});
       return;
     }
+    _tokenSuccess(key);
     final file = _findUpdateFile(name);
     if (file == null || !file.existsSync()) {
       // Совместимость со старыми клиентами: версия с багом интерполяции
@@ -292,12 +389,69 @@ class SyncServer {
 
   bool _tokenOk(String? sent) {
     final t = token.trim();
-    if (t.isEmpty) return true;
-    return sent != null && sent == t;
+    if (t.isEmpty) return false;
+    if (sent == null || sent.length != t.length) return false;
+    var diff = 0;
+    for (var i = 0; i < t.length; i++) {
+      diff |= t.codeUnitAt(i) ^ sent.codeUnitAt(i);
+    }
+    return diff == 0;
+  }
+
+  /// Защита от перебора токена: после нескольких неудач подряд ответы с 401
+  /// прекращаются на 60 секунд для этого источника.
+  static const _maxTokenFails = 6;
+  final _tokenFails = <String, int>{};
+  DateTime? _blockedUntil;
+
+  bool _tokenRateBlocked(String key) {
+    final now = DateTime.now();
+    if (_blockedUntil != null && now.isBefore(_blockedUntil!)) return true;
+    if (_blockedUntil != null) {
+      _blockedUntil = null;
+      _tokenFails.clear();
+    }
+    return (_tokenFails[key] ?? 0) >= _maxTokenFails;
+  }
+
+  void _tokenFailure(String key) {
+    _tokenFails[key] = (_tokenFails[key] ?? 0) + 1;
+    if (_tokenFails[key]! >= _maxTokenFails) {
+      _blockedUntil = DateTime.now().add(const Duration(seconds: 60));
+    }
+  }
+
+  void _tokenSuccess(String key) {
+    _tokenFails.remove(key);
+    _blockedUntil = null;
+  }
+
+  static String _remote(HttpRequest req) =>
+      req.connectionInfo?.remoteAddress.address ?? '?';
+
+  String? _sentToken(HttpRequest req) {
+    final header = req.headers.value('X-KHS-Token');
+    if (header != null && header.trim().isNotEmpty) return header.trim();
+    return null;
+  }
+
+  Future<String?> _readBodyCapped(HttpRequest req) async {
+    final buffer = StringBuffer();
+    var size = 0;
+    await for (final chunk in utf8.decoder.bind(req)) {
+      buffer.write(chunk);
+      size += chunk.length;
+      if (size > _maxSyncBody) return null;
+    }
+    return buffer.toString();
   }
 
   Future<void> _handleSync(HttpRequest req) async {
-    final raw = await utf8.decoder.bind(req).join();
+    final raw = await _readBodyCapped(req);
+    if (raw == null) {
+      await _respondJson(req, 413, {'error': 'too_large'});
+      return;
+    }
     Map<String, dynamic> body;
     try {
       body = jsonDecode(raw) as Map<String, dynamic>;
@@ -306,14 +460,39 @@ class SyncServer {
       return;
     }
 
-    if (!_tokenOk(body['token'] as String?)) {
+    final syncKey = 'sync:${_remote(req)}';
+    if (_tokenRateBlocked(syncKey)) {
+      await _respondJson(req, 403, {'error': 'too_many_failures'});
+      return;
+    }
+    if ((body['v'] as int?) != 2) {
+      // Старые клиенты отдают тело открытым текстом с token внутри —
+      // не принимаем: это превратило бы токен в секрет, видимый в сети.
+      await _respondJson(req, 426, {'error': 'protocol_old'});
+      return;
+    }
+    final dataB64 = body['data'] as String?;
+    if (dataB64 == null || dataB64.isEmpty) {
+      await _respondJson(req, 400, {'error': 'bad_body'});
+      return;
+    }
+    Map<String, dynamic> inner;
+    try {
+      inner = jsonDecode(
+            await SyncCrypto.decrypt(token, dataB64),
+          )
+          as Map<String, dynamic>;
+    } catch (_) {
+      // Не расшифровалось = неверный или отсутствующий ключ доступа.
+      _tokenFailure(syncKey);
       await _respondJson(req, 401, {'error': 'unauthorized'});
       return;
     }
+    _tokenSuccess(syncKey);
 
-    final clientTasks = (body['tasks'] as List? ?? [])
+    final clientTasks = (inner['tasks'] as List? ?? [])
         .cast<Map<String, dynamic>>();
-    final clientNotes = (body['notes'] as List? ?? [])
+    final clientNotes = (inner['notes'] as List? ?? [])
         .cast<Map<String, dynamic>>();
 
     final serverTasks = await db.getAllTasks();
@@ -377,6 +556,7 @@ class SyncServer {
     // блок ежедневной заметки (включая удаления — очищаем блок), отдельные
     // заметки без даты — отдельными файлами в папке «заметки».
     for (final row in clientNotes) {
+      if (!obsidian.isConfigured) break;
       final dateMs = row['note_date'];
       final note = Note.fromMap(row);
       if (dateMs is! int) {
@@ -414,12 +594,14 @@ class SyncServer {
       await onChanged();
     }
 
-    await _respondJson(req, 200, {
+    final reply = {
       'tasks': mergedTasks,
       'notes': mergedNotes,
       'vaultPath': obsidian.vaultPath,
       'time': DateTime.now().millisecondsSinceEpoch,
-    });
+    };
+    final data = await SyncCrypto.encrypt(token, jsonEncode(reply));
+    await _respondJson(req, 200, {'v': 2, 'data': data});
 
     _lastResult = SyncServerResult(
       addedTasks: addedTasks,

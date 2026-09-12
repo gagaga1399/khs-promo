@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -27,26 +28,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   static const _vaultChannel = MethodChannel('khs/vault');
   static const _backgroundChannel = MethodChannel('khs/background');
 
-  // ---------- Типы элементов статистики (для настройки «что показывать») ----------
-  static const barGroups = 'groups'; // столбики по группам
-  static const barPriorities = 'priorities'; // столбики по приоритетам
-  static const barPeriods = 'periods'; // кольца «сегодня» / «неделя»
-  static const barGoal = 'goal'; // дневная цель и серия
-  static const barOverdue = 'overdue'; // сводка по просроченным
-  static const barSidebar = 'sidebar'; // линейные бары в сайдбаре
-  static const barWeek = 'week'; // график за неделю
-  static const barMonth = 'month'; // график за месяц
-  static const barMonthCompare = 'monthCompare'; // сравнение месяцев
-
-  static const List<String> allBars = [
-    barGoal,
-    barPriorities,
-    barWeek,
-    barMonth,
-    barMonthCompare,
-    barOverdue,
-    barSidebar,
-  ];
 
   final TaskDatabase db = TaskDatabase();
   final NotificationService notifications = NotificationService();
@@ -64,10 +45,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   String _mode = 'home'; // 'home' | 'design'
   int? _selectedTaskId;
   bool _notificationsEnabled = true;
-  bool _isDarkTheme = true;
+  String _themeMode = 'dark'; // 'system' | 'light' | 'dark'
 
   bool _syncEnabled = false;
   String _syncAddress = '';
+  String _syncBindHost = '';
   String _syncToken = '';
   bool _syncServerEnabled = false;
   int _syncPort = defaultSyncPort;
@@ -80,18 +62,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   bool _noteReminderEnabled = false;
   int _noteReminderMinutes = 20 * 60; // 20:00
-
-  // ---------- Прогресс ----------
-  int _dailyGoal = 5; // дневная цель — задач в день
-  Set<String> _progressBars = {
-    barGoal,
-    barPriorities,
-    barWeek,
-    barMonth,
-    barMonthCompare,
-    barOverdue,
-    barSidebar,
-  };
+  bool _showSplashAnimation = true;
+  Color _customTextColor = const Color(0xFFF5F5F5);
 
   late ObsidianService _obsidian;
 
@@ -110,8 +82,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   /// Заметки в корзине (мягко удалённые).
   List<Note> get deletedNotes => List.unmodifiable(_deletedNotes);
   DateTime get selectedDate => _selectedDate;
-  bool get isDarkTheme => _isDarkTheme;
+  String get themeMode => _themeMode;
+  ThemeMode get resolvedThemeMode => switch (_themeMode) {
+    'light' => ThemeMode.light,
+    'dark' => ThemeMode.dark,
+    'custom' => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
+  bool get isDarkTheme => _themeMode == 'dark';
   Color get accentColor => _accentColor;
+  Color get customTextColor => _customTextColor;
   AppStrings get strings => AppStrings(_locale);
 
   bool get isPc => Platform.isWindows;
@@ -120,6 +100,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   String get syncToken => _syncToken;
   bool get syncServerEnabled => _syncServerEnabled;
   int get syncPort => _syncPort;
+  String get syncBindHost => _syncBindHost;
   DateTime? get lastSyncTime => _lastSyncTime;
   String get lastSyncStatus => _lastSyncStatus;
   bool get syncing => _syncing;
@@ -128,21 +109,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   bool get noteReminderEnabled => _noteReminderEnabled;
   int get noteReminderMinutes => _noteReminderMinutes;
-
-  int get dailyGoal => _dailyGoal;
-  Set<String> get progressBars => Set.unmodifiable(_progressBars);
-
-  bool barEnabled(String id) => _progressBars.contains(id);
-
-  void setBarEnabled(String id, bool value) {
-    if (value) {
-      _progressBars.add(id);
-    } else {
-      _progressBars.remove(id);
-    }
-    _prefs?.setStringList('progress_bars', _progressBars.toList());
-    notifyListeners();
-  }
+  bool get showSplashAnimation => _showSplashAnimation;
 
   String get mode => _mode;
   bool get isDesignMode => _mode == 'design';
@@ -237,130 +204,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   int countFor(String category) =>
       _tasks.where((t) => !t.completed && t.category == category).length;
 
-  int progressPercent(String? category) {
-    final all = category == null
-        ? _tasks
-        : _tasks.where((t) => t.category == category).toList();
-    if (all.isEmpty) return 0;
-    final done = all.where((t) => t.completed).length;
-    return (done * 100 / all.length).round();
-  }
-
-  /// Прогресс по весу задачи (priority: 0 low, 1 normal, 2 high).
-  int progressPercentForPriority(int priority, {String? category}) {
-    final all = _tasks.where(
-      (t) =>
-          t.priority == priority &&
-          (category == null || t.category == category),
-    );
-    if (all.isEmpty) return 0;
-    final done = all.where((t) => t.completed).length;
-    return (done * 100 / all.length).round();
-  }
-
-  /// Сколько задач было выполнено за указанный день.
-  int doneCountOn(DateTime day) {
-    final start = DateTime(day.year, day.month, day.day);
-    final end = start.add(const Duration(days: 1));
-    return _tasks.where(
-      (t) =>
-          t.completed &&
-          t.completedAt != null &&
-          !t.completedAt!.isBefore(start) &&
-          t.completedAt!.isBefore(end),
-    ).length;
-  }
-
-  /// Выполненные задачи за последние [days] дней (от старого к сегодняшнему).
-  List<int> doneCountsLast(int days) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    return List.generate(days, (i) {
-      final day = today.subtract(Duration(days: days - 1 - i));
-      return doneCountOn(day);
-    });
-  }
-
-  /// Выполненные задачи по дням за указанный месяц (1..31).
-  List<int> doneCountsMonth(int year, int month) {
-    final daysInMonth = DateTime(year, month + 1, 0).day;
-    return List.generate(daysInMonth, (i) {
-      final day = DateTime(year, month, i + 1);
-      return doneCountOn(day);
-    });
-  }
-
-  /// Суммарно выполнено за месяц.
-  int doneCountMonth(int year, int month) {
-    return doneCountsMonth(year, month).fold(0, (a, b) => a + b);
-  }
-
-  int get doneToday => doneCountOn(DateTime.now());
-
-  /// Процент выполнения дневной цели (0..100, без потолка не больше 100).
-  int get dailyGoalPercent => _dailyGoal <= 0
-      ? 0
-      : (doneToday * 100 / _dailyGoal).round().clamp(0, 100);
-
-  /// Дни подряд, когда цель была выполнена. Если сегодня цель ещё не
-  /// выполнена, серия считается от вчера, чтобы текущий день не сбрасывал её
-  /// до завершения.
-  int get streakDays {
-    final now = DateTime.now();
-    var day = DateTime(now.year, now.month, now.day);
-    if (doneCountOn(day) < _dailyGoal) {
-      day = day.subtract(const Duration(days: 1));
-    }
-    var streak = 0;
-    while (doneCountOn(day) >= _dailyGoal) {
-      streak++;
-      day = day.subtract(const Duration(days: 1));
-    }
-    return streak;
-  }
-
-  /// Просроченные задачи (не выполнены, срок прошёл).
-  int overdueCount(String? category) {
-    final now = DateTime.now();
-    return _tasks.where(
-      (t) =>
-          !t.completed &&
-          t.dueAt != null &&
-          t.dueAt!.isBefore(now) &&
-          (category == null || t.category == category),
-    ).length;
-  }
-
-  /// Прогресс по задачам со сроком сегодня.
-  int progressPercentDueToday() {
-    final today = _today();
-    final all = _tasks.where(
-      (t) =>
-          t.dueAt != null &&
-          t.dueAt!.year == today.year &&
-          t.dueAt!.month == today.month &&
-          t.dueAt!.day == today.day,
-    );
-    if (all.isEmpty) return 0;
-    final done = all.where((t) => t.completed).length;
-    return (done * 100 / all.length).round();
-  }
-
-  /// Прогресс по задачам со сроком в ближайшие 7 дней (включая сегодня).
-  int progressPercentDueWeek() {
-    final today = _today();
-    final weekEnd = today.add(const Duration(days: 7));
-    final all = _tasks.where(
-      (t) =>
-          t.dueAt != null &&
-          !t.dueAt!.isBefore(today) &&
-          t.dueAt!.isBefore(weekEnd),
-    );
-    if (all.isEmpty) return 0;
-    final done = all.where((t) => t.completed).length;
-    return (done * 100 / all.length).round();
-  }
-
   Task? get nextReminder {
     final now = DateTime.now();
     final reminders = _tasks.where(
@@ -389,21 +232,30 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _accentColor = Color(
       _prefs?.getInt('accent_color') ?? AppTheme.defaultAccent.toARGB32(),
     );
+    _customTextColor = Color(
+      _prefs?.getInt('custom_text_color') ?? const Color(0xFFF5F5F5).toARGB32(),
+    );
     _groups = _prefs?.getStringList('groups') ?? [];
     _notificationsEnabled = _prefs?.getBool('notifications_enabled') ?? true;
-    _isDarkTheme = _prefs?.getBool('dark_theme') ?? true;
+    final savedMode = _prefs?.getString('theme_mode');
+    if (savedMode != null) {
+      _themeMode = savedMode;
+    } else {
+      _themeMode = (_prefs?.getBool('dark_theme') ?? true) ? 'dark' : 'light';
+    }
     _syncEnabled = _prefs?.getBool('sync_enabled') ?? false;
     _syncAddress = _cleanSyncAddress(_prefs?.getString('sync_address') ?? '');
     _syncToken = _prefs?.getString('sync_token') ?? '';
+    if (isPc && _syncToken.isEmpty) {
+      _syncToken = TaskDatabase.newKey();
+      await _prefs?.setString('sync_token', _syncToken);
+    }
     _syncServerEnabled = _prefs?.getBool('sync_server_enabled') ?? false;
     _syncPort = _prefs?.getInt('sync_port') ?? defaultSyncPort;
+    _syncBindHost = _prefs?.getString('sync_bind_host') ?? '';
     _noteReminderEnabled = _prefs?.getBool('note_reminder_enabled') ?? false;
     _noteReminderMinutes = _prefs?.getInt('note_reminder_minutes') ?? 20 * 60;
-    _dailyGoal = _prefs?.getInt('daily_goal') ?? 5;
-    final savedBars = _prefs?.getStringList('progress_bars');
-    if (savedBars != null && savedBars.isNotEmpty) {
-      _progressBars = savedBars.toSet();
-    }
+    _showSplashAnimation = _prefs?.getBool('show_splash_animation') ?? true;
     _savedVaultPaths = _prefs?.getStringList('saved_vault_paths') ?? [];
     final vaultPath =
         _prefs?.getString('obsidian_vault_path') ?? defaultVaultPath;
@@ -413,12 +265,22 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _tasks = await db.getTasks();
     _notes = await db.getNotes();
     _deletedNotes = await db.getDeletedNotes();
-    // Перепланируем пуши для активных задач: если будильники пропали
-    // (например, после перезагрузки или переустановки), восстановим их.
+    await db.purgeTaskTombstones(
+      DateTime.now().subtract(const Duration(days: 120)),
+    );
+    final staleThan = DateTime.now();
     for (final t in _tasks) {
-      if (t.id != null && !t.completed) {
-        await _scheduleNotification(t);
+      if (t.id == null) continue;
+      if (t.completed) {
+        await notifications.cancel(t.id!);
+        continue;
       }
+      final reminder = t.reminderAt;
+      if (reminder == null || !reminder.isAfter(staleThan)) {
+        await notifications.cancel(t.id!);
+        continue;
+      }
+      await _scheduleNotification(t);
     }
     ready = true;
     notifyListeners();
@@ -485,9 +347,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (isPc) return true;
     try {
       return await _vaultChannel.invokeMethod<bool>('hasAllFilesAccess') ??
-          true;
+          false;
     } catch (_) {
-      return true;
+      return false;
     }
   }
 
@@ -569,6 +431,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  /// IP-интерфейс, на котором слушает сервер ('0.0.0.0' — все интерфейсы).
+  Future<void> setSyncBindHost(String value) async {
+    _syncBindHost = value.trim();
+    await _prefs?.setString('sync_bind_host', _syncBindHost);
+    if (isPc && syncServerRunning) {
+      await _stopSyncServer();
+      await _startSyncServer();
+    }
+    notifyListeners();
+  }
+
   Future<void> setSyncServerEnabled(bool value) async {
     _syncServerEnabled = value;
     await _prefs?.setBool('sync_server_enabled', value);
@@ -582,11 +455,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _startSyncServer() async {
     try {
+      var bind = _syncBindHost;
+      if (bind.trim().isEmpty) {
+        bind = await SyncServer.preferredBindHost() ?? '';
+      }
       _syncServer = SyncServer(
         db: db,
         obsidian: _obsidian,
         port: _syncPort,
         token: _syncToken,
+        bindHost: bind,
         onChanged: reloadFromDb,
       );
       await _syncServer!.start();
@@ -672,15 +550,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           ? 'ok'
           : (result.status == 'offline' ? 'offline' : 'error');
       if (result.ok) {
-        final pcVault = result.vaultPath;
-        final localVault = _obsidian.vaultPath.trim();
-        final localIsWindowsPath =
-            RegExp(r'^[A-Za-z]:[\\/]').hasMatch(localVault);
-        if (pcVault != null &&
-            pcVault.trim().isNotEmpty &&
-            (localVault.isEmpty || localIsWindowsPath)) {
-          await setVaultPath(pcVault);
-        }
         await reloadFromDb();
         _scheduleAllTaskNotifications();
         _notifyNoteArrivals(result.notesBefore, result.notesAfter);
@@ -721,11 +590,15 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// Скачивает файл обновления с ПК в [targetDir].
-  Future<File> downloadUpdate(String filename, Directory targetDir) =>
+  Future<File> downloadUpdate(
+    String filename,
+    Directory targetDir, {
+    String? expectedSha256,
+  }) =>
       UpdateChecker(
         host: _syncAddress,
         token: _syncToken,
-      ).download(filename, targetDir);
+      ).download(filename, targetDir, expectedSha256: expectedSha256);
 
   /// Разрешена ли на Android установка APK «из неизвестных источников».
   Future<bool> canInstallPackages() async {
@@ -734,9 +607,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       return await _installChannel.invokeMethod<bool>(
             'canRequestPackageInstalls',
           ) ??
-          true;
+          false;
     } catch (_) {
-      return true;
+      return false;
     }
   }
 
@@ -762,9 +635,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       return await _backgroundChannel.invokeMethod<bool>(
             'isIgnoringBatteryOptimizations',
           ) ??
-          true;
+          false;
     } catch (_) {
-      return true;
+      return false;
     }
   }
 
@@ -812,9 +685,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       final prev = beforeByKey[key];
       if (prev == null) {
         final note = Note.fromMap(r);
+        final rowId = r['id'];
+        final id = 900000 +
+            ((rowId is int ? rowId : note.clientKey?.hashCode ?? 0).abs() %
+                100000);
         unawaited(
           notifications.show(
-            900000 + (note.createdAt.millisecondsSinceEpoch % 100000),
+            id,
             strings.t('newNoteArrived'),
             note.title,
           ),
@@ -839,6 +716,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  Future<void> setSplashAnimation(bool value) async {
+    _showSplashAnimation = value;
+    await _prefs?.setBool('show_splash_animation', value);
+    notifyListeners();
+  }
+
   Future<void> _scheduleNoteReminder() async {
     if (isPc) return;
     await notifications.cancel(noteReminderNotificationId);
@@ -859,11 +742,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   List<Task> get tasksForSelectedDate => tasksForDate(selectedDate);
 
-  /// Задачи дня. Выполненные остаются в списке (внизу, с пометкой),
-  /// чтобы было видно, что задача сделана.
+  /// Задачи дня. Задачи без даты (dueAt == null) показываются в любом дне.
+  /// Выполненные остаются в списке (внизу, с пометкой).
   List<Task> tasksForDate(DateTime date) {
     return _tasks
-        .where((t) => t.dueAt != null && _sameDay(t.dueAt!, date))
+        .where((t) => (t.dueAt == null) || _sameDay(t.dueAt!, date))
         .toList()
       ..sort(_taskSorter);
   }
@@ -890,18 +773,26 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  Future<void> setCustomTextColor(Color color) async {
+    _customTextColor = color;
+    await _prefs?.setInt('custom_text_color', color.toARGB32());
+    notifyListeners();
+  }
+
   Future<void> setDarkTheme(bool value) async {
-    if (value == _isDarkTheme) return;
-    _isDarkTheme = value;
+    final mode = value ? 'dark' : 'light';
+    if (mode == _themeMode) return;
+    _themeMode = mode;
+    await _prefs?.setString('theme_mode', mode);
     await _prefs?.setBool('dark_theme', value);
     notifyListeners();
   }
 
-  Future<void> setDailyGoal(int value) async {
-    final clamped = value.clamp(1, 100);
-    if (clamped == _dailyGoal) return;
-    _dailyGoal = clamped;
-    await _prefs?.setInt('daily_goal', clamped);
+  Future<void> setThemeMode(String mode) async {
+    if (mode == _themeMode) return;
+    _themeMode = mode;
+    await _prefs?.setString('theme_mode', mode);
+    await _prefs?.setBool('dark_theme', mode != 'light');
     notifyListeners();
   }
 
@@ -1051,18 +942,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   /// если их ещё нет. Вызывается при запуске и при возвращении в приложение.
   Future<void> _ensureDailyOccurrences() async {
     final today = _today();
-    final dailyTasks = _tasks.where(
-      (t) => t.recurrence == 'daily' && t.clientKey != null,
-    );
+    final dailyTasks = _tasks.where((t) => t.recurrence == 'daily');
     for (final template in dailyTasks) {
       final alreadyToday = _tasks.any((t) =>
           t.id != template.id &&
-          t.clientKey == template.clientKey &&
+          t.title.trim().toLowerCase() == template.title.trim().toLowerCase() &&
           t.dueAt != null &&
           _sameDay(t.dueAt!, today));
       if (!alreadyToday) {
         final next = template.copyWith(
           id: null,
+          clientKey: null,
           dueAt: DateTime(today.year, today.month, today.day,
               template.dueAt?.hour ?? 9, template.dueAt?.minute ?? 0),
           completed: false,
@@ -1093,6 +983,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> updateTask(Task task) async {
+    if (task.id == null) return;
     await db.updateTask(task);
     final i = _tasks.indexWhere((t) => t.id == task.id);
     if (i != -1) {
