@@ -29,13 +29,114 @@ class SyncServerResult {
   });
 }
 
+/// Ключ доступа к синку может прятаться и настраиваться автоматически,
+/// поэтому сервер держит его в файле рядом с БД. Ротация токена (#19):
+/// ПК периодически меняет ключ; старый принимается ещё 3 дня, чтобы
+/// телефон, который уже получил новый ключ в шифрованном ответе (или ещё
+/// не синкался), не был отрезан.
+class SyncServerState {
+  static const rotateEveryMs = Duration.millisecondsPerDay;
+  static const previousGraceMs = Duration.millisecondsPerDay * 3;
+
+  final File _file;
+  Map<String, dynamic> _data;
+
+  SyncServerState._(this._file, this._data);
+
+  static Future<SyncServerState> load(String seedToken) async {
+    final file = File(p.join(TaskDatabase.desktopDataDir(), 'server-state.json'));
+    Map<String, dynamic>? data;
+    try {
+      if (await file.exists()) {
+        final raw = (await file.readAsString()).trim();
+        if (raw.isNotEmpty) data = jsonDecode(raw) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    data ??= {};
+    final token = (data['token'] as String? ?? '').trim();
+    final seed = seedToken.trim();
+    // Ручная смена ключа в настройках ПК имеет приоритет над сохранённым —
+    // начинаем с него и забываем старую пару (grace обнуляется).
+    if (seed.isNotEmpty && (token.isEmpty || seed != token)) {
+      data['token'] = seed;
+      data['previous_token'] = null;
+      data['previous_token_expiry'] = null;
+    }
+    data['device_id'] ??= TaskDatabase.newKey();
+    data['ctrs'] = Map<String, dynamic>.from(data['ctrs'] as Map? ?? {});
+    data['sctr'] = data['sctr'] as int? ?? 0;
+    data['last_rotate_at'] = data['last_rotate_at'] as int? ?? 0;
+    final state = SyncServerState._(file, data);
+    await state.save();
+    return state;
+  }
+
+  Future<void> save() async {
+    try {
+      await _file.parent.create(recursive: true);
+      await _file.writeAsString(jsonEncode(_data));
+    } catch (_) {}
+  }
+
+  String get deviceId => (_data['device_id'] as String?) ?? '';
+  String get token => (_data['token'] as String?) ?? '';
+  int get sctr => _data['sctr'] as int? ?? 0;
+
+  /// Увеличивает серверный счётчик ответов и возвращает новое значение.
+  int nextSctr() {
+    final n = (_data['sctr'] as int? ?? 0) + 1;
+    _data['sctr'] = n;
+    return n;
+  }
+
+  /// Текущий ключ и старый (пока не истёк grace-период) — для приёма.
+  List<String> acceptedTokens(int nowMs) {
+    final result = <String>[];
+    final cur = token;
+    if (cur.isNotEmpty) result.add(cur);
+    final prev = _data['previous_token'] as String?;
+    final expiry = _data['previous_token_expiry'] as int?;
+    if (prev != null &&
+        prev.trim().isNotEmpty &&
+        expiry != null &&
+        nowMs < expiry) {
+      result.add(prev.trim());
+    }
+    return result;
+  }
+
+  /// Проверка накопленного ответа телефона на replay (#6): отклоняем запрос,
+  /// если его счётчик не больше уже принятого для этого устройства.
+  bool acceptClientCtr(String clientId, int ctr) {
+    final map = _data['ctrs'] as Map<String, dynamic>;
+    final last = (map[clientId] as int?) ?? 0;
+    if (ctr <= last) return false;
+    map[clientId] = ctr;
+    return true;
+  }
+
+  Future<String?> maybeRotate(int nowMs) async {
+    final last = _data['last_rotate_at'] as int? ?? 0;
+    if (nowMs - last < rotateEveryMs) return null;
+    final cur = token;
+    if (cur.isEmpty) return null;
+    final next = TaskDatabase.newKey();
+    if (next.isEmpty || next == cur) return null;
+    _data['previous_token'] = cur;
+    _data['previous_token_expiry'] = nowMs + previousGraceMs;
+    _data['token'] = next;
+    _data['last_rotate_at'] = nowMs;
+    await save();
+    return next;
+  }
+}
+
 /// HTTP-сервер, который работает в KHS на ПК и отдаёт хранилище
 /// (БД + Obsidian) телефону по локальной сети.
 class SyncServer {
   final TaskDatabase db;
   final ObsidianService obsidian;
   final int port;
-  final String token;
 
   /// IP-интерфейс для приёма соединений. Пустая строка = любой (0.0.0.0).
   final String bindHost;
@@ -43,11 +144,23 @@ class SyncServer {
   /// Вызывается после того, как данные изменились — чтобы UI обновился.
   final Future<void> Function() onChanged;
 
+  /// Вызывается, когда сервер автоматически сменил ключ доступа (#19).
+  final Future<void> Function(String newToken)? onTokenRotated;
+
+  /// Ключ доступа, заданный пользователем/приложением при старте сервера.
+  final String token;
+
+  SyncServerState? _state;
+  SyncServerState get state => _state!;
+
   HttpServer? _server;
   bool _running = false;
 
-  static const _maxSyncBody = 40 * 1024 * 1024;
+  static const _maxSyncBody = 16 * 1024 * 1024;
+  static const _maxItems = 20000;
+  static const _maxQueueDepth = 4;
   Future<void> _syncQueue = Future.value();
+  int _queueDepth = 0;
 
   SyncServer({
     required this.db,
@@ -56,6 +169,7 @@ class SyncServer {
     required this.token,
     this.bindHost = '',
     required this.onChanged,
+    this.onTokenRotated,
   });
 
   bool get isRunning => _running;
@@ -79,6 +193,7 @@ class SyncServer {
 
   Future<void> start() async {
     if (_running) return;
+    _state = await SyncServerState.load(token);
     InternetAddress address = InternetAddress.anyIPv4;
     final host = bindHost.trim();
     if (host.isNotEmpty && host != '0.0.0.0') {
@@ -151,14 +266,14 @@ class SyncServer {
       final path = req.uri.path;
       await _logRequest('${req.method} $path');
       if (path == '/api/v1/health' && req.method == 'GET') {
-        await _respondJson(req, 200, {
-          'ok': true,
-          'app': 'khs',
-          'time': DateTime.now().millisecondsSinceEpoch,
-        });
+        await _handleHealth(req);
         return;
       }
       if (path == '/api/v1/sync' && req.method == 'POST') {
+        if (_queueDepth >= _maxQueueDepth) {
+          await _respondJson(req, 429, {'error': 'busy'});
+          return;
+        }
         await _enqueueSync(() => _handleSync(req));
         return;
       }
@@ -185,7 +300,10 @@ class SyncServer {
   }
 
   Future<void> _enqueueSync(Future<void> Function() task) {
-    final result = _syncQueue.then((_) => task());
+    _queueDepth++;
+    final result = _syncQueue.then((_) => task()).whenComplete(() {
+      _queueDepth--;
+    });
     _syncQueue = result.catchError((_) {});
     return result;
   }
@@ -216,7 +334,6 @@ class SyncServer {
     final seen = <String>{};
     final result = <Directory>[];
     final candidates = <String>[
-      // Папка рядом с exe — надёжно независимо от того, откуда запущен KHS.
       if (Platform.resolvedExecutable.isNotEmpty)
         p.dirname(Platform.resolvedExecutable),
       Directory.current.path,
@@ -238,6 +355,32 @@ class SyncServer {
     return null;
   }
 
+  Future<({File file, Map<String, dynamic> meta})?> _findUpdateMeta() async {
+    final file = _findUpdateFile('update.json');
+    if (file == null) return null;
+    try {
+      var text = await file.readAsString();
+      if (text.startsWith('\uFEFF')) text = text.substring(1);
+      final meta = jsonDecode(text) as Map<String, dynamic>;
+      return (file: file, meta: meta);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Разрешённые к отдаче по /files/ имена (#17): файлы обновлений из
+  /// update.json + index.html — все строго из каталога этого update.json.
+  Set<String> _allowedFileNames(Map<String, dynamic> meta) {
+    final names = <String>{'index.html'};
+    for (final key in ['android', 'windows']) {
+      final v = meta[key] as String?;
+      if (v != null && v.trim().isNotEmpty) {
+        names.add(p.basename(v.trim()));
+      }
+    }
+    return names;
+  }
+
   /// GET / — промо-страница приложения (index.html рядом с update.json).
   Future<void> _handlePromo(HttpRequest req) async {
     final file = _findUpdateFile('index.html');
@@ -254,6 +397,40 @@ class SyncServer {
     await req.response.close();
   }
 
+  /// GET /api/v1/health — диспетчер отвечает «жив/не жив», но только
+  /// тому, кто знает ключ (#18): без аутентификации не светим даже это.
+  Future<void> _handleHealth(HttpRequest req) async {
+    final key = 'health:${_remote(req)}';
+    if (_tokenRateBlocked(key)) {
+      await _respondJson(req, 403, {'error': 'too_many_failures'});
+      return;
+    }
+    final token = _sentToken(req);
+    if (!_tokenOkForNetwork(token, DateTime.now().millisecondsSinceEpoch)) {
+      _tokenFailure(key);
+      await _respondJson(req, 401, {'error': 'unauthorized'});
+      return;
+    }
+    _tokenSuccess(key);
+    await _respondJson(req, 200, {'ok': true});
+  }
+
+  /// Проверяет ключ (текущий или из grace-периода) — константное время.
+  bool _tokenOkForNetwork(String? sent, int nowMs) {
+    final accepted = state.acceptedTokens(nowMs);
+    if (accepted.isEmpty) return false;
+    if (sent == null) return false;
+    for (final t in accepted) {
+      if (sent.length != t.length) continue;
+      var diff = 0;
+      for (var i = 0; i < t.length; i++) {
+        diff |= t.codeUnitAt(i) ^ sent.codeUnitAt(i);
+      }
+      if (diff == 0) return true;
+    }
+    return false;
+  }
+
   /// GET /api/v1/update — метаданные доступного обновления (из update.json).
   Future<void> _handleUpdate(HttpRequest req) async {
     final key = 'update:${_remote(req)}';
@@ -262,31 +439,21 @@ class SyncServer {
       return;
     }
     final token = _sentToken(req);
-    if (!_tokenOk(token)) {
+    if (!_tokenOkForNetwork(token, DateTime.now().millisecondsSinceEpoch)) {
       _tokenFailure(key);
       await _respondJson(req, 401, {'error': 'unauthorized'});
       return;
     }
     _tokenSuccess(key);
-    final file = _findUpdateFile('update.json');
-    if (file == null) {
+    final found = await _findUpdateMeta();
+    if (found == null) {
       await _respondJson(req, 404, {'error': 'no_update'});
       return;
     }
-    Map<String, dynamic> meta;
-    try {
-      var text = await file.readAsString();
-      if (text.startsWith('\uFEFF')) text = text.substring(1);
-      meta = jsonDecode(text) as Map<String, dynamic>;
-    } catch (_) {
-      await _respondJson(req, 500, {'error': 'bad_update_json'});
-      return;
-    }
+    final meta = found.meta;
     final result = <String, dynamic>{
       'version': meta['version'] as String? ?? '',
       'notes': meta['notes'] as String? ?? '',
-      // Полная история версий (из кода приложения), чтобы у телефона
-      // история «Что нового» всегда была актуальной, даже если клиент старый.
       'history': [
         for (final r in khsReleases)
           {'version': r.version, 'date': r.date, 'changes': r.changes},
@@ -299,9 +466,9 @@ class SyncServer {
     for (final key in ['android', 'windows']) {
       final name = meta[key] as String?;
       if (name == null) continue;
-      final f = File(p.join(file.parent.path, name));
+      final f = File(p.join(found.file.parent.path, p.basename(name.trim())));
       if (f.existsSync()) {
-        result[key] = name;
+        result[key] = name.trim();
         result['${key}_size'] = f.lengthSync();
         final sha = meta['${key}_sha256'] as String?;
         if (sha != null && sha.trim().isNotEmpty) {
@@ -312,7 +479,7 @@ class SyncServer {
     await _respondJson(req, 200, result);
   }
 
-  /// GET /files/{name} — отдача файла обновления.
+  /// GET /files/{name} — отдача файла обновления, только из allowlist (#17).
   Future<void> _handleFile(HttpRequest req) async {
     final name = req.uri.pathSegments.last;
     if (name.isEmpty ||
@@ -328,50 +495,58 @@ class SyncServer {
       return;
     }
     final token = _sentToken(req);
-    if (!_tokenOk(token)) {
+    if (!_tokenOkForNetwork(token, DateTime.now().millisecondsSinceEpoch)) {
       _tokenFailure(key);
       await _respondJson(req, 401, {'error': 'unauthorized'});
       return;
     }
     _tokenSuccess(key);
-    final file = _findUpdateFile(name);
-    if (file == null || !file.existsSync()) {
-      // Совместимость со старыми клиентами: версия с багом интерполяции
-      // просила имя вида «Closure: ... :.(filename)». Отдаём актуальный
-      // android-файл из update.json, чтобы битый клиент мог обновиться.
-      final fallback = await _brokenClientFallback(name);
-      if (fallback != null) {
-        await _logRequest('-> fallback for "$name" -> ${p.basename(fallback.path)}');
-        return await _streamFile(req, fallback);
-      }
-      await _logRequest('-> 404 file: "$name" not found (dirs: '
-          '${updateDirs().map((d) => d.path).join(', ')})');
+    final found = await _findUpdateMeta();
+    if (found == null) {
       await _respondJson(req, 404, {'error': 'not_found'});
       return;
     }
-    await _logRequest('-> 200 file: $name (${file.lengthSync()} b)');
+    final allowed = _allowedFileNames(found.meta);
+    late final File? file;
+    if (allowed.contains(p.basename(name))) {
+      final f = File(p.join(found.file.parent.path, p.basename(name)));
+      file = f.existsSync() ? f : null;
+      if (file == null) {
+        // Совместимость со старыми клиентами: битый клиент просил «мусорное»
+        // имя — отдаём актуальный android-файл из update.json.
+        final fallback = await _brokenClientFallback(found);
+        if (fallback != null) {
+          await _logRequest(
+            '-> fallback for "$name" -> ${p.basename(fallback.path)}',
+          );
+          return await _streamFile(req, fallback);
+        }
+        await _logRequest('-> 404 file: "$name" not found');
+        await _respondJson(req, 404, {'error': 'not_found'});
+        return;
+      }
+    } else {
+      await _logRequest('-> 403 file: "$name" not allowed');
+      await _respondJson(req, 403, {'error': 'not_allowed'});
+      return;
+    }
+    await _logRequest('-> 200 file: ${p.basename(name)} (${file.lengthSync()} b)');
     await _streamFile(req, file);
   }
 
-  /// Если запрошенное имя — «мусорное» имя из-за бага интерполяции в старом
+  /// Если запрошенное имя — «мусорное» из-за бага интерполяции в старом
   /// клиенте, возвращает текущий файл обновления для Android.
-  Future<File?> _brokenClientFallback(String name) async {
+  Future<File?> _brokenClientFallback(
+    ({File file, Map<String, dynamic> meta}) found,
+  ) async {
+    final name = p.basename(found.file.path);
     if (!name.contains('Closure') && !name.contains('Function') && !name.contains('(filename)')) {
       return null;
     }
-    final metaFile = _findUpdateFile('update.json');
-    if (metaFile == null) return null;
-    try {
-      var text = await metaFile.readAsString();
-      if (text.startsWith('\uFEFF')) text = text.substring(1);
-      final meta = jsonDecode(text) as Map<String, dynamic>;
-      final fileName = meta['android'] as String?;
-      if (fileName == null) return null;
-      final f = File(p.join(metaFile.parent.path, fileName));
-      return f.existsSync() ? f : null;
-    } catch (_) {
-      return null;
-    }
+    final fileName = found.meta['android'] as String?;
+    if (fileName == null) return null;
+    final f = File(p.join(found.file.parent.path, p.basename(fileName)));
+    return f.existsSync() ? f : null;
   }
 
   Future<void> _streamFile(HttpRequest req, File file) async {
@@ -385,17 +560,6 @@ class SyncServer {
     } finally {
       await req.response.close();
     }
-  }
-
-  bool _tokenOk(String? sent) {
-    final t = token.trim();
-    if (t.isEmpty) return false;
-    if (sent == null || sent.length != t.length) return false;
-    var diff = 0;
-    for (var i = 0; i < t.length; i++) {
-      diff |= t.codeUnitAt(i) ^ sent.codeUnitAt(i);
-    }
-    return diff == 0;
   }
 
   /// Защита от перебора токена: после нескольких неудач подряд ответы с 401
@@ -466,8 +630,6 @@ class SyncServer {
       return;
     }
     if ((body['v'] as int?) != 2) {
-      // Старые клиенты отдают тело открытым текстом с token внутри —
-      // не принимаем: это превратило бы токен в секрет, видимый в сети.
       await _respondJson(req, 426, {'error': 'protocol_old'});
       return;
     }
@@ -476,30 +638,68 @@ class SyncServer {
       await _respondJson(req, 400, {'error': 'bad_body'});
       return;
     }
-    Map<String, dynamic> inner;
-    try {
-      inner = jsonDecode(
-            await SyncCrypto.decrypt(token, dataB64),
-          )
-          as Map<String, dynamic>;
-    } catch (_) {
-      // Не расшифровалось = неверный или отсутствующий ключ доступа.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final acceptedTokens = state.acceptedTokens(nowMs);
+    Map<String, dynamic> inner = const {};
+    var ok = false;
+    String? authToken;
+    for (final t in acceptedTokens) {
+      try {
+        final decoded =
+            jsonDecode(await SyncCrypto.decrypt(t, dataB64));
+        if (decoded is Map<String, dynamic>) {
+          inner = decoded;
+          authToken = t;
+          ok = true;
+          break;
+        }
+      } catch (_) {}
+    }
+    if (!ok || authToken == null) {
       _tokenFailure(syncKey);
       await _respondJson(req, 401, {'error': 'unauthorized'});
       return;
     }
     _tokenSuccess(syncKey);
 
+    // Anti-replay (#6): счётчик устройства из зашифрованного тела. Если
+    // перехваченный запрос повторить — счётчик не больше принятого,
+    // и запрос отклоняется ДО применения изменений.
+    final clientId = inner['cid'] as String?;
+    final ctr = inner['ctr'];
+    if (clientId == null || clientId.length > 64) {
+      await _respondJson(req, 400, {'error': 'bad_client'});
+      return;
+    }
+    final ctrInt = ctr is int ? ctr : null;
+    if (ctrInt == null || ctrInt < 0) {
+      await _respondJson(req, 400, {'error': 'bad_ctr'});
+      return;
+    }
+
     final clientTasks = (inner['tasks'] as List? ?? [])
         .cast<Map<String, dynamic>>();
     final clientNotes = (inner['notes'] as List? ?? [])
         .cast<Map<String, dynamic>>();
+    if (clientTasks.length > _maxItems || clientNotes.length > _maxItems) {
+      await _respondJson(req, 413, {'error': 'too_many_items'});
+      return;
+    }
+
+    // Anti-replay (#6): счётчик устройства из зашифрованного тела. Если
+    // перехваченный запрос повторить — счётчик не больше принятого,
+    // и запрос отклоняется ДО применения изменений.
+    if (!state.acceptClientCtr(clientId, ctrInt)) {
+      await _logRequest('-> 409 replay: $clientId ctr=$ctrInt');
+      await _respondJson(req, 409, {'error': 'replay'});
+      return;
+    }
 
     final serverTasks = await db.getAllTasks();
     final serverNotes = await db.getAllNotes();
 
-    final mergedTasks = SyncEngine.mergeTasks(serverTasks, clientTasks);
-    final mergedNotes = SyncEngine.mergeNotes(serverNotes, clientNotes);
+    final mergedTasks = SyncEngine.mergeTasks(serverTasks, clientTasks, now: nowMs);
+    final mergedNotes = SyncEngine.mergeNotes(serverNotes, clientNotes, now: nowMs);
 
     var addedTasks = 0;
     var updatedTasks = 0;
@@ -594,13 +794,27 @@ class SyncServer {
       await onChanged();
     }
 
+    // Ротация ключа (#19): новый ключ передаётся ТОЛЬКО в шифрованном
+    // ответе и применяется при следующем синке; старый живёт ещё 3 дня.
+    final newToken = await state.maybeRotate(nowMs);
+    if (newToken != null) {
+      try {
+        await onTokenRotated?.call(newToken);
+      } catch (_) {}
+    }
+    final sctr = state.nextSctr();
+    await state.save();
+
     final reply = {
       'tasks': mergedTasks,
       'notes': mergedNotes,
       'vaultPath': obsidian.vaultPath,
-      'time': DateTime.now().millisecondsSinceEpoch,
+      'time': nowMs,
+      'deviceId': state.deviceId,
+      'sctr': sctr,
+      if (newToken != null) 'newToken': newToken,
     };
-    final data = await SyncCrypto.encrypt(token, jsonEncode(reply));
+    final data = await SyncCrypto.encrypt(authToken, jsonEncode(reply));
     await _respondJson(req, 200, {'v': 2, 'data': data});
 
     _lastResult = SyncServerResult(

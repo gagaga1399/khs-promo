@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  KHS работает с собственным ПК по локальной сети: адрес ПК — это обычный
+  LAN IPv4, который нельзя внести в доменные whitelist'ы Android. Весь
+  полезный трафик (синк, файлы обновлений) зашифрован на уровне приложения
+  (AES-256-GCM, ключ доступа) и подписан (Ed25519 для обновлений), поэтому
+  cleartext разрешён только как транспорт для уже защищённых данных.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

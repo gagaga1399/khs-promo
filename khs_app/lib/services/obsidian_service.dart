@@ -65,11 +65,23 @@ class ObsidianService {
     return null;
   }
 
-  String _folderNotePath(String folder, DateTime date) {
+  /// Ошибка (или пустой список), если сегмент папки нельзя использовать:
+  /// «..», «.», пустые сегменты и т.п. — чтобы конфиг vault не вытаскивал
+  /// записи за пределы хранилища (#7).
+  static List<String> _safeSegments(String folder) {
     final segs = folder
         .split(RegExp(r'[/\\]'))
-        .where((s) => s.isNotEmpty)
+        .where((s) => s.isNotEmpty && s != '.' && s != '..')
         .toList();
+    if (RegExp(r'^[A-Za-z]:$').hasMatch(segs.firstOrNull ?? '')) {
+      return [];
+    }
+    return segs;
+  }
+
+  String _folderNotePath(String folder, DateTime date) {
+    final segs = _safeSegments(folder);
+    if (segs.isEmpty) return _defaultNotePath(date);
     if (segs.length >= 3 &&
         RegExp(r'^\d{4}$').hasMatch(segs[segs.length - 3])) {
       segs[segs.length - 3] = date.year.toString();
@@ -80,7 +92,7 @@ class ObsidianService {
       }
       return p.joinAll([vaultPath, ...segs, '${dateString(date)}.md']);
     }
-    return p.join(vaultPath, folder, '${dateString(date)}.md');
+    return p.join(vaultPath, p.joinAll(segs), '${dateString(date)}.md');
   }
 
   String _defaultNotePath(DateTime date) => p.joinAll([
@@ -129,7 +141,9 @@ class ObsidianService {
         var rel = (json['template'] as String).trim();
         if (rel.isEmpty) return null;
         if (!rel.endsWith('.md')) rel = '$rel.md';
-        final file = File(p.join(vaultPath, rel));
+        final segs = _safeSegments(rel);
+        if (segs.isEmpty) return null;
+        final file = File(p.join(vaultPath, p.joinAll(segs)));
         if (await file.exists()) {
           return await file.readAsString(encoding: utf8);
         }
@@ -338,11 +352,12 @@ class ObsidianService {
 
     String newContent;
     if (await file.exists()) {
-      final lines = (await file.readAsString(encoding: utf8)).split('\n');
+      final allLines = (await file.readAsString(encoding: utf8)).split('\n');
+      final userLines = _userCheckboxLines(allLines);
       final out = <String>[];
       var skipping = false;
       var removed = false;
-      for (final raw in lines) {
+      for (final raw in allLines) {
         final line = raw;
         if (line.trim() == sectionTitle) {
           skipping = true;
@@ -364,10 +379,12 @@ class ObsidianService {
       var content = out.join('\n');
       if (!content.endsWith('\n')) content += '\n';
       if (content.trimRight().isNotEmpty) content += '\n';
+      var tail = '';
+      if (userLines.isNotEmpty) tail = '\n${userLines.join('\n')}\n';
       if (removed) {
-        newContent = '$content\n$section';
+        newContent = '$content\n$section$tail';
       } else {
-        newContent = '$content$section';
+        newContent = '$content$section$tail';
       }
     } else {
       newContent = await _newDailyNote(section);
@@ -428,17 +445,63 @@ class ObsidianService {
     return name.isEmpty ? 'без названия' : name;
   }
 
-  /// Записывает отдельную заметку (без даты) в vault — файл
-  /// `<vault>/заметки/<Имя>.md`. Так заметка всегда видна в Obsidian,
-  /// а не только ежедневная заметка дня.
+  static String _noteMarker(Note note) {
+    final key = note.clientKey ?? '';
+    return '> Заметка KHS · ${dateString(note.createdAt)} · k[$key]';
+  }
+
+  static String? _noteMarkerKey(String content) {
+    for (final raw in content.split('\n')) {
+      final line = raw.trimLeft();
+      if (line.startsWith('> Заметка KHS')) {
+        final m = RegExp(r'k\[([0-9a-f]{8,64})\]').firstMatch(line);
+        return m?.group(1);
+      }
+    }
+    return null;
+  }
+
+  Future<File?> _findStandaloneNoteFile(Note note) async {
+    final key = note.clientKey;
+    if (key == null || key.isEmpty) return null;
+    final dir = Directory(p.join(vaultPath, 'заметки'));
+    if (!await dir.exists()) return null;
+    await for (final e in dir.list()) {
+      if (e is! File) continue;
+      final f = e;
+      try {
+        final content = await f.readAsString(encoding: utf8);
+        if (_noteMarkerKey(content) == key) return f;
+      } catch (_) {}
+    }
+    return null;
+  }
+
   Future<String> writeStandaloneNote(Note note) async {
     final folder = p.join(vaultPath, 'заметки');
     await Directory(folder).create(recursive: true);
-    final file = File(p.join(folder, '${_safeNoteName(note.title)}.md'));
+    final previous = await _findStandaloneNoteFile(note);
+    final baseName = _safeNoteName(note.title);
+    var file = File(p.join(folder, '$baseName.md'));
+    if (previous != null) {
+      if (previous.path == file.path) {
+        file = previous;
+      } else {
+        try {
+          await previous.delete();
+        } catch (_) {}
+      }
+    } else {
+      var suffix = 2;
+      while (await file.exists()) {
+        file = File(p.join(folder, '$baseName ($suffix).md'));
+        suffix++;
+      }
+    }
     final buffer = StringBuffer();
     buffer.writeln('# ${note.title.trim()}');
     buffer.writeln();
-    buffer.writeln('> Заметка KHS · ${dateString(note.createdAt)}');
+    buffer.writeln(_noteMarker(note));
     buffer.writeln();
     final body = note.content.trimRight();
     if (body.isNotEmpty) {
@@ -449,14 +512,28 @@ class ObsidianService {
     return file.path;
   }
 
-  /// Удаляет файл отдельной заметки из vault (мягкое удаление в KHS).
   Future<void> deleteStandaloneNote(Note note) async {
+    final byKey = await _findStandaloneNoteFile(note);
+    if (byKey != null) {
+      try {
+        await byKey.delete();
+      } catch (_) {}
+      return;
+    }
+    // По имени файл тоже удаляем только если это действительно наша заметка
+    // (есть маркер KHS): чужой пользовательский файл с таким же именем
+    // трогать нельзя (#7).
     final file = File(
       p.join(vaultPath, 'заметки', '${_safeNoteName(note.title)}.md'),
     );
-    try {
-      await file.delete();
-    } catch (_) {}
+    if (await file.exists()) {
+      try {
+        final content = await file.readAsString(encoding: utf8);
+        if (_noteMarkerKey(content) != null) {
+          await file.delete();
+        }
+      } catch (_) {}
+    }
   }
 
   /// Читает текст блока `## Заметка` из ежедневной заметки (если есть).
@@ -524,6 +601,17 @@ class ObsidianService {
         result = result.trimRight();
         if (result.isNotEmpty) result += '\n';
         result += block;
+      }
+    }
+    return result;
+  }
+  static List<String> _userCheckboxLines(List<String> lines) {
+    final result = <String>[];
+    for (final raw in lines) {
+      final line = raw.trimRight();
+      if (RegExp(r'^\s*- \[[ xX]\]\s').hasMatch(line) &&
+          !_isKhsTaskLine(line)) {
+        result.add(line);
       }
     }
     return result;

@@ -60,6 +60,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Timer? _syncTimer;
   List<String> _localAddresses = const [];
 
+  // Anti-replay / привязка к серверу: постоянные счётчики и идентификаторы
+  // телефона, чтобы перехваченные запросы нельзя было повторить (#6),
+  // а данные не сливались в чужой сервер (#11).
+  String _syncCid = '';
+  int _syncCtr = 0;
+  int _lastSyncCtr = 0;
+  String _pinnedDeviceId = '';
+
   bool _noteReminderEnabled = false;
   int _noteReminderMinutes = 20 * 60; // 20:00
   bool _showSplashAnimation = true;
@@ -250,6 +258,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       _syncToken = TaskDatabase.newKey();
       await _prefs?.setString('sync_token', _syncToken);
     }
+    _syncCid = _prefs?.getString('sync_cid') ?? '';
+    if (_syncCid.length != 32) {
+      _syncCid = TaskDatabase.newKey();
+      await _prefs?.setString('sync_cid', _syncCid);
+    }
+    _syncCtr = _prefs?.getInt('sync_ctr') ?? 0;
+    _lastSyncCtr = _prefs?.getInt('sync_last_srv_ctr') ?? 0;
+    _pinnedDeviceId = _prefs?.getString('sync_server_device') ?? '';
     _syncServerEnabled = _prefs?.getBool('sync_server_enabled') ?? false;
     _syncPort = _prefs?.getInt('sync_port') ?? defaultSyncPort;
     _syncBindHost = _prefs?.getString('sync_bind_host') ?? '';
@@ -421,6 +437,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  /// Автоматическая ротация ключа на ПК (#19): сервер уже сменил ключ
+  /// и раздал его в шифрованном ответе. Обновляем кэш для UI и будущих
+  /// запросов; перезапуск не нужен — сервер уже работает на новом ключе.
+  Future<void> _applyRotatedToken(String newToken) async {
+    if (newToken.isEmpty || newToken == _syncToken) return;
+    _syncToken = newToken;
+    await _prefs?.setString('sync_token', _syncToken);
+    notifyListeners();
+  }
+
   Future<void> setSyncPort(int value) async {
     _syncPort = value;
     await _prefs?.setInt('sync_port', value);
@@ -466,6 +492,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         token: _syncToken,
         bindHost: bind,
         onChanged: reloadFromDb,
+        onTokenRotated: _applyRotatedToken,
       );
       await _syncServer!.start();
       _localAddresses = await SyncServer.localAddresses();
@@ -543,13 +570,40 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _syncing = true;
     notifyListeners();
     try {
-      final client = SyncClient(db: db, host: _syncAddress, token: _syncToken);
+      final client = SyncClient(
+        db: db,
+        host: _syncAddress,
+        token: _syncToken,
+        cid: _syncCid,
+        ctr: _syncCtr,
+        lastServerCtr: _lastSyncCtr,
+        pinnedDeviceId: _pinnedDeviceId,
+      );
       final result = await client.sync();
       _lastSyncTime = DateTime.now();
       _lastSyncStatus = result.ok
           ? 'ok'
           : (result.status == 'offline' ? 'offline' : 'error');
       if (result.ok) {
+        final nextCtr = result.nextCtr;
+        final serverCtr = result.serverCtr;
+        if (nextCtr != null) {
+          _syncCtr = nextCtr;
+          await _prefs?.setInt('sync_ctr', _syncCtr);
+        }
+        if (serverCtr != null) {
+          _lastSyncCtr = serverCtr;
+          await _prefs?.setInt('sync_last_srv_ctr', _lastSyncCtr);
+        }
+        final devId = result.serverDeviceId;
+        if (devId != null && devId.isNotEmpty && _pinnedDeviceId.isEmpty) {
+          _pinnedDeviceId = devId;
+          await _prefs?.setString('sync_server_device', _pinnedDeviceId);
+        }
+        final rotated = result.newToken;
+        if (rotated != null && rotated.isNotEmpty) {
+          await _applyRotatedToken(rotated);
+        }
         await reloadFromDb();
         _scheduleAllTaskNotifications();
         _notifyNoteArrivals(result.notesBefore, result.notesAfter);
