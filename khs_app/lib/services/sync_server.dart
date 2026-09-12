@@ -43,8 +43,20 @@ class SyncServerState {
 
   SyncServerState._(this._file, this._data);
 
+  /// Каталог состояния сервера. Тесты отключают стабильный путь, чтобы не
+  /// трогать реальные данные приложения.
+  static String dataDir() {
+    if (!TaskDatabase.useStableDesktopPath) {
+      return p.join(Directory.current.path, '.khs-data');
+    }
+    return TaskDatabase.desktopDataDir();
+  }
+
+  /// Файл состояния сервера (ключ, счётчики anti-replay, deviceId).
+  static String stateFile() => p.join(dataDir(), 'server-state.json');
+
   static Future<SyncServerState> load(String seedToken) async {
-    final file = File(p.join(TaskDatabase.desktopDataDir(), 'server-state.json'));
+    final file = File(stateFile());
     Map<String, dynamic>? data;
     try {
       if (await file.exists()) {
@@ -309,8 +321,7 @@ class SyncServer {
   }
 
   /// Журнал запросов для отладки обновлений (рядом с базой данных).
-  static File _logFile() =>
-      File(p.join(TaskDatabase.desktopDataDir(), 'server.log'));
+  static File _logFile() => File(p.join(SyncServerState.dataDir(), 'server.log'));
 
   static Future<void> _logRequest(String line) async {
     try {
@@ -456,7 +467,11 @@ class SyncServer {
       'notes': meta['notes'] as String? ?? '',
       'history': [
         for (final r in khsReleases)
-          {'version': r.version, 'date': r.date, 'changes': r.changes},
+          {
+            'version': r.version,
+            'date': r.date,
+            'changes': [for (final c in r.changes) c.text],
+          },
       ],
     };
     final signature = meta['signature'] as String?;

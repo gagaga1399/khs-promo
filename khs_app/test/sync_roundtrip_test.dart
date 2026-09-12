@@ -12,6 +12,13 @@ import 'package:khs/services/update_checker.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+/// Ключ доступа для тестов: сервер принимает только непустой ключ (#18),
+/// поэтому весь обмен в тестах идёт с реальным токеном (заголовок/X-KHS-Token
+/// или шифрование тела).
+const String testToken = 'test-access-key';
+
+const Map<String, String> authHeader = {'X-KHS-Token': testToken};
+
 Future<int> _freePort() async {
   final srv = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   final port = srv.port;
@@ -23,6 +30,19 @@ void main() {
   setUpAll(() {
     sqfliteFfiInit();
     TaskDatabase.useStableDesktopPath = false;
+    // Состояние сервера (счётчики replay, deviceId) пишется в .khs-data в
+    // рабочей папке — стираем, чтобы тесты были независимы от запусков.
+    final dataDir = Directory(p.join(Directory.current.path, '.khs-data'));
+    if (dataDir.existsSync()) {
+      dataDir.deleteSync(recursive: true);
+    }
+  });
+
+  tearDownAll(() {
+    final dataDir = Directory(p.join(Directory.current.path, '.khs-data'));
+    if (dataDir.existsSync()) {
+      dataDir.deleteSync(recursive: true);
+    }
   });
 
   test(
@@ -69,7 +89,7 @@ void main() {
         db: dbServer,
         obsidian: ObsidianService(vault.path),
         port: port,
-        token: '',
+        token: testToken,
         onChanged: () async {},
       );
       await server.start();
@@ -77,7 +97,8 @@ void main() {
       final client = SyncClient(
         db: dbClient,
         host: '127.0.0.1:$port',
-        token: '',
+        token: testToken,
+        cid: 'phone-sync-both',
       );
 
       final result = await client.sync();
@@ -137,24 +158,39 @@ void main() {
       db: dbServer,
       obsidian: ObsidianService(vault.path),
       port: port,
-      token: '',
+      token: testToken,
       onChanged: () async {},
     );
     await server.start();
 
     // Первый синк: телефон получает заметку.
-    final client = SyncClient(db: dbClient, host: '127.0.0.1:$port', token: '');
-    await client.sync();
+    final client = SyncClient(
+      db: dbClient,
+      host: '127.0.0.1:$port',
+      token: testToken,
+      cid: 'phone-del',
+    );
+final firstSync = await client.sync();
 
     final clientNotes = await dbClient.getAllNotes();
     expect(clientNotes, hasLength(1));
     final key = clientNotes.single['client_key'] as String;
 
     // Удаляем на телефоне (мягкое удаление) и снова синхронизируемся.
+    // Как и в приложении, клиент собирается заново с подтверждёнными
+    // сервером счётчиками (anti-replay, #6).
     final localNote = (await dbClient.getAllNotes()).single;
     await dbClient.deleteNote(localNote['id'] as int);
-    final result2 = await client.sync();
-    expect(result2.ok, isTrue);
+    final client2 = SyncClient(
+      db: dbClient,
+      host: '127.0.0.1:$port',
+      token: testToken,
+      cid: 'phone-del',
+      ctr: firstSync.nextCtr ?? 1,
+      lastServerCtr: firstSync.serverCtr ?? 0,
+    );
+    final result2 = await client2.sync();
+    expect(result2.ok, isTrue, reason: 'err=${result2.error}');
 
     // Сервер тоже пометил заметку удалённой.
     final serverNotes = await dbServer.getAllNotes();
@@ -195,12 +231,17 @@ void main() {
       db: dbServer,
       obsidian: ObsidianService(vault.path),
       port: port,
-      token: '',
+      token: testToken,
       onChanged: () async {},
     );
     await server.start();
 
-    final client = SyncClient(db: dbClient, host: '127.0.0.1:$port', token: '');
+    final client = SyncClient(
+      db: dbClient,
+      host: '127.0.0.1:$port',
+      token: testToken,
+      cid: 'phone-stand',
+    );
     final result = await client.sync();
     expect(result.ok, isTrue);
 
@@ -240,16 +281,18 @@ void main() {
         db: dbServer,
         obsidian: ObsidianService(vault.path),
         port: port,
-        token: '',
+        token: testToken,
         onChanged: () async {},
       );
       await server.start();
 
       final client = HttpClient();
       try {
-        final metaRes = await (await client.getUrl(
+        final metaReq = await client.getUrl(
           Uri.parse('http://127.0.0.1:$port/api/v1/update'),
-        )).close();
+        );
+        authHeader.forEach(metaReq.headers.set);
+        final metaRes = await metaReq.close();
         expect(metaRes.statusCode, 200);
         final meta = jsonDecode(
           await utf8.decoder.bind(metaRes).join(),
@@ -258,9 +301,11 @@ void main() {
         expect(meta['android'], 'khs-test.apk');
         expect(meta['android_size'], 64);
 
-        final fileRes = await (await client.getUrl(
+        final fileReq = await client.getUrl(
           Uri.parse('http://127.0.0.1:$port/files/khs-test.apk'),
-        )).close();
+        );
+        authHeader.forEach(fileReq.headers.set);
+        final fileRes = await fileReq.close();
         expect(fileRes.statusCode, 200);
         final bytes = await fileRes.fold<List<int>>([], (a, b) => a..addAll(b));
         expect(bytes, hasLength(64));
@@ -286,7 +331,9 @@ void main() {
     final body = List<int>.filled(128, 3);
     String capturedUri = '';
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+    String capturedHeader = '';
     server.listen((req) async {
+      capturedHeader = req.headers.value('X-KHS-Token') ?? '';
       capturedUri =
           '${req.uri.path}${req.uri.hasQuery ? '?${req.uri.query}' : ''}';
       req.response
@@ -301,9 +348,11 @@ void main() {
       final checker = UpdateChecker(host: '127.0.0.1:$port', token: 'secret');
       final file = await checker.download('khs-1.2.13.apk', dir);
       expect(await file.readAsBytes(), body);
-      // Раньше URL получался вида «Closure: (String) => String ...» — это баг.
-      expect(capturedUri, '/files/khs-1.2.13.apk?token=secret');
+      // В адресе токен больше не светится — он ушёл в заголовок (#18):
+      // «Closure ...» в URL был багом интерполяции.
+      expect(capturedUri, '/files/khs-1.2.13.apk');
       expect(capturedUri.contains('Closure'), isFalse);
+      expect(capturedHeader, 'secret');
     } finally {
       await server.close(force: true);
       try {
@@ -312,7 +361,7 @@ void main() {
     }
   });
 
-  test('сервер отдаёт android-файл для «мусорного» имени старого клиента',
+  test('сервер отдаёт 403 для «мусорного» имени файла старого клиента (#17)',
       () async {
     final dirServer = await Directory.systemTemp.createTemp('khs_upd_fb');
     final vault = await Directory.systemTemp.createTemp('khs_vault_fb');
@@ -339,7 +388,7 @@ void main() {
         db: dbServer,
         obsidian: ObsidianService(vault.path),
         port: port,
-        token: '',
+        token: testToken,
         onChanged: () async {},
       );
       await server.start();
@@ -347,15 +396,19 @@ void main() {
       final client = HttpClient();
       try {
         // Имя, которое просил старый битый клиент.
-        final res = await (await client.getUrl(
+        final fallbackReq = await client.getUrl(
           Uri.parse(
             'http://127.0.0.1:$port/files/Closure:%20(String)%20=%3E%20String'
             '%20from%20Function%20\'_safeName@0\':.(filename)',
           ),
-        )).close();
-        expect(res.statusCode, 200);
-        final bytes = await res.fold<List<int>>([], (a, b) => a..addAll(b));
-        expect(bytes, hasLength(48));
+        );
+        fallbackReq.headers.set('X-KHS-Token', testToken);
+        final res = await fallbackReq.close();
+        // Мусорное имя из старого битого клиента теперь вне allowlist — 403.
+        expect(res.statusCode, 403);
+        final body = jsonDecode(await res.transform(utf8.decoder).join())
+            as Map<String, dynamic>;
+        expect(body['error'], 'not_allowed');
       } finally {
         client.close();
         await server.stop();
@@ -389,7 +442,7 @@ void main() {
       db: dbServer,
       obsidian: ObsidianService(vault.path),
       port: port,
-      token: '',
+      token: testToken,
       onChanged: () async {},
     );
     await server.start();
@@ -397,10 +450,11 @@ void main() {
     final client = SyncClient(
       db: dbClient,
       host: '127.0.0.1:$port',
-      token: '',
+      token: testToken,
+      cid: 'phone-vault',
     );
     final result = await client.sync();
-    expect(result.ok, isTrue);
+    expect(result.ok, isTrue, reason: 'err=${result.error}');
     expect(result.vaultPath, vault.path);
 
     await server.stop();
