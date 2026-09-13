@@ -24,6 +24,15 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.22',
+    date: '13.09.2026',
+    changes: [
+      ChangeEntry('Загрузка обновления: окно с процентом и прогресс-баром', ChangeType.feature),
+      ChangeEntry('Загрузку больше не обрывает между чанками файла', ChangeType.bugfix),
+      ChangeEntry('Редактор заметок: панель форматирования как в Obsidian — жирный, курсив, код, заголовки, списки, цитаты', ChangeType.feature),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.21',
     date: '13.09.2026',
     changes: [

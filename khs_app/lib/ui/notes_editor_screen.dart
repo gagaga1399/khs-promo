@@ -30,6 +30,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
     with WidgetsBindingObserver {
   late final TextEditingController _titleController;
   late final TextEditingController _contentController;
+  late final FocusNode _contentFocus;
   late bool _isDaily;
   late DateTime _date;
 
@@ -54,6 +55,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
         DateTime(now.year, now.month, now.day);
     _titleController.addListener(_onEdit);
     _contentController.addListener(_onEdit);
+    _contentFocus = FocusNode();
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -66,6 +68,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
     WidgetsBinding.instance.removeObserver(this);
     _titleController.dispose();
     _contentController.dispose();
+    _contentFocus.dispose();
     super.dispose();
   }
 
@@ -176,6 +179,128 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
     }
   }
 
+  static int _lineStart(int offset, String text) =>
+      text.lastIndexOf('\n', offset - 1) + 1;
+
+  static int _lineEnd(int offset, String text) {
+    final i = text.indexOf('\n', offset);
+    return i == -1 ? text.length : i;
+  }
+
+  void _applyInline(String prefix, String suffix) {
+    final c = _contentController;
+    final text = c.text;
+    var sel = c.selection;
+    if (!sel.isValid) sel = TextSelection.collapsed(offset: text.length);
+    final start = sel.isCollapsed ? sel.baseOffset : sel.start;
+    final end = sel.isCollapsed ? sel.baseOffset : sel.end;
+    final selected = text.substring(start, end);
+    final newText =
+        '${text.substring(0, start)}$prefix$selected$suffix${text.substring(end)}';
+    final newOffset = start + prefix.length;
+    c.value = TextEditingValue(
+      text: newText,
+      selection: selected.isEmpty
+          ? TextSelection.collapsed(offset: newOffset)
+          : TextSelection(
+              baseOffset: newOffset,
+              extentOffset: newOffset + selected.length,
+            ),
+      composing: TextRange.empty,
+    );
+    _contentFocus.requestFocus();
+  }
+
+  void _toggleLinePrefix(String prefix) {
+    final c = _contentController;
+    final text = c.text;
+    var sel = c.selection;
+    if (!sel.isValid) sel = TextSelection.collapsed(offset: text.length);
+    final blockStart = _lineStart(sel.start, text);
+    final blockEnd = _lineEnd(sel.isCollapsed ? sel.start : sel.end, text);
+    final block = text.substring(blockStart, blockEnd);
+    final lines = block.split('\n');
+    var removing = true;
+    for (final l in lines) {
+      if (l.trim().isEmpty) continue;
+      if (!l.startsWith(prefix)) {
+        removing = false;
+        break;
+      }
+    }
+    final newLines = <String>[
+      for (final l in lines)
+        if (removing)
+          (l.startsWith(prefix) ? l.substring(prefix.length) : l)
+        else
+          (l.trim().isEmpty ? l : '$prefix$l'),
+    ];
+    final newBlock = newLines.join('\n');
+    final newText =
+        '${text.substring(0, blockStart)}$newBlock${text.substring(blockEnd)}';
+    final newOffset = (sel.baseOffset + (newBlock.length - block.length))
+        .clamp(0, newText.length);
+    c.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newOffset),
+      composing: TextRange.empty,
+    );
+    _contentFocus.requestFocus();
+  }
+
+  void _toggleHeading(int level) {
+    final prefix = '#${'#' * (level - 1)} ';
+    final c = _contentController;
+    final text = c.text;
+    var sel = c.selection;
+    if (!sel.isValid) sel = TextSelection.collapsed(offset: text.length);
+    final blockStart = _lineStart(sel.start, text);
+    final blockEnd = _lineEnd(sel.isCollapsed ? sel.start : sel.end, text);
+    final block = text.substring(blockStart, blockEnd);
+    final lines = block.split('\n');
+    final newLines = <String>[
+      for (final l in lines) _formatHeadingLine(l, level, prefix),
+    ];
+    final newBlock = newLines.join('\n');
+    final newText =
+        '${text.substring(0, blockStart)}$newBlock${text.substring(blockEnd)}';
+    final newOffset = (sel.baseOffset + (newBlock.length - block.length))
+        .clamp(0, newText.length);
+    c.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newOffset),
+      composing: TextRange.empty,
+    );
+    _contentFocus.requestFocus();
+  }
+
+  static String _formatHeadingLine(String line, int level, String prefix) {
+    if (line.trim().isEmpty) return line;
+    final trimmed = line.trimLeft();
+    final matches = RegExp(r'^(#{1,6})\s').firstMatch(trimmed);
+    if (matches == null) return '$prefix$line';
+    if (matches.group(1)!.length == level) {
+      return line.replaceFirst(trimmed, trimmed.substring(matches.group(0)!.length));
+    }
+    return line.replaceFirst(
+      trimmed,
+      '$prefix${trimmed.substring(matches.group(0)!.length)}',
+    );
+  }
+
+  Widget _fmtButton(String tooltip, IconData icon, VoidCallback onTap) {
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 20),
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -274,9 +399,43 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
               ),
             ),
             const Divider(height: 16),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                children: [
+                  _fmtButton(strings.t('fmtBold'), Icons.format_bold,
+                      () => _applyInline('**', '**')),
+                  _fmtButton(strings.t('fmtItalic'), Icons.format_italic,
+                      () => _applyInline('*', '*')),
+                  _fmtButton(strings.t('fmtStrike'), Icons.format_strikethrough,
+                      () => _applyInline('~~', '~~')),
+                  _fmtButton(strings.t('fmtCode'), Icons.code,
+                      () => _applyInline('`', '`')),
+                  _fmtButton(strings.t('fmtCodeBlock'), Icons.terminal,
+                      () => _applyInline('\n```\n', '\n```\n')),
+                  _fmtButton(strings.t('fmtH1'), Icons.looks_one_outlined,
+                      () => _toggleHeading(1)),
+                  _fmtButton(strings.t('fmtH2'), Icons.looks_two_outlined,
+                      () => _toggleHeading(2)),
+                  _fmtButton(strings.t('fmtH3'), Icons.looks_3_outlined,
+                      () => _toggleHeading(3)),
+                  _fmtButton(
+                      strings.t('fmtBullet'), Icons.format_list_bulleted, () => _toggleLinePrefix('- ')),
+                  _fmtButton(
+                      strings.t('fmtNumList'), Icons.format_list_numbered, () => _toggleLinePrefix('1. ')),
+                  _fmtButton(strings.t('fmtChecklist'), Icons.checklist,
+                      () => _toggleLinePrefix('- [ ] ')),
+                  _fmtButton(
+                      strings.t('fmtQuote'), Icons.format_quote, () => _toggleLinePrefix('> ')),
+                ],
+              ),
+            ),
             Expanded(
               child: TextField(
                 controller: _contentController,
+                focusNode: _contentFocus,
                 expands: true,
                 maxLines: null,
                 minLines: null,

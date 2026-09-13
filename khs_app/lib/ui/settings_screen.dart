@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -349,14 +350,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
     final dir = await getTemporaryDirectory();
-    messenger.showSnackBar(SnackBar(content: Text(strings.t('downloading'))));
+    final progress = ValueNotifier<double?>(null);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) =>
+            _DownloadProgressDialog(fileName: file, progress: progress),
+      ),
+    );
     File saved;
     try {
       final expectedSha = Platform.isAndroid
           ? info.androidSha256
           : info.windowsSha256;
-      saved = await state.downloadUpdate(file, dir, expectedSha256: expectedSha);
+      saved = await state.downloadUpdate(
+        file,
+        dir,
+        expectedSha256: expectedSha,
+        onProgress: (received, total) =>
+            progress.value = total > 0 ? received / total : null,
+      );
     } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      progress.dispose();
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
@@ -365,6 +382,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       return;
     }
+    if (mounted) Navigator.of(context).pop();
+    progress.dispose();
     if (!mounted) return;
     if (Platform.isAndroid) {
       final expected = info.androidSize;
@@ -1557,5 +1576,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       }
     }
+  }
+}
+
+class _DownloadProgressDialog extends StatelessWidget {
+  final String fileName;
+  final ValueNotifier<double?> progress;
+  const _DownloadProgressDialog({required this.fileName, required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.read<AppState>().strings;
+    return AlertDialog(
+      title: Text(strings.t('downloading')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            fileName,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 18),
+          ValueListenableBuilder<double?>(
+            valueListenable: progress,
+            builder: (context, value, _) {
+              final pct = value == null
+                  ? null
+                  : (value.clamp(0.0, 1.0) * 100).round();
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(
+                    minHeight: 6,
+                    borderRadius: BorderRadius.circular(3),
+                    value: value,
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      pct == null ? '…' : '$pct%',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -78,7 +78,8 @@ Map<String, String> _authHeaders() =>
 
   HttpClient _client() => HttpClient()
     ..connectionTimeout = const Duration(seconds: 4)
-    ..idleTimeout = const Duration(seconds: 20);
+    // Большой APK качается не мгновенно — не срывать загрузку между чанками.
+    ..idleTimeout = const Duration(seconds: 180);
 
   /// Спрашивает ПК про обновление. [UpdateCheckResult.status] различает:
   /// `ok` — сервер ответил подписанными данными; `noUpdate` — сервер
@@ -124,10 +125,13 @@ Map<String, String> _authHeaders() =>
 
   /// Скачивает файл обновления с ПК в [targetDir]. Если задан [expectedSha256],
   /// файл проверяется по SHA-256 и при несовпадении удаляется.
+  /// [onProgress] вызывается с (получено байт, всего байт); всего = 0,
+  /// если сервер не сообщил длину.
   Future<File> download(
     String filename,
     Directory targetDir, {
     String? expectedSha256,
+    void Function(int received, int total)? onProgress,
   }) async {
     final file = File(
       '${targetDir.path}${Platform.pathSeparator}${_safeName(filename)}',
@@ -140,9 +144,15 @@ Map<String, String> _authHeaders() =>
       if (res.statusCode != 200) {
         throw HttpException('HTTP ${res.statusCode}');
       }
+      final total = res.contentLength > 0 ? res.contentLength : 0;
       final sink = file.openWrite();
+      var received = 0;
       try {
-        await res.pipe(sink);
+        await for (final chunk in res) {
+          sink.add(chunk);
+          received += chunk.length;
+          onProgress?.call(received, total);
+        }
       } finally {
         await sink.close();
       }

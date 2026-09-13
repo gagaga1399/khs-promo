@@ -783,11 +783,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     String filename,
     Directory targetDir, {
     String? expectedSha256,
+    void Function(int received, int total)? onProgress,
   }) =>
       UpdateChecker(
         host: _syncAddress,
         token: _syncToken,
-      ).download(filename, targetDir, expectedSha256: expectedSha256);
+      ).download(
+        filename,
+        targetDir,
+        expectedSha256: expectedSha256,
+        onProgress: onProgress,
+      );
 
   /// Разрешена ли на Android установка APK «из неизвестных источников».
   Future<bool> canInstallPackages() async {
