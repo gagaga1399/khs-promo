@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../localization/app_strings.dart';
 import '../models/note.dart';
 import '../state/app_state.dart';
+import 'widgets/markdown_quill.dart';
 
 class NotesEditorScreen extends StatefulWidget {
   final Note? note;
@@ -29,8 +31,9 @@ class NotesEditorScreen extends StatefulWidget {
 class _NotesEditorScreenState extends State<NotesEditorScreen>
     with WidgetsBindingObserver {
   late final TextEditingController _titleController;
-  late final TextEditingController _contentController;
+  late final QuillController _quillController;
   late final FocusNode _contentFocus;
+  late final ScrollController _scrollController;
   late bool _isDaily;
   late DateTime _date;
 
@@ -43,9 +46,6 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
     super.initState();
     final now = DateTime.now();
     _titleController = TextEditingController(text: widget.note?.title ?? '');
-    _contentController = TextEditingController(
-      text: widget.note?.content ?? widget.initialContent,
-    );
     _isDaily = widget.note != null
         ? widget.note!.date != null
         : widget.date != null;
@@ -53,9 +53,15 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
         widget.note?.date ??
         widget.date ??
         DateTime(now.year, now.month, now.day);
-    _titleController.addListener(_onEdit);
-    _contentController.addListener(_onEdit);
     _contentFocus = FocusNode();
+    _scrollController = ScrollController();
+    _quillController = QuillController(
+      document:
+          markdownToQuillDocument(widget.note?.content ?? widget.initialContent),
+      selection: const TextSelection.collapsed(offset: 0),
+    );
+    _quillController.addListener(_onEdit);
+    _titleController.addListener(_onEdit);
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -63,12 +69,15 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
     if (!_dirty) setState(() => _dirty = true);
   }
 
+  String get _contentMd => quillDocumentToMarkdown(_quillController.document);
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _titleController.dispose();
-    _contentController.dispose();
+    _quillController.dispose();
     _contentFocus.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -100,7 +109,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
 
   /// Заголовок по умолчанию: первая строка текста или «Без названия».
   String _defaultTitle(AppStrings strings) {
-    final firstLine = _contentController.text
+    final firstLine = _contentMd
         .split('\n')
         .map((l) => l.trim())
         .firstWhere((l) => l.isNotEmpty, orElse: () => '');
@@ -114,7 +123,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
     final state = context.read<AppState>();
     final strings = state.strings;
     final title = _titleController.text.trim();
-    final content = _contentController.text;
+    final content = _contentMd;
     if (title.isEmpty && content.trim().isEmpty) {
       if (showError) {
         ScaffoldMessenger.of(
@@ -179,160 +188,33 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
     }
   }
 
-  static int _lineStart(int offset, String text) =>
-      text.lastIndexOf('\n', offset - 1) + 1;
-
-  static int _lineEnd(int offset, String text) {
-    final i = text.indexOf('\n', offset);
-    return i == -1 ? text.length : i;
-  }
-
-  void _applyInline(String prefix, String suffix) {
-    final c = _contentController;
-    final text = c.text;
-    var sel = c.selection;
-    if (!sel.isValid) sel = TextSelection.collapsed(offset: text.length);
-    final start = sel.isCollapsed ? sel.baseOffset : sel.start;
-    final end = sel.isCollapsed ? sel.baseOffset : sel.end;
-    final selected = text.substring(start, end);
-    final newText =
-        '${text.substring(0, start)}$prefix$selected$suffix${text.substring(end)}';
-    final newOffset = start + prefix.length;
-    c.value = TextEditingValue(
-      text: newText,
-      selection: selected.isEmpty
-          ? TextSelection.collapsed(offset: newOffset)
-          : TextSelection(
-              baseOffset: newOffset,
-              extentOffset: newOffset + selected.length,
-            ),
-      composing: TextRange.empty,
-    );
-    _contentFocus.requestFocus();
-  }
-
-  void _toggleLinePrefix(String prefix) {
-    final c = _contentController;
-    final text = c.text;
-    var sel = c.selection;
-    if (!sel.isValid) sel = TextSelection.collapsed(offset: text.length);
-    final blockStart = _lineStart(sel.start, text);
-    final blockEnd = _lineEnd(sel.isCollapsed ? sel.start : sel.end, text);
-    final block = text.substring(blockStart, blockEnd);
-    final lines = block.split('\n');
-    var removing = true;
-    for (final l in lines) {
-      if (l.trim().isEmpty) continue;
-      if (!l.startsWith(prefix)) {
-        removing = false;
-        break;
-      }
-    }
-    final newLines = <String>[
-      for (final l in lines)
-        if (removing)
-          (l.startsWith(prefix) ? l.substring(prefix.length) : l)
-        else
-          (l.trim().isEmpty ? l : '$prefix$l'),
-    ];
-    final newBlock = newLines.join('\n');
-    final newText =
-        '${text.substring(0, blockStart)}$newBlock${text.substring(blockEnd)}';
-    final newOffset = (sel.baseOffset + (newBlock.length - block.length))
-        .clamp(0, newText.length);
-    c.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newOffset),
-      composing: TextRange.empty,
-    );
-    _contentFocus.requestFocus();
-  }
-
-  void _toggleHeading(int level) {
-    final prefix = '#${'#' * (level - 1)} ';
-    final c = _contentController;
-    final text = c.text;
-    var sel = c.selection;
-    if (!sel.isValid) sel = TextSelection.collapsed(offset: text.length);
-    final blockStart = _lineStart(sel.start, text);
-    final blockEnd = _lineEnd(sel.isCollapsed ? sel.start : sel.end, text);
-    final block = text.substring(blockStart, blockEnd);
-    final lines = block.split('\n');
-    final newLines = <String>[
-      for (final l in lines) _formatHeadingLine(l, level, prefix),
-    ];
-    final newBlock = newLines.join('\n');
-    final newText =
-        '${text.substring(0, blockStart)}$newBlock${text.substring(blockEnd)}';
-    final newOffset = (sel.baseOffset + (newBlock.length - block.length))
-        .clamp(0, newText.length);
-    c.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newOffset),
-      composing: TextRange.empty,
-    );
-    _contentFocus.requestFocus();
-  }
-
-  static String _formatHeadingLine(String line, int level, String prefix) {
-    if (line.trim().isEmpty) return line;
-    final trimmed = line.trimLeft();
-    final matches = RegExp(r'^(#{1,6})\s').firstMatch(trimmed);
-    if (matches == null) return '$prefix$line';
-    if (matches.group(1)!.length == level) {
-      return line.replaceFirst(trimmed, trimmed.substring(matches.group(0)!.length));
-    }
-    return line.replaceFirst(
-      trimmed,
-      '$prefix${trimmed.substring(matches.group(0)!.length)}',
-    );
-  }
-
-  Widget _fmtButton(String tooltip, IconData icon, VoidCallback onTap) {
-    return Tooltip(
-      message: tooltip,
-      child: IconButton(
-        onPressed: onTap,
-        icon: Icon(icon, size: 20),
-        visualDensity: VisualDensity.compact,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      ),
-    );
-  }
-
   Widget _buildToolbar(ThemeData theme, AppStrings strings) {
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        children: [
-          _fmtButton(strings.t('fmtBold'), Icons.format_bold,
-              () => _applyInline('**', '**')),
-          _fmtButton(strings.t('fmtItalic'), Icons.format_italic,
-              () => _applyInline('*', '*')),
-          _fmtButton(strings.t('fmtStrike'), Icons.format_strikethrough,
-              () => _applyInline('~~', '~~')),
-          _fmtButton(strings.t('fmtCode'), Icons.code,
-              () => _applyInline('`', '`')),
-          _fmtButton(strings.t('fmtCodeBlock'), Icons.terminal,
-              () => _applyInline('\n```\n', '\n```\n')),
-          _fmtButton(strings.t('fmtH1'), Icons.looks_one_outlined,
-              () => _toggleHeading(1)),
-          _fmtButton(strings.t('fmtH2'), Icons.looks_two_outlined,
-              () => _toggleHeading(2)),
-          _fmtButton(strings.t('fmtH3'), Icons.looks_3_outlined,
-              () => _toggleHeading(3)),
-          _fmtButton(strings.t('fmtBullet'), Icons.format_list_bulleted,
-              () => _toggleLinePrefix('- ')),
-          _fmtButton(strings.t('fmtNumList'), Icons.format_list_numbered,
-              () => _toggleLinePrefix('1. ')),
-          _fmtButton(strings.t('fmtChecklist'), Icons.checklist,
-              () => _toggleLinePrefix('- [ ] ')),
-          _fmtButton(strings.t('fmtQuote'), Icons.format_quote,
-              () => _toggleLinePrefix('> ')),
-        ],
+    return QuillSimpleToolbar(
+      controller: _quillController,
+      config: QuillSimpleToolbarConfig(
+        multiRowsDisplay: true,
+        showFontFamily: false,
+        showFontSize: false,
+        showUnderLineButton: false,
+        showColorButton: false,
+        showBackgroundColorButton: false,
+        showClearFormat: true,
+        showAlignmentButtons: false,
+        showHeaderStyle: true,
+        showListNumbers: true,
+        showListBullets: true,
+        showListCheck: true,
+        showCodeBlock: true,
+        showQuote: true,
+        showIndent: false,
+        showLink: true,
+        showUndo: true,
+        showRedo: true,
+        showSearchButton: false,
+        showSubscript: false,
+        showSuperscript: false,
+        showStrikeThrough: true,
+        showInlineCode: true,
       ),
     );
   }
@@ -437,20 +319,17 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
             const Divider(height: 16),
             _buildToolbar(Theme.of(context), strings),
             Expanded(
-              child: TextField(
-                controller: _contentController,
+              child: QuillEditor.basic(
+                controller: _quillController,
                 focusNode: _contentFocus,
-                expands: true,
-                maxLines: null,
-                minLines: null,
-                textAlignVertical: TextAlignVertical.top,
-                // Жёсткое ограничение скролла: выделение упирается в границы
-                // окна и не «телепортируется» при прокрутке длинного текста.
-                scrollPhysics: const ClampingScrollPhysics(),
-                decoration: InputDecoration(
-                  hintText: strings.t('noteContentHint'),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                scrollController: _scrollController,
+                config: QuillEditorConfig(
+                  expands: true,
+                  scrollable: true,
+                  autoFocus: false,
+                  scrollPhysics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.only(top: 4, bottom: 16),
+                  placeholder: strings.t('noteContentHint'),
                 ),
               ),
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -14,8 +15,18 @@ void main() {
   Widget wrap(AppState state) {
     return ChangeNotifierProvider<AppState>.value(
       value: state,
-      child: const MaterialApp(home: Scaffold(body: NotesPanel())),
+      child: MaterialApp(
+        localizationsDelegates: const [FlutterQuillLocalizations.delegate],
+        home: const Scaffold(body: NotesPanel()),
+      ),
     );
+  }
+
+  void setBigScreen(WidgetTester tester) {
+    tester.view.physicalSize = const Size(1200, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
   }
 
   testWidgets('NotesPanel shows "Сделать новую заметку" on top', (
@@ -28,6 +39,7 @@ void main() {
   });
 
   testWidgets('NotesPanel button opens the editor', (tester) async {
+    setBigScreen(tester);
     final state = AppState();
     await tester.pumpWidget(wrap(state));
     await tester.tap(find.text('Сделать новую заметку'));
@@ -36,11 +48,13 @@ void main() {
   });
 
   testWidgets('new note from a date defaults to daily note', (tester) async {
+    setBigScreen(tester);
     final state = AppState();
     await tester.pumpWidget(
       ChangeNotifierProvider<AppState>.value(
         value: state,
         child: MaterialApp(
+          localizationsDelegates: const [FlutterQuillLocalizations.delegate],
           home: NotesEditorScreen(date: DateTime(2026, 8, 14)),
         ),
       ),
@@ -50,21 +64,20 @@ void main() {
     expect(find.text('14 августа 2026'), findsOneWidget);
   });
 
-  testWidgets('editor bold button wraps text with markers', (tester) async {
+  testWidgets('editor renders title field and rich editor', (tester) async {
+    setBigScreen(tester);
     final state = AppState();
     await tester.pumpWidget(
       ChangeNotifierProvider<AppState>.value(
         value: state,
-        child: const MaterialApp(home: NotesEditorScreen()),
+        child: MaterialApp(
+          localizationsDelegates: const [FlutterQuillLocalizations.delegate],
+          home: const NotesEditorScreen(),
+        ),
       ),
     );
-    expect(find.byType(TextField), findsNWidgets(2));
-    await tester.enterText(find.byType(TextField).at(1), 'привет');
-    await tester.tap(find.byIcon(Icons.format_bold));
-    await tester.pump();
-    final editable = tester
-        .widgetList<EditableText>(find.byType(EditableText))
-        .last;
-    expect(editable.controller.text, 'привет****');
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byType(QuillEditor), findsOneWidget);
+    expect(find.byType(QuillSimpleToolbar), findsOneWidget);
   });
 }

@@ -24,6 +24,14 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.24',
+    date: '13.09.2026',
+    changes: [
+      ChangeEntry('Заметки: редактор стал визуальным — жирный, курсив, зачёркнутый, заголовки, списки, цитаты и код форматируются сразу, как в Word', ChangeType.feature),
+      ChangeEntry('Чек-листы теперь настоящие: галочки отмечаются тапом', ChangeType.feature),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.23',
     date: '13.09.2026',
     changes: [
