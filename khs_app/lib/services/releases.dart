@@ -24,6 +24,13 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.23',
+    date: '13.09.2026',
+    changes: [
+      ChangeEntry('Заметки: убран режим предпросмотра — редактор снова обычный, просто и быстро', ChangeType.bugfix),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.22',
     date: '13.09.2026',
     changes: [

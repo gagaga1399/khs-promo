@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../localization/app_strings.dart';
 import '../models/note.dart';
 import '../state/app_state.dart';
-import 'widgets/markdown_preview.dart';
 
 class NotesEditorScreen extends StatefulWidget {
   final Note? note;
@@ -36,7 +35,6 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
   late DateTime _date;
 
   bool _dirty = false;
-  bool _preview = false;
 
   bool get _isNew => widget.note == null;
 
@@ -304,31 +302,6 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
   }
 
   Widget _buildToolbar(ThemeData theme, AppStrings strings) {
-    if (_preview) {
-      return SizedBox(
-        height: 40,
-        child: Row(
-          children: [
-            IconButton(
-              tooltip: strings.t('fmtEditor'),
-              icon: const Icon(Icons.edit_outlined, size: 20),
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              onPressed: () => setState(() => _preview = false),
-            ),
-            Expanded(
-              child: Text(
-                strings.t('fmtPreviewLabel').toLowerCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
     return SizedBox(
       height: 40,
       child: ListView(
@@ -359,10 +332,6 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
               () => _toggleLinePrefix('- [ ] ')),
           _fmtButton(strings.t('fmtQuote'), Icons.format_quote,
               () => _toggleLinePrefix('> ')),
-          _fmtButton(
-              strings.t('fmtPreview'),
-              _preview ? Icons.edit_outlined : Icons.visibility_outlined,
-              () => setState(() => _preview = !_preview)),
         ],
       ),
     );
@@ -468,43 +437,22 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
             const Divider(height: 16),
             _buildToolbar(Theme.of(context), strings),
             Expanded(
-              child: _preview
-                  ? SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: _contentController.text.trim().isEmpty
-                          ? Text(
-                              strings.t('noteContentHint'),
-                              style: TextStyle(
-                                fontSize: kNoteEditorFontSize,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                            )
-                          : NoteMarkdownPreview(
-                              data: _contentController.text,
-                            ),
-                    )
-                  : TextField(
-                      controller: _contentController,
-                      focusNode: _contentFocus,
-                      expands: true,
-                      maxLines: null,
-                      minLines: null,
-                      textAlignVertical: TextAlignVertical.top,
-                      style: const TextStyle(
-                        fontSize: kNoteEditorFontSize,
-                        height: kNoteEditorLineHeight,
-                      ),
-                      // Жёсткое ограничение скролла: выделение упирается в границы
-                      // окна и не «телепортируется» при прокрутке длинного текста.
-                      scrollPhysics: const ClampingScrollPhysics(),
-                      decoration: InputDecoration(
-                        hintText: strings.t('noteContentHint'),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      ),
-                    ),
+              child: TextField(
+                controller: _contentController,
+                focusNode: _contentFocus,
+                expands: true,
+                maxLines: null,
+                minLines: null,
+                textAlignVertical: TextAlignVertical.top,
+                // Жёсткое ограничение скролла: выделение упирается в границы
+                // окна и не «телепортируется» при прокрутке длинного текста.
+                scrollPhysics: const ClampingScrollPhysics(),
+                decoration: InputDecoration(
+                  hintText: strings.t('noteContentHint'),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                ),
+              ),
             ),
           ],
         ),

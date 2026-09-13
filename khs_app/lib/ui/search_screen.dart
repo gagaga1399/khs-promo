@@ -5,7 +5,6 @@ import '../models/note.dart';
 import '../models/task.dart';
 import '../state/app_state.dart';
 import 'task_edit_screen.dart';
-import 'widgets/markdown_preview.dart';
 import 'widgets/task_tile.dart';
 
 /// Глобальный поиск по задачам и заметкам.
@@ -141,9 +140,9 @@ class _SearchScreenState extends State<SearchScreen> {
           ],
         ),
         content: SingleChildScrollView(
-          child: note.content.trim().isEmpty
-              ? const SelectableText('—')
-              : NoteMarkdownPreview(data: note.content),
+          child: SelectableText(
+            note.content.trim().isEmpty ? '—' : note.content,
+          ),
         ),
         actions: [
           TextButton(
