@@ -266,6 +266,9 @@ void main() {
         content: content,
         createdAt: DateTime(2026, 8, 15),
         updatedAt: DateTime(2026, 8, 15),
+        // Идентичность отдельной заметки — по clientKey (как и в синке):
+        // без него обновление/удаление не опознают файл как «тот же».
+        clientKey: 'a1b2c3d4e5f60718293a4b5c6d7e8f09',
       );
     }
 

@@ -13,6 +13,7 @@ import '../state/app_state.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'widgets/color_picker_dialog.dart';
 import 'widgets/time_wheel_picker.dart';
+import 'widgets/version_folder_list.dart';
 import 'changelog_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -147,7 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
-              ..._releaseTiles(releases, strings),
+              VersionFolderList(releases: releases),
             ],
           ),
         ),

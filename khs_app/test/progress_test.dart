@@ -160,7 +160,10 @@ void main() {
   });
 
   test('priorityFilter показывает только задачи выбранного приоритета', () async {
-    final state = await makeState();
+    // Своё состояние без фоновой задачи makeState: на панели «сегодня» и так
+    // всегда видны открытые задачи без срока, поэтому фильтр проверяем
+    // только на задачах с датой.
+    final state = AppState();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     await state.addTask(

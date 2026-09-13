@@ -94,6 +94,8 @@ class AppStrings {
     'ok': 'ОК',
     'whatsNew': 'Что нового',
     'whatsNewTitle': 'Что нового в KHS',
+    'versionHistoryHint':
+        'Нажми на версию — ниже раскроется, что в ней изменилось.',
     'changelog':
         '• Трёхпанельный дашборд: задачи, детали, напоминания\n'
         '• Заметки: заметка дня и отдельные заметки\n'
@@ -348,6 +350,8 @@ class AppStrings {
     'ok': 'OK',
     'whatsNew': "What's new",
     'whatsNewTitle': "What's new in KHS",
+    'versionHistoryHint':
+        'Tap a version to expand what changed in it.',
     'changelog':
         '• Three-panel dashboard: tasks, details, reminders\n'
         '• Notes: daily note and standalone notes\n'

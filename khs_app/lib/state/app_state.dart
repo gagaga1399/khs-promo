@@ -68,6 +68,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   int _lastSyncCtr = 0;
   String _pinnedDeviceId = '';
 
+  // Прогресс и дневная цель (панель статистики).
+  int _dailyGoal = 1;
+  List<String> _disabledBars = const [];
+
   bool _noteReminderEnabled = false;
   int _noteReminderMinutes = 20 * 60; // 20:00
   bool _showSplashAnimation = true;
@@ -185,6 +189,132 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     return result.where((t) => t.priority == p).toList();
   }
 
+  /// Идентификаторы баров прогресса, которые можно скрыть в настройках.
+  static const String barGoal = 'goal';
+  static const String barWeek = 'week';
+
+  /// Цель по выполненным задачам в день.
+  int get dailyGoal => _dailyGoal;
+  Future<void> setDailyGoal(int goal) async {
+    if (goal < 0) goal = 0;
+    if (goal == _dailyGoal) return;
+    _dailyGoal = goal;
+    await _prefs?.setInt('daily_goal', goal);
+    notifyListeners();
+  }
+
+  /// Включён ли бар прогресса (по умолчанию все включены).
+  bool barEnabled(String bar) => !_disabledBars.contains(bar);
+  Future<void> setBarEnabled(String bar, bool enabled) async {
+    if (barEnabled(bar) == enabled) return;
+    final list = [..._disabledBars];
+    if (enabled) {
+      list.remove(bar);
+    } else if (!list.contains(bar)) {
+      list.add(bar);
+    }
+    _disabledBars = list;
+    await _prefs?.setStringList('bars_disabled', list);
+    notifyListeners();
+  }
+
+  int _countCompletedOn(DateTime day) => _tasks
+      .where(
+        (t) => t.completed && t.completedAt != null && _sameDay(t.completedAt!, day),
+      )
+      .length;
+
+  /// Сколько задач выполнено сегодня (по дате выполнения).
+  int get doneToday {
+    final now = DateTime.now();
+    return _countCompletedOn(DateTime(now.year, now.month, now.day));
+  }
+
+  /// Процент дневной цели, выполненный сегодня (0..100).
+  int get dailyGoalPercent {
+    final goal = _dailyGoal;
+    if (goal <= 0) return doneToday == 0 ? 0 : 100;
+    return doneToday * 100 ~/ goal;
+  }
+
+  /// Подряд идущие дни (включая сегодня), в каждый из которых цель достигнута.
+  int get streakDays {
+    final goal = _dailyGoal;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (goal <= 0 || _countCompletedOn(today) < goal) return 0;
+    var streak = 0;
+    for (var i = 0; ; i++) {
+      final day = today.subtract(Duration(days: i));
+      if (_countCompletedOn(day) < goal) break;
+      streak++;
+    }
+    return streak;
+  }
+
+  /// Сколько задач выполнено за каждый из последних [days] дней.
+  /// Индекс 0 — самый ранний день, последний — сегодня.
+  List<int> doneCountsLast(int days) {
+    final n = days < 1 ? 1 : days;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return [
+      for (var i = n - 1; i >= 0; i--)
+        _countCompletedOn(today.subtract(Duration(days: i))),
+    ];
+  }
+
+  /// Процент выполненных задач с данным приоритетом (0..100).
+  int progressPercentForPriority(int priority) {
+    final all = _tasks.where((t) => t.priority == priority).toList();
+    if (all.isEmpty) return 0;
+    final done = all.where((t) => t.completed).length;
+    return done * 100 ~/ all.length;
+  }
+
+  /// Количество просроченных (не выполненных) задач, опционально — только
+  /// одной группы.
+  int overdueCount(String? category) {
+    final now = DateTime.now();
+    return _tasks
+        .where(
+          (t) =>
+              t.dueAt != null &&
+              t.dueAt!.isBefore(now) &&
+              !t.completed &&
+              (category == null || t.category == category),
+        )
+        .length;
+  }
+
+  int progressPercentDueToday() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return _progressPercentForRange(
+      today,
+      today.add(const Duration(days: 1)),
+    );
+  }
+
+  int progressPercentDueWeek() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return _progressPercentForRange(
+      today,
+      today.add(const Duration(days: 7)),
+    );
+  }
+
+  int _progressPercentForRange(DateTime start, DateTime end) {
+    final all = _tasks
+        .where(
+          (t) => t.dueAt != null && !t.dueAt!.isBefore(start) && t.dueAt!.isBefore(end),
+        )
+        .toList();
+    if (all.isEmpty) return 0;
+    return all.where((t) => t.completed).length * 100 ~/ all.length;
+  }
+
   /// Сортировка: сначала невыполненные (по приоритету и сроку),
   /// затем выполненные.
   static int _taskSorter(Task a, Task b) {
@@ -272,6 +402,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _noteReminderEnabled = _prefs?.getBool('note_reminder_enabled') ?? false;
     _noteReminderMinutes = _prefs?.getInt('note_reminder_minutes') ?? 20 * 60;
     _showSplashAnimation = _prefs?.getBool('show_splash_animation') ?? true;
+    _dailyGoal = _prefs?.getInt('daily_goal') ?? 1;
+    _disabledBars = _prefs?.getStringList('bars_disabled') ?? const [];
     _savedVaultPaths = _prefs?.getStringList('saved_vault_paths') ?? [];
     final vaultPath =
         _prefs?.getString('obsidian_vault_path') ?? defaultVaultPath;
