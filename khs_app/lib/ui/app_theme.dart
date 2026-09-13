@@ -101,6 +101,35 @@ class AppTheme {
     error: darkError,
   );
 
+  /// Кастомная тема — все цвета выводятся из seed.
+  static ThemeData custom(Color seed, Color textColor) {
+    final hsl = HSLColor.fromColor(seed);
+    final brightness = hsl.lightness > 0.45 ? Brightness.light : Brightness.dark;
+
+    final onSurfaceMuted = HSLColor.fromColor(textColor)
+        .withLightness(0.65)
+        .withSaturation(0.3)
+        .toColor();
+    final divider = hsl
+        .withLightness((hsl.lightness * 0.45).clamp(0.2, 0.45))
+        .withSaturation(0.15)
+        .toColor();
+    final surface = hsl.withLightness((hsl.lightness * 1.08).clamp(0.0, 1.0)).toColor();
+    final surfaceHigh = hsl.withLightness((hsl.lightness * 1.16).clamp(0.0, 1.0)).toColor();
+
+    return _build(
+      brightness: brightness,
+      seed: seed,
+      background: seed,
+      surface: surface,
+      surfaceHigh: surfaceHigh,
+      onSurface: textColor,
+      onSurfaceMuted: onSurfaceMuted,
+      divider: divider,
+      error: brightness == Brightness.dark ? const Color(0xFFEF5350) : const Color(0xFFC62828),
+    );
+  }
+
   static ThemeData _build({
     required Brightness brightness,
     required Color seed,
@@ -251,6 +280,51 @@ class AppTheme {
       ),
 
       dividerTheme: DividerThemeData(color: divider, thickness: 1),
+
+      // Плавные фейды+слайды при переходах между экранами на всех платформах.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: _KhsPageTransitionsBuilder(),
+          TargetPlatform.windows: _KhsPageTransitionsBuilder(),
+          TargetPlatform.iOS: _KhsPageTransitionsBuilder(),
+          TargetPlatform.linux: _KhsPageTransitionsBuilder(),
+          TargetPlatform.macOS: _KhsPageTransitionsBuilder(),
+        },
+      ),
+    );
+  }
+}
+
+/// Переход экрана: лёгкий подъём + фейд (материал, но и на десктопе живой).
+class _KhsPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _KhsPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (route.settings.name == Navigator.defaultRouteName ||
+        route.isFirst) {
+      return child;
+    }
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.03),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      ),
     );
   }
 }

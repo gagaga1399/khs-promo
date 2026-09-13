@@ -7,7 +7,7 @@ import '../../state/app_state.dart';
 import 'reminder_card.dart';
 import 'timeline_panel.dart';
 
-/// Правая панель дашборда: неделя-календарь, таймлайн дня, напоминание.
+/// Правая панель дашборда: мини-календарь, неделя-календарь, таймлайн дня, напоминание.
 class DashboardRightPanel extends StatelessWidget {
   const DashboardRightPanel({super.key});
 
@@ -53,6 +53,8 @@ class DashboardRightPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _MiniCalendar(selected: selected),
+            const SizedBox(height: 16),
             _WeekStrip(selected: selected),
             const SizedBox(height: 24),
             TimelinePanel(tasks: timed, title: strings.t('schedule')),
@@ -173,6 +175,102 @@ class _WeekStrip extends StatelessWidget {
           t.dueAt!.year == day.year &&
           t.dueAt!.month == day.month &&
           t.dueAt!.day == day.day,
+    );
+  }
+}
+
+/// Мини-календарь текущего месяца (только просмотр, без смены месяца).
+class _MiniCalendar extends StatelessWidget {
+  final DateTime selected;
+  const _MiniCalendar({required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    final year = now.year;
+    final month = now.month;
+    final today = DateTime(now.year, now.month, now.day);
+    final firstDay = DateTime(year, month, 1);
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final startWeekday = firstDay.weekday % 7; // 0=Mon..6=Sun
+
+    final monthName = DateFormat('LLLL yyyy', 'ru').format(firstDay);
+    final weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+    final cells = <Widget>[];
+    for (final w in weekdays) {
+      cells.add(
+        Center(
+          child: Text(
+            w,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+    }
+    for (var i = 0; i < startWeekday; i++) {
+      cells.add(const SizedBox());
+    }
+    for (var d = 1; d <= daysInMonth; d++) {
+      final date = DateTime(year, month, d);
+      final isToday = date == today;
+      final isSelected = date.year == selected.year &&
+          date.month == selected.month &&
+          date.day == selected.day;
+      cells.add(
+        Center(
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? scheme.primary
+                  : isToday
+                      ? scheme.primary.withValues(alpha: 0.15)
+                      : null,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '$d',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected
+                    ? scheme.onPrimary
+                    : isToday
+                        ? scheme.primary
+                        : scheme.onSurface,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          monthName[0].toUpperCase() + monthName.substring(1),
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 2,
+          crossAxisSpacing: 2,
+          childAspectRatio: 1,
+          children: cells,
+        ),
+      ],
     );
   }
 }

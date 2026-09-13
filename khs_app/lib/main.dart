@@ -11,12 +11,13 @@ import 'ui/khs_app.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Platform.isAndroid) {
-    // Прячем системную панель телефона (жест-бар внизу) — сама всплывает
-    // при свайпе и снова убирается. На Windows/desktop не трогаем.
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
   await initializeDateFormatting('ru');
   final state = AppState();
   await state.init();
-  runApp(ChangeNotifierProvider.value(value: state, child: const KhsApp()));
+
+  runApp(
+    ChangeNotifierProvider.value(value: state, child: const KhsApp()),
+  );
 }

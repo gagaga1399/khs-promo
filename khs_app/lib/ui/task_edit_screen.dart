@@ -9,8 +9,20 @@ import 'widgets/time_wheel_picker.dart';
 class TaskEditScreen extends StatefulWidget {
   final Task? task;
   final DateTime? defaultDate;
+  final String? initialTitle;
+  final TimeOfDay? initialTime;
+  final int? initialPriority;
+  final String? initialRecurrence;
 
-  const TaskEditScreen({super.key, this.task, this.defaultDate});
+  const TaskEditScreen({
+    super.key,
+    this.task,
+    this.defaultDate,
+    this.initialTitle,
+    this.initialTime,
+    this.initialPriority,
+    this.initialRecurrence,
+  });
 
   @override
   State<TaskEditScreen> createState() => _TaskEditScreenState();
@@ -33,15 +45,18 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   void initState() {
     super.initState();
     final task = widget.task;
-    _titleController = TextEditingController(text: task?.title ?? '');
+    _titleController =
+        TextEditingController(text: task?.title ?? widget.initialTitle ?? '');
     _notesController = TextEditingController(text: task?.notes ?? '');
     _dueDate =
         task?.dueDate ?? (widget.defaultDate ?? _dateOnly(DateTime.now()));
-    _dueTime = task?.dueAt == null
-        ? null
-        : TimeOfDay.fromDateTime(task!.dueAt!);
-    _priority = task?.priority ?? 1;
-    _recurrence = task?.recurrence ?? '';
+    _dueTime = task == null
+        ? widget.initialTime
+        : (task.dueAt == null
+              ? null
+              : TimeOfDay.fromDateTime(task.dueAt!));
+    _priority = task?.priority ?? widget.initialPriority ?? 1;
+    _recurrence = task?.recurrence ?? widget.initialRecurrence ?? '';
     // Новая задача по умолчанию напоминает в срок (0), чтобы пуш пришёл сам.
     _reminderMinutes = task == null
         ? 0
@@ -193,6 +208,13 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     }
     if (!mounted) return;
     Navigator.pop(context);
+  }
+
+  static const _reminderOptions = [-1, 0, 5, 30, 60, 1440];
+
+  int _normalizeReminder(int value) {
+    if (_reminderOptions.contains(value)) return value;
+    return -1;
   }
 
   @override
@@ -420,7 +442,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<int>(
-            initialValue: _reminderMinutes,
+            initialValue: _normalizeReminder(_reminderMinutes),
             decoration: const InputDecoration(border: OutlineInputBorder()),
             items: [
               DropdownMenuItem(value: -1, child: Text(strings.t('noReminder'))),

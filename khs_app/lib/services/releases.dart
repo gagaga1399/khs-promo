@@ -24,9 +24,23 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.20',
+    date: '13.09.2026',
+    changes: [
+      ChangeEntry('Поиск по всем задачам и заметкам', ChangeType.feature),
+      ChangeEntry('Удаление выполненных и просроченных задач одним действием', ChangeType.feature),
+      ChangeEntry('Бэкап в файл: экспорт и импорт задач и заметок', ChangeType.feature),
+      ChangeEntry('Запуск KHS вместе со стартом Windows', ChangeType.feature),
+      ChangeEntry('Если «в 9 часов» уже прошло — спрашиваем: 9:00 или 21:00', ChangeType.improvement),
+      ChangeEntry('Время без даты теперь всегда ставится на сегодня', ChangeType.bugfix),
+      ChangeEntry('Плавные переходы между экранами и анимация галочек задач', ChangeType.improvement),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.19',
     date: '12.09.2026',
     changes: [
+      ChangeEntry('«Что нового» раскрывается по версиям как папки — жми на свою', ChangeType.improvement),
       ChangeEntry('Защита от повтора перехваченных запросов синка', ChangeType.improvement),
       ChangeEntry('Ключ доступа автоматически меняется (ротация) — старый действует ещё 3 дня', ChangeType.improvement),
       ChangeEntry('Телефон привязывается к своему ПК — чужой сервер данные не примет', ChangeType.improvement),

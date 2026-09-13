@@ -4,6 +4,8 @@ class ParsedTask {
   final int priority; // 0 low, 1 normal, 2 high
   final String recurrence; // '', 'daily', 'weekly', 'monthly'
   final bool hasReminder;
+  final int? timeHour;
+  final int? timeMinute;
 
   const ParsedTask({
     required this.title,
@@ -11,6 +13,8 @@ class ParsedTask {
     this.priority = 1,
     this.recurrence = '',
     this.hasReminder = false,
+    this.timeHour,
+    this.timeMinute,
   });
 }
 
@@ -272,7 +276,12 @@ class TaskParser {
     }
     final title = titleParts.join(' ');
 
+    // Время без даты всегда ставится на сегодня (Deterministic для тестов);
+    // timeHour/timeMinute дополнительно помечают «голое» время —
+    // UI переспросит «9:00 или 21:00», если час неоднозначен.
     DateTime? dueAt;
+    int? timeHour;
+    int? timeMinute;
     if (date != null) {
       dueAt = DateTime(
         date.year,
@@ -283,12 +292,22 @@ class TaskParser {
       );
     } else if (time != null) {
       final now = DateTime.now();
-      dueAt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+      dueAt = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        time.hour,
+        time.minute,
+      );
+      timeHour = time.hour;
+      timeMinute = time.minute;
     }
 
     return ParsedTask(
       title: title.isEmpty ? input.trim() : title,
       dueAt: dueAt,
+      timeHour: timeHour,
+      timeMinute: timeMinute,
       priority: priority,
       recurrence: recurrence,
       hasReminder: hasReminder,

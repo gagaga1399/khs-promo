@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../../state/app_state.dart';
 import '../app_theme.dart';
-import '../statistics_screen.dart';
 import '../task_edit_screen.dart';
 
 Future<void> showCreateGroupDialog(BuildContext context, AppState state) async {
@@ -205,10 +204,6 @@ class DashboardSidebar extends StatelessWidget {
                   count: state.tasks.length,
                   selected: state.categoryFilter == null,
                   onTap: () => state.setCategoryFilter(null),
-                  progress:
-                      state.barEnabled(AppState.barSidebar)
-                      ? state.progressPercent(null) / 100
-                      : null,
                 ),
                 for (final group in state.groups)
                   _GroupTile(
@@ -218,10 +213,6 @@ class DashboardSidebar extends StatelessWidget {
                     selected: state.categoryFilter == group,
                     onTap: () => state.setCategoryFilter(group),
                     onEdit: () => showGroupActions(context, state, group),
-                    progress:
-                        state.barEnabled(AppState.barSidebar)
-                        ? state.progressPercent(group) / 100
-                        : null,
                   ),
                 const SizedBox(height: 8),
                 Padding(
@@ -252,17 +243,6 @@ class DashboardSidebar extends StatelessWidget {
                       state.selectedDate ==
                       todayOnly.add(const Duration(days: 1)),
                   onTap: () => _selectTomorrow(state),
-                ),
-                _FilterTile(
-                  icon: Icons.insert_chart_outlined,
-                  label: strings.t('statistics'),
-                  selected: false,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const StatisticsScreen(),
-                    ),
-                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(

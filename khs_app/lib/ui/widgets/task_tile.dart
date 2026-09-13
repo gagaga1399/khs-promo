@@ -78,104 +78,118 @@ class TaskTile extends StatelessWidget {
             ) ??
             false;
       },
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: task.category == null
-                        ? Colors.transparent
-                        : AppTheme.groupColor(task.category!),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Checkbox(
-                  value: task.completed,
-                  onChanged: (v) => onToggle(v ?? false),
-                  shape: const CircleBorder(),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          if (task.priority > 0) ...[
-                            Icon(Icons.flag, size: 14, color: _priorityColor),
-                            const SizedBox(width: 4),
-                          ],
-                          Flexible(
-                            child: Text(
-                              task.title,
-                              style: TextStyle(
-                                fontSize: 16,
-                                decoration: task.completed
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                                color: task.completed
-                                    ? Theme.of(context).disabledColor
-                                    : null,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (subtitleParts.isNotEmpty)
-                        Text(
-                          subtitleParts.join(' · '),
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: overdue
-                                    ? Colors.redAccent
-                                    : Theme.of(context).disabledColor,
-                              ),
-                        ),
-                      if (task.completed)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                size: 13,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                strings.t('done'),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (task.completed)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Icon(
-                      Icons.check_circle,
-                      size: 18,
-                      color: Theme.of(context).colorScheme.primary,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
+        opacity: task.completed ? 0.72 : 1,
+        child: Card(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: task.category == null
+                          ? Colors.transparent
+                          : AppTheme.groupColor(task.category!),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-              ],
+                  const SizedBox(width: 8),
+                  AnimatedScale(
+                    scale: task.completed ? 0.9 : 1,
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutBack,
+                    child: Checkbox(
+                      value: task.completed,
+                      onChanged: (v) => onToggle(v ?? false),
+                      shape: const CircleBorder(),
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            if (task.priority > 0) ...[
+                              Icon(Icons.flag, size: 14, color: _priorityColor),
+                              const SizedBox(width: 4),
+                            ],
+                            Flexible(
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 260),
+                                curve: Curves.easeOut,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  decoration: task.completed
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  color: task.completed
+                                      ? Theme.of(context).disabledColor
+                                      : null,
+                                ),
+                                child: Text(
+                                  task.title,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (subtitleParts.isNotEmpty)
+                          Text(
+                            subtitleParts.join(' · '),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: overdue
+                                      ? Colors.redAccent
+                                      : Theme.of(context).disabledColor,
+                                ),
+                          ),
+                        if (task.completed)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  size: 13,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  strings.t('done'),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (task.completed)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Icon(
+                        Icons.check_circle,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

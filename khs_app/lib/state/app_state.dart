@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -1219,6 +1220,95 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     await notifications.cancel(task.id!);
     notifyListeners();
     _maybeSync();
+  }
+
+  Future<int> deleteCompletedTasks() async {
+    final done = _tasks.where((t) => t.completed).toList();
+    for (final t in done) {
+      await db.deleteTask(t.id!);
+      await notifications.cancel(t.id!);
+    }
+    _tasks.removeWhere((t) => t.completed);
+    notifyListeners();
+    _maybeSync();
+    return done.length;
+  }
+
+  Future<int> deleteOverdueTasks() async {
+    final now = DateTime.now();
+    final overdue = _tasks
+        .where((t) => !t.completed && t.dueAt != null && t.dueAt!.isBefore(now))
+        .toList();
+    for (final t in overdue) {
+      await db.deleteTask(t.id!);
+      await notifications.cancel(t.id!);
+    }
+    _tasks.removeWhere((t) =>
+        !t.completed && t.dueAt != null && t.dueAt!.isBefore(now));
+    notifyListeners();
+    _maybeSync();
+    return overdue.length;
+  }
+
+  Future<File> exportBackup(File file) async {
+    final tasks = await db.dumpTable('tasks');
+    final notes = await db.dumpTable('notes');
+    final payload = <String, dynamic>{
+      'app': 'khs',
+      'version': 1,
+      'exportedAt': DateTime.now().toIso8601String(),
+      'tasks': tasks,
+      'notes': notes,
+    };
+    final json = JsonEncoder.withIndent('  ').convert(payload);
+    await file.writeAsString(json, encoding: utf8);
+    return file;
+  }
+
+  Future<({int tasks, int notes})> importBackup(File file) async {
+    final text = await file.readAsString(encoding: utf8);
+    final data = jsonDecode(text) as Map<String, dynamic>;
+    final tasksRows =
+        (data['tasks'] as List? ?? []).cast<Map<String, dynamic>>();
+    final notesRows =
+        (data['notes'] as List? ?? []).cast<Map<String, dynamic>>();
+    final tc = await db.restoreTable('tasks', tasksRows);
+    final nc = await db.restoreTable('notes', notesRows);
+    await reloadFromDb();
+    return (tasks: tc, notes: nc);
+  }
+
+  static const _runKey =
+      r'HKCU\Software\Microsoft\Windows\CurrentVersion\Run';
+
+  Future<bool> isAutoStartEnabled() async {
+    final exe = isPc ? Platform.resolvedExecutable : '';
+    if (exe.isEmpty) return false;
+    try {
+      final r = await Process.run('reg', ['query', _runKey, '/v', 'KHS']);
+      return r.exitCode == 0 && r.stdout.toString().contains('KHS');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> setAutoStartEnabled(bool enabled) async {
+    final exe = isPc ? Platform.resolvedExecutable : '';
+    if (exe.isEmpty) return false;
+    try {
+      final ProcessResult r;
+      if (enabled) {
+        r = await Process.run(
+          'reg',
+          ['add', _runKey, '/v', 'KHS', '/t', 'REG_SZ', '/d', '"$exe"', '/f'],
+        );
+      } else {
+        r = await Process.run('reg', ['delete', _runKey, '/v', 'KHS', '/f']);
+      }
+      return r.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
   }
 
   bool get notificationsEnabled => _notificationsEnabled;

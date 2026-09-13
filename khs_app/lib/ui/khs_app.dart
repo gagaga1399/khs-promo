@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import 'app_theme.dart';
 import 'home_screen.dart';
+import 'splash_screen.dart';
 
 class KhsApp extends StatelessWidget {
   const KhsApp({super.key});
@@ -23,10 +24,14 @@ class KhsApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      themeMode: state.isDarkTheme ? ThemeMode.dark : ThemeMode.light,
+      themeMode: state.resolvedThemeMode,
       theme: AppTheme.light(state.accentColor),
-      darkTheme: AppTheme.dark(state.accentColor),
-      home: const HomeScreen(),
+      darkTheme: state.themeMode == 'custom'
+          ? AppTheme.custom(state.accentColor, state.customTextColor)
+          : AppTheme.dark(state.accentColor),
+      home: state.showSplashAnimation
+          ? const SplashGate()
+          : const HomeScreen(),
     );
   }
 }

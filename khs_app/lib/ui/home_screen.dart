@@ -10,8 +10,8 @@ import '../ui/widgets/dashboard_sidebar.dart';
 import '../ui/widgets/event_card.dart';
 import 'calendar_screen.dart';
 import 'notes_screen.dart';
+import 'search_screen.dart';
 import 'settings_screen.dart';
-import 'statistics_screen.dart';
 import 'task_edit_screen.dart';
 import 'widgets/quick_add_bar.dart';
 import 'widgets/task_tile.dart';
@@ -41,6 +41,11 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: strings.t('search'),
+            onPressed: () => SearchScreen.open(context),
+          ),
           IconButton(
             icon: const Icon(Icons.calendar_month),
             tooltip: strings.t('calendar'),
@@ -74,38 +79,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-/// Кастомная физика для PageView:.requires超过 длинного свайпа для смены вкладки.
-class _DampenedScrollPhysics extends ScrollPhysics {
-  const _DampenedScrollPhysics({super.parent});
-
-  @override
-  _DampenedScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return _DampenedScrollPhysics(parent: buildParent(ancestor));
-  }
-
-  @override
-  Simulation? createBallisticSimulation(
-    ScrollMetrics position,
-    double velocity,
-  ) {
-    // Только если свайп быстрый — переключаем страницу
-    if (velocity.abs() > 400) {
-      return super.createBallisticSimulation(position, velocity);
-    }
-    // Медленный свайп — возвращаем на место
-    return ScrollSpringSimulation(
-      spring,
-      position.pixels,
-      position.pixels,
-      0,
-    );
-  }
-
-  @override
-  bool get allowImplicitScrolling => false;
-}
-
-/// Нижняя навигация телефона: Главная / Статистика / Календарь / Заметки / Настройки.
+/// Нижняя навигация телефона: Главная / Календарь / Заметки / Настройки.
 class MobileShell extends StatefulWidget {
   const MobileShell({super.key});
 
@@ -138,7 +112,6 @@ class _MobileShellState extends State<MobileShell> {
     final strings = state.strings;
     final titles = <String>[
       strings.t('appTitle'),
-      strings.t('statistics'),
       strings.t('calendar'),
       strings.t('notes'),
       strings.t('settings'),
@@ -156,14 +129,20 @@ class _MobileShellState extends State<MobileShell> {
                 ),
               )
             : null,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: strings.t('search'),
+            onPressed: () => SearchScreen.open(context),
+          ),
+        ],
       ),
       body: PageView(
         controller: _pageController,
-        physics: const _DampenedScrollPhysics(),
+        physics: const NeverScrollableScrollPhysics(),
         onPageChanged: (i) => setState(() => _index = i),
         children: const [
           _NarrowDashboard(),
-          StatisticsScreen(embedded: true),
           CalendarScreen(embedded: true),
           NotesPanel(showAddButton: true),
           SettingsScreen(embedded: true),
@@ -177,11 +156,6 @@ class _MobileShellState extends State<MobileShell> {
             icon: const Icon(Icons.home_outlined),
             selectedIcon: const Icon(Icons.home),
             label: strings.t('home'),
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.insert_chart_outlined),
-            selectedIcon: const Icon(Icons.insert_chart),
-            label: strings.t('statistics'),
           ),
           NavigationDestination(
             icon: const Icon(Icons.calendar_month_outlined),
@@ -244,6 +218,7 @@ class _CenterPanel extends StatelessWidget {
                   onPressed: () => state.setCategoryFilter(null),
                   avatar: const Icon(Icons.close, size: 16),
                 ),
+              _CleanupMenu(state: state, strings: strings),
             ],
           ),
         ),
@@ -287,6 +262,83 @@ class _CenterPanel extends StatelessWidget {
                   label: Text(strings.t('addTaskShort')),
                 ),
               ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CleanupMenu extends StatelessWidget {
+  final AppState state;
+  final AppStrings strings;
+
+  const _CleanupMenu({required this.state, required this.strings});
+
+  Future<void> _run(BuildContext context, String kind) async {
+    final isCompleted = kind == 'completed';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.cleaning_services_outlined),
+        title: Text(
+          isCompleted
+              ? strings.t('clearCompleted')
+              : strings.t('clearOverdue'),
+        ),
+        content: Text(strings.t('deleteConfirm')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(strings.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              strings.t('delete'),
+              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    final n = isCompleted
+        ? await state.deleteCompletedTasks()
+        : await state.deleteOverdueTasks();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text('${strings.t('deletedCount')} $n')),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: strings.t('cleanup'),
+      icon: const Icon(Icons.cleaning_services_outlined),
+      onSelected: (v) => _run(context, v),
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'completed',
+          child: Row(
+            children: [
+              const Icon(Icons.done_all, size: 18),
+              const SizedBox(width: 8),
+              Text(strings.t('clearCompleted')),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'overdue',
+          child: Row(
+            children: [
+              const Icon(Icons.schedule_send, size: 18),
+              const SizedBox(width: 8),
+              Text(strings.t('clearOverdue')),
             ],
           ),
         ),
@@ -405,8 +457,6 @@ class _NarrowDashboardState extends State<_NarrowDashboard> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    _scrollToBottom();
-
     return Column(
       children: [
         SizedBox(
@@ -460,6 +510,8 @@ class _NarrowDashboardState extends State<_NarrowDashboard> {
                       state.selectDate(today.add(const Duration(days: 1))),
                 ),
               ),
+              const SizedBox(width: 8),
+              _CleanupMenu(state: state, strings: strings),
             ],
           ),
         ),

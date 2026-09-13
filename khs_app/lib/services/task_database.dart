@@ -15,7 +15,15 @@ class TaskDatabase {
   /// Тесты выключают, чтобы задавать свой каталог.
   static bool useStableDesktopPath = true;
 
-  static final Random _rand = Random();
+  static Random _makeRandom() {
+    try {
+      return Random.secure();
+    } catch (_) {
+      return Random();
+    }
+  }
+
+  static final Random _rand = _makeRandom();
 
   /// Случайный стабильный ключ записи для синхронизации между устройствами.
   static String newKey() {
@@ -320,5 +328,58 @@ class TaskDatabase {
   Future<void> purgeTask(int id) async {
     final db = await database;
     await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> purgeTaskTombstones(DateTime olderThan) async {
+    final db = await database;
+    await db.delete(
+      'tasks',
+      where: 'deleted = 1 AND updated_at IS NOT NULL AND updated_at < ?',
+      whereArgs: [olderThan.millisecondsSinceEpoch],
+    );
+  }
+
+  /// Полный снимок таблицы с учётом удалённых — для файлового бэкапа.
+  Future<List<Map<String, dynamic>>> dumpTable(String table) async {
+    final db = await database;
+    return db.query(table);
+  }
+
+  /// Восстанавливает строки бэкапа в таблицу, объединяя по client_key:
+  /// существующие обновляются, новых — добавляются (id не трогаем).
+  Future<int> restoreTable(
+    String table,
+    List<Map<String, dynamic>> rows,
+  ) async {
+    final db = await database;
+    var count = 0;
+    for (final raw in rows) {
+      final key = raw['client_key']?.toString();
+      Map<String, dynamic>? target;
+      if (key != null && key.isNotEmpty) {
+        final found = await db.query(
+          table,
+          where: 'client_key = ?',
+          whereArgs: [key],
+          limit: 1,
+        );
+        if (found.isNotEmpty) target = found.first;
+      }
+      if (target != null) {
+        final copy = Map<String, Object?>.from(raw)
+          ..['id'] = target['id'];
+        await db.update(
+          table,
+          copy,
+          where: 'id = ?',
+          whereArgs: [target['id']],
+        );
+      } else {
+        final copy = Map<String, Object?>.from(raw)..remove('id');
+        await db.insert(table, copy);
+      }
+      count++;
+    }
+    return count;
   }
 }

@@ -547,6 +547,166 @@ class _SettingsScreenState extends State<SettingsScreen> {
     messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
+  String _timestampName() {
+    final d = DateTime.now();
+    final ts = '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}'
+        '_${d.hour.toString().padLeft(2, '0')}'
+        '${d.minute.toString().padLeft(2, '0')}';
+    return 'KHS-backup-$ts.json';
+  }
+
+  Future<Directory?> _backupDir() async {
+    if (Platform.isAndroid) {
+      try {
+        final d = await getDownloadsDirectory();
+        if (d != null) return d;
+      } catch (_) {}
+    }
+    return getApplicationDocumentsDirectory();
+  }
+
+  Future<void> _exportBackup(
+    BuildContext context,
+    AppState state,
+    AppStrings strings,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final dir = await _backupDir();
+    if (dir == null) return;
+    final file = File('${dir.path}${Platform.pathSeparator}${_timestampName()}');
+    try {
+      await state.exportBackup(file);
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('${strings.t('backupExported')} ${file.path}'),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('${strings.t('downloadFailed')}: $e')),
+      );
+    }
+  }
+
+  Future<void> _importBackup(
+    BuildContext context,
+    AppState state,
+    AppStrings strings,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final dir = await _backupDir();
+    final defaultPath = dir == null
+        ? '${Platform.pathSeparator}${_timestampName()}'
+        : '${dir.path}${Platform.pathSeparator}${_timestampName()}';
+    final controller = TextEditingController(text: defaultPath);
+    final path = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(strings.t('backupImportTitle')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.url,
+          decoration: InputDecoration(
+            hintText: 'C:\\...\\KHS-backup-2026-01-01_1230.json',
+            prefixIcon: const Icon(Icons.file_open_outlined),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(strings.t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(strings.t('importBackup')),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (path == null || path.isEmpty) return;
+    final file = File(path);
+    if (!await file.exists()) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(strings.t('backupFileNotFound'))),
+      );
+      return;
+    }
+    try {
+      final result = await state.importBackup(file);
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            strings
+                .t('backupImported')
+                .replaceFirst('{1}', '${result.tasks}')
+                .replaceFirst('{2}', '${result.notes}'),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(strings.t('backupBadFile'))),
+      );
+    }
+  }
+
+  Widget _backupSection(AppState state, AppStrings strings) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            strings.t('backup'),
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Text(
+            strings.t('backupHelp'),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _exportBackup(context, state, strings),
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: Text(strings.t('exportBackup')),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _importBackup(context, state, strings),
+                  icon: const Icon(Icons.file_upload_outlined),
+                  label: Text(strings.t('importBackup')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _syncWithPc(BuildContext context, AppState state) async {
     final messenger = ScaffoldMessenger.of(context);
     final strings = state.strings;
@@ -616,6 +776,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text(strings.t('pcAccess')),
             value: state.syncServerEnabled,
             onChanged: (v) => state.setSyncServerEnabled(v),
+          ),
+        if (isPc)
+          FutureBuilder<bool>(
+            future: state.isAutoStartEnabled(),
+            builder: (context, snapshot) {
+              final enabled = snapshot.data ?? false;
+              return SwitchListTile(
+                secondary: const Icon(Icons.rocket_launch_outlined),
+                title: Text(strings.t('autoStart')),
+                subtitle: Text(strings.t('autoStartHelp')),
+                value: enabled,
+                onChanged: (v) async {
+                  final ok = await state.setAutoStartEnabled(v);
+                  if (!mounted) return;
+                  setState(() {});
+                  if (!ok && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(strings.t('connectionFail'))),
+                    );
+                  }
+                },
+              );
+            },
           ),
         if (isPc && state.syncServerEnabled) ...[
           Padding(
@@ -1274,6 +1457,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const Divider(),
         _syncSection(state, strings),
+        const Divider(),
+        _backupSection(state, strings),
         const Divider(),
         ListTile(
           leading: const Icon(Icons.info_outline),

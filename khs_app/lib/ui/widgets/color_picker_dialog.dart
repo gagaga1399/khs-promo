@@ -65,46 +65,72 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _SvBox(
-            hue: _hsv.hue,
-            color: _hsv.toColor(),
-            onChanged: (s, v) => _update(null, s, v),
-          ),
-          const SizedBox(height: 12),
-          _HueBar(hue: _hsv.hue, onChanged: (h) => _update(h, null, null)),
-          const SizedBox(height: 12),
-          Row(
+    final theme = Theme.of(context);
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
+              Text(widget.title, style: theme.textTheme.titleMedium),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: 300,
+                child: _SvBox(
+                  hue: _hsv.hue,
                   color: _hsv.toColor(),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Theme.of(context).dividerColor),
+                  onChanged: (s, v) => _update(null, s, v),
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(_hex, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: 300,
+                child: _HueBar(
+                  hue: _hsv.hue,
+                  onChanged: (h) => _update(h, null, null),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: _hsv.toColor(),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(_hex, style: theme.textTheme.titleMedium),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(widget.cancelLabel),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, _hsv.toColor()),
+                    child: Text(widget.okLabel),
+                  ),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(widget.cancelLabel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _hsv.toColor()),
-          child: Text(widget.okLabel),
-        ),
-      ],
     );
   }
 }
@@ -145,8 +171,6 @@ class _SvBox extends StatelessWidget {
     );
   }
 
-  /// Центр курсора: он ходит по всей области, но круг не вылезает за края,
-  /// потому что центр ограничен радиусом.
   Offset _pointer(HSVColor hsv, double width) {
     return Offset(
       _radius + hsv.saturation * (width - 2 * _radius),

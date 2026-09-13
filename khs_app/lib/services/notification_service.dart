@@ -10,6 +10,10 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
+  static const _channelId = 'khs_reminders';
+  static const _channelName = 'Напоминания задач';
+  static const _channelDesc = 'Уведомления о сроках задач и напоминания';
+
   Future<void> init() async {
     if (Platform.isWindows) {
       FlutterLocalNotificationsPlatform.instance =
@@ -22,6 +26,7 @@ class NotificationService {
     } catch (_) {
       tz.setLocalLocation(tz.getLocation('UTC'));
     }
+
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const windows = WindowsInitializationSettings(
       appName: 'KHS',
@@ -35,7 +40,30 @@ class NotificationService {
       linux: linux,
     );
     await _plugin.initialize(settings: settings);
+
+    if (Platform.isAndroid) {
+      await _createNotificationChannel();
+    }
+
     _ready = true;
+  }
+
+  Future<void> _createNotificationChannel() async {
+    final androidImpl = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (androidImpl == null) return;
+    const channel = AndroidNotificationChannel(
+      _channelId,
+      _channelName,
+      description: _channelDesc,
+      importance: Importance.max,
+      enableVibration: true,
+      enableLights: true,
+      playSound: true,
+    );
+    await androidImpl.createNotificationChannel(channel);
   }
 
   Future<void> requestPermissions() async {
@@ -47,8 +75,6 @@ class NotificationService {
     await androidImpl?.requestExactAlarmsPermission();
   }
 
-  /// Разрешены ли точные будильники (Android 12+). Если нет — уведомление
-  /// может прийти с задержкой.
   Future<bool> canScheduleExactAlarms() async {
     if (!Platform.isAndroid) return true;
     try {
@@ -56,31 +82,29 @@ class NotificationService {
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
           >();
-      return await androidImpl?.canScheduleExactNotifications() ?? true;
+      return await androidImpl?.canScheduleExactNotifications() ?? false;
     } catch (_) {
-      return true;
+      return false;
     }
   }
 
-  /// Тестовое уведомление через 10 секунд — проверить доставку.
   Future<void> sendTestNotification(String title, String body) async {
     if (!_ready) return;
-    await schedule(
-      999001,
-      title,
-      body,
-      DateTime.now().add(const Duration(seconds: 10)),
-    );
+    await show(999001, title, body);
   }
 
   NotificationDetails _details() {
     return NotificationDetails(
       android: AndroidNotificationDetails(
-        'task_reminders',
-        'Task reminders',
-        channelDescription: 'Notifications about task due dates',
+        _channelId,
+        _channelName,
+        channelDescription: _channelDesc,
         importance: Importance.max,
         priority: Priority.high,
+        enableVibration: true,
+        enableLights: true,
+        playSound: true,
+        styleInformation: BigTextStyleInformation(''),
       ),
       windows: const WindowsNotificationDetails(
         scenario: WindowsNotificationScenario.reminder,
@@ -89,7 +113,6 @@ class NotificationService {
     );
   }
 
-  /// Мгновенное уведомление (например, заметка, пришедшая с ПК).
   Future<void> show(int id, String title, String body) async {
     if (!_ready) return;
     await _plugin.show(
@@ -109,9 +132,10 @@ class NotificationService {
   }) async {
     if (!_ready) return;
     final scheduled = tz.TZDateTime.from(when, tz.local);
+
+    if (scheduled.isBefore(tz.TZDateTime.now(tz.local))) return;
+
     try {
-      // Точный будильник, чтобы уведомление пришло вовремя. Требует
-      // SCHEDULE_EXACT_ALARM; если пользователь запретил — запасной вариант.
       await _plugin.zonedSchedule(
         id: id,
         title: title,
@@ -122,15 +146,17 @@ class NotificationService {
         matchDateTimeComponents: repeat,
       );
     } catch (_) {
-      await _plugin.zonedSchedule(
-        id: id,
-        title: title,
-        body: body,
-        scheduledDate: scheduled,
-        notificationDetails: _details(),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        matchDateTimeComponents: repeat,
-      );
+      try {
+        await _plugin.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: scheduled,
+          notificationDetails: _details(),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          matchDateTimeComponents: repeat,
+        );
+      } catch (_) {}
     }
   }
 
