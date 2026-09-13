@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -35,6 +36,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
   late DateTime _date;
 
   bool _dirty = false;
+  bool _preview = false;
 
   bool get _isNew => widget.note == null;
 
@@ -301,6 +303,71 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
     );
   }
 
+  Widget _buildToolbar(ThemeData theme, AppStrings strings) {
+    if (_preview) {
+      return SizedBox(
+        height: 40,
+        child: Row(
+          children: [
+            IconButton(
+              tooltip: strings.t('fmtEditor'),
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              onPressed: () => setState(() => _preview = false),
+            ),
+            Expanded(
+              child: Text(
+                strings.t('fmtPreviewLabel').toLowerCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        children: [
+          _fmtButton(strings.t('fmtBold'), Icons.format_bold,
+              () => _applyInline('**', '**')),
+          _fmtButton(strings.t('fmtItalic'), Icons.format_italic,
+              () => _applyInline('*', '*')),
+          _fmtButton(strings.t('fmtStrike'), Icons.format_strikethrough,
+              () => _applyInline('~~', '~~')),
+          _fmtButton(strings.t('fmtCode'), Icons.code,
+              () => _applyInline('`', '`')),
+          _fmtButton(strings.t('fmtCodeBlock'), Icons.terminal,
+              () => _applyInline('\n```\n', '\n```\n')),
+          _fmtButton(strings.t('fmtH1'), Icons.looks_one_outlined,
+              () => _toggleHeading(1)),
+          _fmtButton(strings.t('fmtH2'), Icons.looks_two_outlined,
+              () => _toggleHeading(2)),
+          _fmtButton(strings.t('fmtH3'), Icons.looks_3_outlined,
+              () => _toggleHeading(3)),
+          _fmtButton(strings.t('fmtBullet'), Icons.format_list_bulleted,
+              () => _toggleLinePrefix('- ')),
+          _fmtButton(strings.t('fmtNumList'), Icons.format_list_numbered,
+              () => _toggleLinePrefix('1. ')),
+          _fmtButton(strings.t('fmtChecklist'), Icons.checklist,
+              () => _toggleLinePrefix('- [ ] ')),
+          _fmtButton(strings.t('fmtQuote'), Icons.format_quote,
+              () => _toggleLinePrefix('> ')),
+          _fmtButton(
+              strings.t('fmtPreview'),
+              _preview ? Icons.edit_outlined : Icons.visibility_outlined,
+              () => setState(() => _preview = !_preview)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -399,56 +466,47 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
               ),
             ),
             const Divider(height: 16),
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                children: [
-                  _fmtButton(strings.t('fmtBold'), Icons.format_bold,
-                      () => _applyInline('**', '**')),
-                  _fmtButton(strings.t('fmtItalic'), Icons.format_italic,
-                      () => _applyInline('*', '*')),
-                  _fmtButton(strings.t('fmtStrike'), Icons.format_strikethrough,
-                      () => _applyInline('~~', '~~')),
-                  _fmtButton(strings.t('fmtCode'), Icons.code,
-                      () => _applyInline('`', '`')),
-                  _fmtButton(strings.t('fmtCodeBlock'), Icons.terminal,
-                      () => _applyInline('\n```\n', '\n```\n')),
-                  _fmtButton(strings.t('fmtH1'), Icons.looks_one_outlined,
-                      () => _toggleHeading(1)),
-                  _fmtButton(strings.t('fmtH2'), Icons.looks_two_outlined,
-                      () => _toggleHeading(2)),
-                  _fmtButton(strings.t('fmtH3'), Icons.looks_3_outlined,
-                      () => _toggleHeading(3)),
-                  _fmtButton(
-                      strings.t('fmtBullet'), Icons.format_list_bulleted, () => _toggleLinePrefix('- ')),
-                  _fmtButton(
-                      strings.t('fmtNumList'), Icons.format_list_numbered, () => _toggleLinePrefix('1. ')),
-                  _fmtButton(strings.t('fmtChecklist'), Icons.checklist,
-                      () => _toggleLinePrefix('- [ ] ')),
-                  _fmtButton(
-                      strings.t('fmtQuote'), Icons.format_quote, () => _toggleLinePrefix('> ')),
-                ],
-              ),
-            ),
+            _buildToolbar(Theme.of(context), strings),
             Expanded(
-              child: TextField(
-                controller: _contentController,
-                focusNode: _contentFocus,
-                expands: true,
-                maxLines: null,
-                minLines: null,
-                textAlignVertical: TextAlignVertical.top,
-                // Жёсткое ограничение скролла: выделение упирается в границы
-                // окна и не «телепортируется» при прокрутке длинного текста.
-                scrollPhysics: const ClampingScrollPhysics(),
-                decoration: InputDecoration(
-                  hintText: strings.t('noteContentHint'),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                ),
-              ),
+              child: _preview
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: _contentController.text.trim().isEmpty
+                          ? Text(
+                              strings.t('noteContentHint'),
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            )
+                          : MarkdownBody(
+                              data: _contentController.text,
+                              selectable: true,
+                              styleSheet: MarkdownStyleSheet.fromTheme(
+                                Theme.of(context),
+                              ).copyWith(
+                                p: const TextStyle(fontSize: 15, height: 1.5),
+                              ),
+                            ),
+                    )
+                  : TextField(
+                      controller: _contentController,
+                      focusNode: _contentFocus,
+                      expands: true,
+                      maxLines: null,
+                      minLines: null,
+                      textAlignVertical: TextAlignVertical.top,
+                      // Жёсткое ограничение скролла: выделение упирается в границы
+                      // окна и не «телепортируется» при прокрутке длинного текста.
+                      scrollPhysics: const ClampingScrollPhysics(),
+                      decoration: InputDecoration(
+                        hintText: strings.t('noteContentHint'),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      ),
+                    ),
             ),
           ],
         ),

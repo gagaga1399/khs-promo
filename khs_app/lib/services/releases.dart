@@ -29,7 +29,7 @@ const List<ReleaseInfo> khsReleases = [
     changes: [
       ChangeEntry('Загрузка обновления: окно с процентом и прогресс-баром', ChangeType.feature),
       ChangeEntry('Загрузку больше не обрывает между чанками файла', ChangeType.bugfix),
-      ChangeEntry('Редактор заметок: панель форматирования как в Obsidian — жирный, курсив, код, заголовки, списки, цитаты', ChangeType.feature),
+      ChangeEntry('Редактор заметок: панель форматирования и режим предпросмотра — разметка отображается как в Obsidian', ChangeType.feature),
     ],
   ),
   ReleaseInfo(

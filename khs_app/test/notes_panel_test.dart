@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -48,5 +49,27 @@ void main() {
     expect(find.text('Заметка дня'), findsOneWidget);
     expect(find.text('Отдельная заметка'), findsOneWidget);
     expect(find.text('14 августа 2026'), findsOneWidget);
+  });
+
+  testWidgets('editor preview renders markdown and hides content field', (
+    tester,
+  ) async {
+    final state = AppState();
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AppState>.value(
+        value: state,
+        child: const MaterialApp(home: NotesEditorScreen()),
+      ),
+    );
+    expect(find.byType(TextField), findsNWidgets(2));
+    await tester.enterText(find.byType(TextField).at(1), '**жирный**');
+    await tester.tap(find.byIcon(Icons.visibility_outlined));
+    await tester.pumpAndSettle();
+    expect(find.byType(MarkdownBody), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.pumpAndSettle();
+    expect(find.byType(MarkdownBody), findsNothing);
+    expect(find.byType(TextField), findsNWidgets(2));
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../localization/app_strings.dart';
@@ -141,9 +142,17 @@ class _SearchScreenState extends State<SearchScreen> {
           ],
         ),
         content: SingleChildScrollView(
-          child: SelectableText(
-            note.content.trim().isEmpty ? '—' : note.content,
-          ),
+          child: note.content.trim().isEmpty
+              ? SelectableText('—')
+              : MarkdownBody(
+                  data: note.content,
+                  selectable: true,
+                  styleSheet: MarkdownStyleSheet.fromTheme(
+                    Theme.of(ctx),
+                  ).copyWith(
+                    p: const TextStyle(fontSize: 15, height: 1.5),
+                  ),
+                ),
         ),
         actions: [
           TextButton(

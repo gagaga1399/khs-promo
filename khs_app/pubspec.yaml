@@ -52,7 +52,7 @@ dependencies:
   url_launcher: ^6.3.2
   crypto: ^3.0.5
   cryptography: ^2.7.0
-
+  flutter_markdown_plus: ^1.0.12
 dev_dependencies:
   flutter_test:
     sdk: flutter
