@@ -771,8 +771,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// Проверяет на ПК наличие более новой версии KHS (обновление по Wi-Fi).
-  Future<UpdateInfo?> checkForUpdate() async {
-    if (_syncAddress.trim().isEmpty) return null;
+  Future<UpdateCheckResult> checkForUpdate() async {
+    if (_syncAddress.trim().isEmpty) {
+      return const UpdateCheckResult(UpdateCheckStatus.unreachable);
+    }
     return UpdateChecker(host: _syncAddress, token: _syncToken).fetch();
   }
 

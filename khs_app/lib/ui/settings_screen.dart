@@ -119,10 +119,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // На телефоне история берётся с ПК-сервера: так она не застревает
     // на версии, с которой установлено приложение.
     if (!state.isPc) {
-      final info = alreadyFetched
-          ? cachedInfo
-          : (cachedInfo ?? await state.checkForUpdate());
-      if (info != null && info.history.isNotEmpty) {
+      final result = alreadyFetched
+          ? (cachedInfo == null
+                ? const UpdateCheckResult(UpdateCheckStatus.noUpdate)
+                : UpdateCheckResult(UpdateCheckStatus.ok, cachedInfo))
+          : (cachedInfo != null
+                ? UpdateCheckResult(UpdateCheckStatus.ok, cachedInfo)
+                : await state.checkForUpdate());
+      final info = result.info;
+      if (result.status == UpdateCheckStatus.ok &&
+          info != null &&
+          info.history.isNotEmpty) {
         releases = info.history;
         fromServer = true;
       }
@@ -240,18 +247,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     final info = await state.checkForUpdate();
     if (!mounted) return;
-    if (info == null || info.version.isEmpty) {
+    if (info.status != UpdateCheckStatus.ok || info.info == null) {
+      final msg = info.status == UpdateCheckStatus.noUpdate
+          ? strings.t('updateNotConfigured')
+          : strings.t('updateConnectFail');
       messenger.showSnackBar(
         SnackBar(
-          content: Text(strings.t('updateConnectFail')),
+          content: Text(msg),
           duration: const Duration(seconds: 4),
         ),
       );
-      await _showChangelog(strings, cachedInfo: info, alreadyFetched: true);
+      await _showChangelog(strings, cachedInfo: info.info, alreadyFetched: true);
       return;
     }
+    final meta = info.info!;
     final current = _version;
-    final newer = current == null || compareVersions(current, info.version) < 0;
+    final newer = current == null || compareVersions(current, meta.version) < 0;
     if (!newer) {
       await showDialog<void>(
         context: context,
@@ -271,7 +282,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       return;
     }
-    await _showUpdateDialog(state, strings, info);
+    await _showUpdateDialog(state, strings, meta);
   }
 
   Future<void> _showUpdateDialog(

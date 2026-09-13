@@ -56,6 +56,16 @@ class UpdateInfo {
   );
 }
 
+/// Состояние ответа ПК на проверку обновления: чтобы отличать «ПК недоступен»
+/// от «ПК доступен, но обновление на нём не настроено» (нет update.json).
+enum UpdateCheckStatus { ok, unreachable, noUpdate }
+
+class UpdateCheckResult {
+  final UpdateCheckStatus status;
+  final UpdateInfo? info;
+  const UpdateCheckResult(this.status, [this.info]);
+}
+
 /// Ходит на ПК (тот же адрес, что и синк) и спрашивает про обновления.
 class UpdateChecker {
   final String host; // например 192.168.1.5:4680
@@ -70,9 +80,11 @@ Map<String, String> _authHeaders() =>
     ..connectionTimeout = const Duration(seconds: 4)
     ..idleTimeout = const Duration(seconds: 20);
 
-  /// Возвращает метаданные обновления или null, если ПК недоступен
-  /// или обновление не настроено.
-  Future<UpdateInfo?> fetch() async {
+  /// Спрашивает ПК про обновление. [UpdateCheckResult.status] различает:
+  /// `ok` — сервер ответил подписанными данными; `noUpdate` — сервер
+  /// доступен, но обновления на нём нет (404/запрет/плохая подпись);
+  /// `unreachable` — до ПК не достучаться или ответ не похож на обновление.
+  Future<UpdateCheckResult> fetch() async {
     final client = _client();
     try {
       final req = await client.getUrl(
@@ -80,15 +92,28 @@ Map<String, String> _authHeaders() =>
       );
       _authHeaders().forEach(req.headers.set);
       final res = await req.close();
-      if (res.statusCode != 200) return null;
+      if (res.statusCode == 404 ||
+          res.statusCode == 403 ||
+          res.statusCode == 429) {
+        return const UpdateCheckResult(UpdateCheckStatus.noUpdate);
+      }
+      if (res.statusCode != 200) {
+        return const UpdateCheckResult(UpdateCheckStatus.unreachable);
+      }
       final text = await utf8.decoder.bind(res).join();
       final json = jsonDecode(text) as Map<String, dynamic>;
       // Без валидной подписи обновление не предлагаем вообще — так
       // «по дороге» нельзя подменить update.json или файлы.
-      if (!await verifyUpdateSignature(json)) return null;
-      return UpdateInfo.fromJson(json);
+      if (!await verifyUpdateSignature(json)) {
+        return const UpdateCheckResult(UpdateCheckStatus.noUpdate);
+      }
+      final info = UpdateInfo.fromJson(json);
+      if (info.version.isEmpty) {
+        return UpdateCheckResult(UpdateCheckStatus.noUpdate, info);
+      }
+      return UpdateCheckResult(UpdateCheckStatus.ok, info);
     } catch (_) {
-      return null;
+      return const UpdateCheckResult(UpdateCheckStatus.unreachable);
     } finally {
       client.close();
     }
