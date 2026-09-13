@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../localization/app_strings.dart';
 import '../models/note.dart';
 import '../state/app_state.dart';
+import 'widgets/markdown_preview.dart';
 
 class NotesEditorScreen extends StatefulWidget {
   final Note? note;
@@ -470,25 +470,19 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
             Expanded(
               child: _preview
                   ? SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       child: _contentController.text.trim().isEmpty
                           ? Text(
                               strings.t('noteContentHint'),
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: kNoteEditorFontSize,
                                 color: Theme.of(context)
                                     .colorScheme
                                     .onSurfaceVariant,
                               ),
                             )
-                          : MarkdownBody(
+                          : NoteMarkdownPreview(
                               data: _contentController.text,
-                              selectable: true,
-                              styleSheet: MarkdownStyleSheet.fromTheme(
-                                Theme.of(context),
-                              ).copyWith(
-                                p: const TextStyle(fontSize: 15, height: 1.5),
-                              ),
                             ),
                     )
                   : TextField(
@@ -498,6 +492,10 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
                       maxLines: null,
                       minLines: null,
                       textAlignVertical: TextAlignVertical.top,
+                      style: const TextStyle(
+                        fontSize: kNoteEditorFontSize,
+                        height: kNoteEditorLineHeight,
+                      ),
                       // Жёсткое ограничение скролла: выделение упирается в границы
                       // окна и не «телепортируется» при прокрутке длинного текста.
                       scrollPhysics: const ClampingScrollPhysics(),

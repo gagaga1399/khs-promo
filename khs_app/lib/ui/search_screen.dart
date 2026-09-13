@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:provider/provider.dart';
-
 import '../localization/app_strings.dart';
 import '../models/note.dart';
 import '../models/task.dart';
 import '../state/app_state.dart';
 import 'task_edit_screen.dart';
+import 'widgets/markdown_preview.dart';
 import 'widgets/task_tile.dart';
 
 /// Глобальный поиск по задачам и заметкам.
@@ -143,16 +142,8 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         content: SingleChildScrollView(
           child: note.content.trim().isEmpty
-              ? SelectableText('—')
-              : MarkdownBody(
-                  data: note.content,
-                  selectable: true,
-                  styleSheet: MarkdownStyleSheet.fromTheme(
-                    Theme.of(ctx),
-                  ).copyWith(
-                    p: const TextStyle(fontSize: 15, height: 1.5),
-                  ),
-                ),
+              ? const SelectableText('—')
+              : NoteMarkdownPreview(data: note.content),
         ),
         actions: [
           TextButton(
