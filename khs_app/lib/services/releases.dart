@@ -24,6 +24,14 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.21',
+    date: '13.09.2026',
+    changes: [
+      ChangeEntry('Проверка обновлений: понятно, когда ПК недоступен, а когда на ПК не настроен файл обновления', ChangeType.improvement),
+      ChangeEntry('Обновление по Wi-Fi снова находит файлы рядом с запущенным KHS', ChangeType.bugfix),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.20',
     date: '13.09.2026',
     changes: [
