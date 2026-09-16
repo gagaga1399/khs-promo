@@ -117,10 +117,19 @@
     <div class="card">
       <span class="ico">▣</span>
       <h3>KHS — хаб</h3>
-      <p>Главный экран: плитки приложений и мини-описания, выбор темы, настройки плиток. Внутри — KHS Tasks: задачи, заметки, календарь.</p>
+      <p>Главный экран: плитки приложений и мини-описания, выбор темы, настройки плиток. Точка входа во всё.</p>
       <p style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
         <a class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="khs-1.2.25.apk">Android <small id="apkSize2"></small></a>
         <a class="btn btn-ghost" style="padding:10px 16px;font-size:12px" href="khs-1.2.25-windows.zip">Windows <small id="zipSize2"></small></a>
+      </p>
+    </div>
+    <div class="card">
+      <span class="ico">✔</span>
+      <h3>KHS Tasks</h3>
+      <p>Задачи и приоритеты, заметки дня, календарь. Живёт внутри хаба KHS.</p>
+      <p style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+        <a class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="khs-1.2.25.apk">Android <small id="apkSize3"></small></a>
+        <a class="btn btn-ghost" style="padding:10px 16px;font-size:12px" href="khs-1.2.25-windows.zip">Windows <small id="zipSize3"></small></a>
       </p>
     </div>
     <div class="card">
@@ -194,6 +203,8 @@
     document.getElementById('zipSize').textContent = fmt(16256066);
     document.getElementById('apkSize2').textContent = fmt(72818927);
     document.getElementById('zipSize2').textContent = fmt(16256066);
+    document.getElementById('apkSize3').textContent = fmt(72818927);
+    document.getElementById('zipSize3').textContent = fmt(16256066);
     document.getElementById('qzSize').textContent = fmt(58339473);
 function fmt(b) {
     var mb = b / 1024 / 1024;
