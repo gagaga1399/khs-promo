@@ -105,11 +105,34 @@
   <h1>Убей<br>привычную<br>структуру</h1>
   <p class="sub">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS не разрушает ради хаоса — он заменяет то, что держит тебя в покое, на то, что ведёт в движение.</p>
   <div class="btns">
-    <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.19.apk" id="btnAndroid" target="_blank" rel="noopener">Скачать для Android <small id="apkSize"></small></a>
-    <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.19-windows.zip" id="btnWindows" target="_blank" rel="noopener">Скачать для Windows <small id="zipSize"></small></a>
+    <a class="btn btn-primary" href="khs-1.2.25.apk" id="btnAndroid" rel="noopener">Скачать для Android <small id="apkSize"></small></a>
+    <a class="btn btn-ghost" href="khs-1.2.25-windows.zip" id="btnWindows" rel="noopener">Скачать для Windows <small id="zipSize"></small></a>
   </div>
-  <div class="meta">Версия <span id="verline">1.2.19</span> · обновление по Wi-Fi из приложения</div>
+  <div class="meta">Версия <span id="verline">1.2.25</span> · центр KHS: хаб с плитками приложений · обновление по Wi-Fi из приложения</div>
 </div>
+
+<section class="wrap" id="appsSection">
+  <div class="sec-title">Приложения центра</div>
+  <div class="grid">
+    <div class="card">
+      <span class="ico">▣</span>
+      <h3>KHS — хаб</h3>
+      <p>Главный экран: плитки приложений и мини-описания, выбор темы, настройки плиток. Внутри — KHS Tasks: задачи, заметки, календарь.</p>
+      <p style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+        <a class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="khs-1.2.25.apk">Android <small id="apkSize2"></small></a>
+        <a class="btn btn-ghost" style="padding:10px 16px;font-size:12px" href="khs-1.2.25-windows.zip">Windows <small id="zipSize2"></small></a>
+      </p>
+    </div>
+    <div class="card">
+      <span class="ico">☰</span>
+      <h3>QutZem Reader</h3>
+      <p>Читалка книг и документов. Запускается прямо из хаба KHS отдельной плиткой.</p>
+      <p style="margin-top:16px">
+        <a class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="qutzem-reader.apk">Скачать APK <small id="qzSize"></small></a>
+      </p>
+    </div>
+  </div>
+</section>
 
 <section class="wrap">
   <div class="sec-title">Манифест</div>
@@ -166,9 +189,12 @@
     img.src = name;
   });
 
-      document.getElementById('verline').textContent = '1.2.19';
-    document.getElementById('apkSize').textContent = fmt(65400934);
-    document.getElementById('zipSize').textContent = fmt(14351208);
+      document.getElementById('verline').textContent = '1.2.25';
+    document.getElementById('apkSize').textContent = fmt(72818927);
+    document.getElementById('zipSize').textContent = fmt(16256066);
+    document.getElementById('apkSize2').textContent = fmt(72818927);
+    document.getElementById('zipSize2').textContent = fmt(16256066);
+    document.getElementById('qzSize').textContent = fmt(58339473);
 function fmt(b) {
     var mb = b / 1024 / 1024;
     return (mb >= 1000 ? (mb/1024).toFixed(1) + ' GB' : mb.toFixed(1) + ' MB');
