@@ -2,6 +2,8 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include <algorithm>
+
 #include "flutter_window.h"
 #include "utils.h"
 
@@ -21,6 +23,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
+
+  // Straight to the KHS Tasks module when launched via the desktop shortcut.
+  if (std::find(command_line_arguments.begin(), command_line_arguments.end(),
+                "--tasks") != command_line_arguments.end()) {
+    ::SetEnvironmentVariableW(L"KHS_START_TASKS", L"1");
+  }
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 

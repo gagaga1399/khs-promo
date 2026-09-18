@@ -32,14 +32,16 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(strings.t('appTitle')),
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 12),
-          child: CircleAvatar(
-            radius: 18,
-            backgroundImage: AssetImage('assets/avatar.png'),
-          ),
-        ),
+        title: Text(strings.t('hubTasksTitle')),
+        leading: Navigator.canPop(context)
+            ? null
+            : const Padding(
+                padding: EdgeInsets.only(left: 12),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundImage: AssetImage('assets/avatar.png'),
+                ),
+              ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -111,7 +113,7 @@ class _MobileShellState extends State<MobileShell> {
     final state = context.watch<AppState>();
     final strings = state.strings;
     final titles = <String>[
-      strings.t('appTitle'),
+      strings.t('hubTasksTitle'),
       strings.t('calendar'),
       strings.t('notes'),
       strings.t('settings'),
@@ -120,7 +122,7 @@ class _MobileShellState extends State<MobileShell> {
     return Scaffold(
       appBar: AppBar(
         title: Text(titles[_index]),
-        leading: _index == 0
+        leading: _index == 0 && !Navigator.canPop(context)
             ? const Padding(
                 padding: EdgeInsets.only(left: 12),
                 child: CircleAvatar(

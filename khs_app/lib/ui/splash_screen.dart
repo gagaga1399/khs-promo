@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'home_screen.dart';
+import 'hub_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback onComplete;
@@ -148,7 +148,7 @@ class _SplashGateState extends State<SplashGate> {
   @override
   Widget build(BuildContext context) {
     return _done
-        ? const HomeScreen()
+        ? const HubScreen()
         : SplashScreen(onComplete: _finish);
   }
 }

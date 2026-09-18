@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+wifi_manager.py
+wifi_passwords.py
+qutzem-reader.apkkhs_app/khs_log.txt

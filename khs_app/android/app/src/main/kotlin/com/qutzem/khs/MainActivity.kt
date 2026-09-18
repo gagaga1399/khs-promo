@@ -1,6 +1,9 @@
 package com.qutzem.khs
 
 import android.content.Intent
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -14,7 +17,11 @@ class MainActivity : FlutterActivity() {
     private val installChannelName = "khs/install"
     private val vaultChannelName = "khs/vault"
     private val backgroundChannelName = "khs/background"
+    private val shortcutChannelName = "khs/shortcut"
+    private val startTasksExtra = "khs_start_tasks"
+    private val QUTZEM_READER_PACKAGE = "dev.qutzem.qutzem_reader"
 
+    private var shortcutChannel: MethodChannel? = null
     private var pendingVaultResult: MethodChannel.Result? = null
     private var vaultPickRequestCode = 0x0A11
 
@@ -53,6 +60,109 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        shortcutChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            shortcutChannelName
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "createTasksShortcut" -> {
+                        val label = call.argument<String>("label") ?: "KHS Tasks"
+                        result.success(createTasksShortcut(label))
+                    }
+                    "createAppShortcut" -> {
+                        val pkg = call.argument<String>("package") ?: ""
+                        val label = call.argument<String>("label") ?: pkg
+                        result.success(createAppShortcut(pkg, label))
+                    }
+                    "isPackageInstalled" -> {
+                        val pkg = call.argument<String>("package") ?: ""
+                        result.success(isPackageInstalled(pkg))
+                    }
+                    "launchPackage" -> {
+                        val pkg = call.argument<String>("package") ?: ""
+                        val fallbackUrl = call.argument<String>("fallbackUrl")
+                        result.success(launchPackage(pkg, fallbackUrl))
+                    }
+                    "getInitialStart" ->
+                        result.success(intent?.getStringExtra(startTasksExtra))
+                    else -> result.notImplemented()
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getStringExtra(startTasksExtra) != null) {
+            shortcutChannel?.invokeMethod("startTasks", null)
+        }
+    }
+
+    /** Закрепить ярлык «KHS Tasks» на домашнем экране (Android 8+). */
+    private fun createTasksShortcut(label: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        val sm = getSystemService(ShortcutManager::class.java) ?: return false
+        if (!sm.isRequestPinShortcutSupported) return false
+        val launch = Intent(this, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            putExtra(startTasksExtra, "1")
+        }
+        val info = ShortcutInfo.Builder(this, "khs_tasks")
+            .setShortLabel(label)
+            .setLongLabel(label)
+            .setIcon(Icon.createWithResource(this, R.drawable.ic_tasks))
+            .setIntent(launch)
+            .build()
+        return sm.requestPinShortcut(info, null)
+    }
+
+    /** Пин ярлыка любого установленного приложения (Android 8+), иконка для читалки своя. */
+    private fun createAppShortcut(packageName: String, label: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        if (packageName.isEmpty()) return false
+        val sm = getSystemService(ShortcutManager::class.java) ?: return false
+        if (!sm.isRequestPinShortcutSupported) return false
+        val launch = packageManager.getLaunchIntentForPackage(packageName) ?: return false
+        launch.action = Intent.ACTION_MAIN
+        launch.addCategory(Intent.CATEGORY_LAUNCHER)
+        launch.setPackage(null)
+        val icon = if (packageName == QUTZEM_READER_PACKAGE) {
+            Icon.createWithResource(this, R.drawable.ic_qutzem)
+        } else {
+            return false
+        }
+        val info = ShortcutInfo.Builder(this, "app_$packageName")
+            .setShortLabel(label)
+            .setLongLabel(label)
+            .setIcon(icon)
+            .setIntent(launch)
+            .build()
+        return sm.requestPinShortcut(info, null)
+    }
+
+    private fun isPackageInstalled(packageName: String): Boolean {
+        return packageManager.getLaunchIntentForPackage(packageName) != null
+    }
+
+    private fun launchPackage(packageName: String, fallbackUrl: String?): Boolean {
+        val launch = packageManager.getLaunchIntentForPackage(packageName)
+        if (launch != null) {
+            try {
+                startActivity(launch)
+                return true
+            } catch (_: Exception) {}
+        }
+        if (!fallbackUrl.isNullOrEmpty()) {
+            try {
+                val browser = Intent(Intent.ACTION_VIEW, Uri.parse(fallbackUrl))
+                browser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(browser)
+            } catch (_: Exception) {}
+        }
+        return false
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

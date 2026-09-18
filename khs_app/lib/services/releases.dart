@@ -24,6 +24,44 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.27',
+    date: '18.09.2026',
+    changes: [
+      ChangeEntry('QutZem Reader: «Что значит термин» — нейросеть объясняет слово или фразу в контексте книги (кнопка на панели выделения и в заметках)', ChangeType.feature),
+      ChangeEntry('QutZem Reader: ИИ-разбор без ключей — локальная Ollama или бесплатный облачный ИИ; при ошибке кнопка «Настроить ИИ»', ChangeType.feature),
+      ChangeEntry('QutZem Reader: заметки — вкладка «Цитаты» с копированием', ChangeType.feature),
+      ChangeEntry('QutZem Reader: поиск книг по каталогам параллельно и по своей библиотеке', ChangeType.feature),
+      ChangeEntry('QutZem Reader: настройки ИИ — модель подхватывается из установленных в Ollama автоматически', ChangeType.improvement),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.2.26',
+    date: '16.09.2026',
+    changes: [
+      ChangeEntry('Плитки хаба: высота подстраивается под текст — нет переполнения на телефоне', ChangeType.bugfix),
+      ChangeEntry('Плитки выровнены: ряд плиток, под ним ряд описаний — одинаковой высоты на Windows', ChangeType.bugfix),
+      ChangeEntry('Мини-описания привязаны к своей плитке и не разъезжаются на узких экранах', ChangeType.bugfix),
+      ChangeEntry('Ярлык KHS Tasks теперь можно закрепить на рабочий стол и на Android (кнопка на плитке)', ChangeType.feature),
+      ChangeEntry('В «О приложении» хаба добавлен автор — QutZem', ChangeType.improvement),
+      ChangeEntry('Плитка QutZem Reader на Android: запуск читалки, ярлык на главный экран и установка, если читалки нет', ChangeType.feature),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.2.25',
+    date: '15.09.2026',
+    changes: [
+      ChangeEntry('Главный экран — центр KHS: стартовый хаб с плитками приложений', ChangeType.feature),
+      ChangeEntry('Плитка KHS Tasks — быстрый вход в задачи, заметки, календарь', ChangeType.feature),
+      ChangeEntry('Мини-кнопка на плитке выносит KHS Tasks на рабочий стол отдельным ярлыком', ChangeType.feature),
+      ChangeEntry('Плитка QutZem Reader — запуск читалки и ярлык на рабочий стол', ChangeType.feature),
+      ChangeEntry('Под плитками — мини-описания приложений с иконками', ChangeType.improvement),
+      ChangeEntry('Настройки хаба: управление плитками и смена темы как в KHS Tasks', ChangeType.feature),
+      ChangeEntry('Главный экран: декоративные фигуры на фоне', ChangeType.improvement),
+      ChangeEntry('Настройки хаба вынесены в шестерёнку в шапке: анимация запуска, история версий', ChangeType.improvement),
+      ChangeEntry('Место под будущие разделы — плитки «Скоро»', ChangeType.improvement),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.24',
     date: '13.09.2026',
     changes: [
@@ -330,3 +368,34 @@ int compareVersions(String a, String b) {
 
 ReleaseInfo? get latestRelease =>
     khsReleases.isEmpty ? null : khsReleases.first;
+
+/// История самого хаба KHS (без изменений KHS Tasks).
+const List<ReleaseInfo> khsHubReleases = [
+  ReleaseInfo(
+    version: '1.0.2',
+    date: '15.09.2026',
+    changes: [
+      ChangeEntry('Настройки хаба: управление плитками и смена темы', ChangeType.feature),
+      ChangeEntry('Главный экран: декоративные фигуры на фоне', ChangeType.improvement),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.0.1',
+    date: '15.09.2026',
+    changes: [
+      ChangeEntry('Плитка QutZem Reader — запуск читалки и ярлык на рабочий стол', ChangeType.feature),
+      ChangeEntry('Под плитками — мини-описания приложений с иконками', ChangeType.improvement),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.0.0',
+    date: '15.09.2026',
+    changes: [
+      ChangeEntry('Главный экран — центр KHS: стартовый хаб с плитками приложений', ChangeType.feature),
+      ChangeEntry('Плитка KHS Tasks — быстрый вход в задачи, заметки, календарь', ChangeType.feature),
+      ChangeEntry('Мини-кнопка на плитке выносит KHS Tasks на рабочий стол отдельным ярлыком', ChangeType.feature),
+      ChangeEntry('Настройки хаба: анимация запуска, Pre-release и история хаба', ChangeType.improvement),
+      ChangeEntry('Место под будущие разделы — плитки «Скоро»', ChangeType.improvement),
+    ],
+  ),
+];

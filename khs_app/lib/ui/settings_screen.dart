@@ -1350,13 +1350,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
           ),
-        SwitchListTile(
-          secondary: const Icon(Icons.animation),
-          title: Text(strings.t('splashAnimation')),
-          subtitle: Text(strings.t('splashAnimationHelp')),
-          value: state.showSplashAnimation,
-          onChanged: (v) => state.setSplashAnimation(v),
-        ),
         const Divider(),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),

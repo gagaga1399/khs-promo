@@ -5,7 +5,9 @@ import '../services/releases.dart';
 import 'widgets/version_folder_list.dart';
 
 class ChangelogScreen extends StatelessWidget {
-  const ChangelogScreen({super.key});
+  final List<ReleaseInfo> releases;
+
+  const ChangelogScreen({super.key, this.releases = khsReleases});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +26,7 @@ class ChangelogScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          VersionFolderList(releases: khsReleases),
+          VersionFolderList(releases: releases),
         ],
       ),
     );

@@ -76,6 +76,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool _noteReminderEnabled = false;
   int _noteReminderMinutes = 20 * 60; // 20:00
   bool _showSplashAnimation = true;
+  bool _showHubTasksTile = true;
+  bool _showHubQutzemTile = true;
+  bool _showHubSoonTiles = true;
   Color _customTextColor = const Color(0xFFF5F5F5);
 
   late ObsidianService _obsidian;
@@ -123,6 +126,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool get noteReminderEnabled => _noteReminderEnabled;
   int get noteReminderMinutes => _noteReminderMinutes;
   bool get showSplashAnimation => _showSplashAnimation;
+  bool get showHubTasksTile => _showHubTasksTile;
+  bool get showHubQutzemTile => _showHubQutzemTile;
+  bool get showHubSoonTiles => _showHubSoonTiles;
 
   String get mode => _mode;
   bool get isDesignMode => _mode == 'design';
@@ -403,6 +409,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _noteReminderEnabled = _prefs?.getBool('note_reminder_enabled') ?? false;
     _noteReminderMinutes = _prefs?.getInt('note_reminder_minutes') ?? 20 * 60;
     _showSplashAnimation = _prefs?.getBool('show_splash_animation') ?? true;
+    _showHubTasksTile = _prefs?.getBool('hub_show_tasks_tile') ?? true;
+    _showHubQutzemTile = _prefs?.getBool('hub_show_qutzem_tile') ?? true;
+    _showHubSoonTiles = _prefs?.getBool('hub_show_soon_tiles') ?? true;
     _dailyGoal = _prefs?.getInt('daily_goal') ?? 1;
     _disabledBars = _prefs?.getStringList('bars_disabled') ?? const [];
     _savedVaultPaths = _prefs?.getStringList('saved_vault_paths') ?? [];
@@ -914,6 +923,24 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> setSplashAnimation(bool value) async {
     _showSplashAnimation = value;
     await _prefs?.setBool('show_splash_animation', value);
+    notifyListeners();
+  }
+
+  Future<void> setShowHubTasksTile(bool value) async {
+    _showHubTasksTile = value;
+    await _prefs?.setBool('hub_show_tasks_tile', value);
+    notifyListeners();
+  }
+
+  Future<void> setShowHubQutzemTile(bool value) async {
+    _showHubQutzemTile = value;
+    await _prefs?.setBool('hub_show_qutzem_tile', value);
+    notifyListeners();
+  }
+
+  Future<void> setShowHubSoonTiles(bool value) async {
+    _showHubSoonTiles = value;
+    await _prefs?.setBool('hub_show_soon_tiles', value);
     notifyListeners();
   }
 

@@ -173,7 +173,7 @@ class DashboardSidebar extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  strings.t('appTitle'),
+                  strings.t('hubTasksTitle'),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

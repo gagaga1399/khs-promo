@@ -7,11 +7,14 @@ import 'package:provider/provider.dart';
 
 import 'state/app_state.dart';
 import 'ui/khs_app.dart';
+import 'services/launcher_shortcut.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Platform.isAndroid) {
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    final start = await LauncherShortcut.initialStart();
+    if (start != null) LauncherShortcut.startTasks = true;
   }
   await initializeDateFormatting('ru');
   final state = AppState();
