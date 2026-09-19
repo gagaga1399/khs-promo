@@ -17,6 +17,12 @@ class UpdateInfo {
   final int? windowsSize;
   final String? windowsSha256;
 
+  /// Связанная читалка QutZem Reader: файл и целевая версия с ПК.
+  final String? readerFile;
+  final int? readerSize;
+  final String? readerSha256;
+  final String? readerVersion;
+
   /// Полная история версий с сервера (актуальная даже на старых клиентах).
   final List<ReleaseInfo> history;
 
@@ -29,6 +35,10 @@ class UpdateInfo {
     this.windowsFile,
     this.windowsSize,
     this.windowsSha256,
+    this.readerFile,
+    this.readerSize,
+    this.readerSha256,
+    this.readerVersion,
     this.history = const [],
   });
 
@@ -41,6 +51,13 @@ class UpdateInfo {
     windowsFile: json['windows'] as String?,
     windowsSize: json['windows_size'] as int?,
     windowsSha256: json['windows_sha256'] as String?,
+    readerFile: json['reader'] as String?,
+    readerSize: json['reader_size'] as int?,
+    readerSha256: json['reader_sha256'] as String?,
+    readerVersion:
+        (json['reader_version'] as String? ?? '').trim().isNotEmpty
+            ? (json['reader_version'] as String).trim()
+            : null,
     history: [
       for (final row in (json['history'] as List? ?? []))
         if (row is Map<String, dynamic>)

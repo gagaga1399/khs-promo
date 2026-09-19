@@ -47,6 +47,18 @@ class LauncherShortcut {
     }
   }
 
+  /// Версия установленного приложения (versionName) на Android, либо null.
+  static Future<String?> getPackageVersion(String package) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final v = await _channel
+          .invokeMethod<String>('getPackageVersion', {'package': package});
+      return v;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Запустить приложение; если его нет — открыть ссылку [fallbackUrl].
   static Future<bool> launchPackage(
     String package, {

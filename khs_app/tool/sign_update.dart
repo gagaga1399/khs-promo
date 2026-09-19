@@ -44,7 +44,7 @@ Future<void> main(List<String> args) async {
     final meta = jsonDecode(text) as Map<String, dynamic>;
 
     var changed = false;
-    for (final key in ['android', 'windows']) {
+    for (final key in ['android', 'windows', 'reader']) {
       final name = meta[key] as String?;
       if (name == null || name.trim().isEmpty) continue;
       final f = File('${jsonFile.parent.path}${Platform.pathSeparator}$name');
@@ -82,9 +82,10 @@ Future<void> main(List<String> args) async {
     await jsonFile.writeAsString(buf.toString(), flush: true);
     stdout.writeln('SIGNED ${jsonFile.path}');
     stdout
-        .writeln('SIZE android=${meta['android_size']} windows=${meta['windows_size']}');
+        .writeln('SIZE android=${meta['android_size']} windows=${meta['windows_size']} reader=${meta['reader_size']}');
     stdout.writeln('SHA android=${meta['android_sha256']}');
     stdout.writeln('SHA windows=${meta['windows_sha256']}');
+    stdout.writeln('SHA reader=${meta['reader_sha256']}');
     return;
   }
   stdout.writeln('unknown command: ${args[0]}');

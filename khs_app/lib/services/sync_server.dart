@@ -383,7 +383,7 @@ class SyncServer {
   /// update.json + index.html — все строго из каталога этого update.json.
   Set<String> _allowedFileNames(Map<String, dynamic> meta) {
     final names = <String>{'index.html'};
-    for (final key in ['android', 'windows']) {
+    for (final key in ['android', 'windows', 'reader']) {
       final v = meta[key] as String?;
       if (v != null && v.trim().isNotEmpty) {
         names.add(p.basename(v.trim()));
@@ -478,7 +478,11 @@ class SyncServer {
     if (signature != null && signature.trim().isNotEmpty) {
       result['signature'] = signature.trim();
     }
-    for (final key in ['android', 'windows']) {
+    final readerVersion = meta['reader_version'] as String?;
+    if (readerVersion != null && readerVersion.trim().isNotEmpty) {
+      result['reader_version'] = readerVersion.trim();
+    }
+    for (final key in ['android', 'windows', 'reader']) {
       final name = meta[key] as String?;
       if (name == null) continue;
       final f = File(p.join(found.file.parent.path, p.basename(name.trim())));

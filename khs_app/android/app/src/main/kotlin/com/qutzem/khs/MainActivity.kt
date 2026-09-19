@@ -79,6 +79,10 @@ class MainActivity : FlutterActivity() {
                         val pkg = call.argument<String>("package") ?: ""
                         result.success(isPackageInstalled(pkg))
                     }
+                    "getPackageVersion" -> {
+                        val pkg = call.argument<String>("package") ?: ""
+                        result.success(getPackageVersion(pkg))
+                    }
                     "launchPackage" -> {
                         val pkg = call.argument<String>("package") ?: ""
                         val fallbackUrl = call.argument<String>("fallbackUrl")
@@ -145,6 +149,18 @@ class MainActivity : FlutterActivity() {
 
     private fun isPackageInstalled(packageName: String): Boolean {
         return packageManager.getLaunchIntentForPackage(packageName) != null
+    }
+
+    /** Версия установленного пакета (versionName) или null, если не установлен. */
+    private fun getPackageVersion(packageName: String): String? {
+        if (isPackageInstalled(packageName)) {
+            return try {
+                packageManager.getPackageInfo(packageName, 0).versionName
+            } catch (_: Exception) {
+                null
+            }
+        }
+        return null
     }
 
     private fun launchPackage(packageName: String, fallbackUrl: String?): Boolean {

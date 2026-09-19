@@ -2,11 +2,18 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:open_filex/open_filex.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/launcher_shortcut.dart';
+import '../services/update_checker.dart';
 import '../state/app_state.dart';
+import '../localization/app_strings.dart';
 import 'home_screen.dart';
 import 'hub_settings_screen.dart';
 
@@ -25,13 +32,60 @@ class _HubScreenState extends State<HubScreen> {
   static const _qutzemPackage = 'dev.qutzem.qutzem_reader';
   static const _qutzemFallbackUrl =
       'https://github.com/gagaga1399/khs-promo/raw/main/qutzem-reader.apk';
+  static const _qutzemBundleAsset = 'assets/bundled/qutzem-reader.apk';
+  static const _qutzemBundleVersionAsset =
+      'assets/bundled/qutzem-reader.version';
 
   bool _shortcutBusy = false;
+  bool _updateBusy = false;
 
   @override
   void initState() {
     super.initState();
     LauncherShortcut.listenStartTasks(_openTasksFromShortcut);
+  }
+
+  /// Версия читалки, упакованной в этот APK (из ассета), или null.
+  static Future<String?> _bundledReaderVersion() async {
+    try {
+      final text = (await rootBundle.loadString(_qutzemBundleVersionAsset))
+          .trim();
+      return text.isEmpty ? null : text;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Достаёт вложенный APK читалки во временную папку (для установки).
+  static Future<File?> _extractBundledReader() async {
+    try {
+      final data = await rootBundle.load(_qutzemBundleAsset);
+      final dir = await getTemporaryDirectory();
+      final file = File(p.join(dir.path, 'qutzem-reader-bundled.apk'));
+      await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
+      return file;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Сравнение версий вида «1.2.3»: true, если [a] новее [b].
+  static bool _isNewer(String a, String b) {
+    List<int> parse(String v) => v
+        .split('+')
+        .first
+        .split('.')
+        .map((s) => int.tryParse(s) ?? 0)
+        .toList();
+    final aa = parse(a);
+    final bb = parse(b);
+    final n = aa.length > bb.length ? aa.length : bb.length;
+    for (var i = 0; i < n; i++) {
+      final x = i < aa.length ? aa[i] : 0;
+      final y = i < bb.length ? bb[i] : 0;
+      if (x != y) return x > y;
+    }
+    return false;
   }
 
   void _openTasksFromShortcut() {
@@ -71,26 +125,52 @@ class _HubScreenState extends State<HubScreen> {
     }
   }
 
+  /// Диалог, если читалка не установлена: бандл (без интернета) или
+  /// скачивание APK в браузере.
   Future<void> _promptQutzemInstall() async {
     final strings = context.read<AppState>().strings;
-    final ok = await showDialog<bool>(
+    final hasBundle = await _bundledReaderVersion() != null;
+    if (!mounted) return;
+    final action = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('QutZem Reader'),
-        content: const Text('Читалка не установлена на устройстве.\nСкачать APK?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Читалка не установлена на устройстве.'),
+            const SizedBox(height: 12),
+            if (hasBundle)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.inventory_2_outlined),
+                title: Text(strings.t('readerFromBundle')),
+                subtitle: Text(strings.t('bundleInstallBody')),
+                onTap: () => Navigator.pop(ctx, 'bundle'),
+              )
+            else
+              Text(strings.t('readerOfflineUnavailable')),
+            if (hasBundle) const Divider(),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.cloud_download_outlined),
+              title: Text(strings.t('readerFromInternet')),
+              subtitle: const Text('Загрузка через браузер'),
+              onTap: () => Navigator.pop(ctx, 'web'),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(ctx, 'cancel'),
             child: const Text('Отмена'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Скачать'),
           ),
         ],
       ),
     );
-    if (ok == true) {
+    if (!mounted || action == null) return;
+    if (action == 'web') {
       final uri = Uri.parse(_qutzemFallbackUrl);
       try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -98,11 +178,99 @@ class _HubScreenState extends State<HubScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${strings.t('shortcutError')} $_qutzemFallbackUrl'),
+            content: Text(
+                '${strings.t('shortcutError')} $_qutzemFallbackUrl'),
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
+      return;
+    }
+    if (action == 'bundle') {
+      await _installBundledReader();
+    }
+  }
+
+  /// Установка читалки из встроенного APK бандла.
+  Future<void> _installBundledReader() async {
+    final strings = context.read<AppState>().strings;
+    final messenger = ScaffoldMessenger.of(context);
+    final file = await _extractBundledReader();
+    if (!mounted) return;
+    if (file == null) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(strings.t('readerOfflineUnavailable')),
+          behavior: SnackBarBehavior.floating));
+      return;
+    }
+    final ok = await _installApk(file.path, strings, confirm: true);
+    if (!mounted) return;
+    messenger.showSnackBar(SnackBar(
+      content: Text(ok ? strings.t('readerUpdated') : strings.t('openFileFailed')),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  /// Установка APK с запросом разрешения «из неизвестных источников».
+  /// Возвращает true, если системный установщик открыт.
+  Future<bool> _installApk(
+    String path,
+    AppStrings strings, {
+    bool confirm = false,
+  }) async {
+    final state = context.read<AppState>();
+    if (confirm) {
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(strings.t('bundleInstallTitle')),
+          content: Text(strings.t('bundleInstallBody')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Установить'),
+            ),
+          ],
+        ),
+      );
+      if (go != true || !mounted) return false;
+    }
+    final canInstall = await state.canInstallPackages();
+    if (!mounted) return false;
+    if (!canInstall) {
+      final open = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(strings.t('allowInstallTitle')),
+          content: Text(strings.t('readerInstallSources')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(strings.t('openSettings')),
+            ),
+          ],
+        ),
+      );
+      if (open != true || !mounted) return false;
+      await state.openInstallSourcesSettings();
+    }
+    try {
+      final result = await OpenFilex.open(
+        path,
+        type: 'application/vnd.android.package-archive',
+      );
+      if (!mounted) return false;
+      return result.type == ResultType.done;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -224,6 +392,200 @@ try {
     }
   }
 
+  /// «Обновить всё»: обновляет KHS и QutZem Reader по Wi-Fi с ПК.
+  /// Читалку можно обновить и из бандла (когда ПК недоступен).
+  Future<void> _updateAll() async {
+    if (!Platform.isAndroid || _updateBusy) return;
+    final state = context.read<AppState>();
+    final strings = state.strings;
+    setState(() => _updateBusy = true);
+    try {
+      final check = await state.checkForUpdate();
+      final info = check.info;
+      final pkgInfo = await PackageInfo.fromPlatform();
+      final currentHub = pkgInfo.version;
+      final installedReader =
+          await LauncherShortcut.getPackageVersion(_qutzemPackage);
+      final bundled = await _bundledReaderVersion();
+
+      final needHub = check.status == UpdateCheckStatus.ok &&
+          info != null &&
+          info.version.isNotEmpty &&
+          _isNewer(info.version, currentHub);
+      final lanReader = info != null &&
+          info.readerFile != null &&
+          info.readerVersion != null &&
+          (installedReader == null ||
+              _isNewer(info.readerVersion!, installedReader));
+      final bundleReader = !lanReader &&
+          bundled != null &&
+          (installedReader == null || _isNewer(bundled, installedReader));
+
+      if (!needHub && !lanReader && !bundleReader) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(strings.t('updateAllUpToDate')),
+            behavior: SnackBarBehavior.floating));
+        return;
+      }
+      if (!mounted) return;
+
+      final readerTarget = lanReader
+          ? info.readerVersion
+          : (bundleReader ? bundled : null);
+      final lines = <String>[
+        if (needHub)
+          strings
+              .t('appKhsLine')
+              .replaceFirst('{1}', currentHub)
+              .replaceFirst('{2}', info.version),
+        if (readerTarget != null)
+          strings.t('appReaderLine').replaceFirst('{1}', installedReader ?? '—')
+              .replaceFirst('{2}', readerTarget),
+        if (readerTarget == null && installedReader != null)
+          strings.t('appAlreadyLine'),
+      ];
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(strings.t('updateAllTitle')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(strings.t('updateAllExplain')),
+              const SizedBox(height: 8),
+              for (final line in lines)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.system_update_alt,
+                          size: 18, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(line)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(strings.t('updateAll')),
+            ),
+          ],
+        ),
+      );
+      if (go != true || !mounted) return;
+
+      var hubOk = true;
+      var readerOk = true;
+      if (needHub) {
+        hubOk = await _downloadAndInstallKhs(info, strings);
+        if (mounted && hubOk) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('KHS обновлён'),
+              behavior: SnackBarBehavior.floating));
+        }
+      }
+      if (readerTarget != null && mounted) {
+        if (lanReader) {
+          readerOk = await _downloadAndInstallReader(info, strings);
+        } else {
+          readerOk = await _installBundledReaderSilently(strings);
+        }
+        if (mounted && readerOk) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('QutZem Reader обновлён'),
+              behavior: SnackBarBehavior.floating));
+        }
+      }
+      if (hubOk && readerOk && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(strings.t('allUpdated')),
+            behavior: SnackBarBehavior.floating));
+      }
+    } finally {
+      if (mounted) setState(() => _updateBusy = false);
+    }
+  }
+
+  /// Качает APK KHS с ПК и открывает системный установщик.
+  Future<bool> _downloadAndInstallKhs(
+      UpdateInfo info, AppStrings strings) async {
+    final state = context.read<AppState>();
+    final file = info.androidFile;
+    if (file == null) return false;
+    try {
+      final dir = await getTemporaryDirectory();
+      if (!mounted) return false;
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const _HubProgressDialog(label: 'KHS…'),
+      );
+      final saved = await state.downloadUpdate(
+        file,
+        dir,
+        expectedSha256: info.androidSha256,
+      );
+      if (info.androidSize != null && saved.lengthSync() != info.androidSize) {
+        if (mounted) Navigator.of(context).pop();
+        return false;
+      }
+      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return false;
+      return await _installApk(saved.path, strings, confirm: false);
+    } catch (_) {
+      if (mounted) Navigator.of(context).pop();
+      return false;
+    }
+  }
+
+  /// Качает APK читалки с ПК и открывает системный установщик.
+  Future<bool> _downloadAndInstallReader(
+      UpdateInfo info, AppStrings strings) async {
+    final state = context.read<AppState>();
+    final file = info.readerFile;
+    if (file == null || file.isEmpty) return false;
+    try {
+      final dir = await getTemporaryDirectory();
+      if (!mounted) return false;
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const _HubProgressDialog(label: 'QutZem Reader…'),
+      );
+      final saved = await state.downloadUpdate(
+        file,
+        dir,
+        expectedSha256: info.readerSha256,
+      );
+      if (info.readerSize != null && saved.lengthSync() != info.readerSize) {
+        if (mounted) Navigator.of(context).pop();
+        return false;
+      }
+      if (mounted) Navigator.of(context).pop();
+      if (!mounted) return false;
+      return await _installApk(saved.path, strings, confirm: false);
+    } catch (_) {
+      if (mounted) Navigator.of(context).pop();
+      return false;
+    }
+  }
+
+  Future<bool> _installBundledReaderSilently(AppStrings strings) async {
+    final file = await _extractBundledReader();
+    if (file == null) return false;
+    if (!mounted) return false;
+    return _installApk(file.path, strings, confirm: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -240,6 +602,17 @@ try {
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         actions: [
+          if (Platform.isAndroid)
+            IconButton(
+              icon: _updateBusy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.system_update_alt),
+              tooltip: strings.t('updateAll'),
+              onPressed: _updateBusy ? null : _updateAll,
+            ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: strings.t('settings'),
@@ -596,6 +969,25 @@ class _FeatureBadge extends StatelessWidget {
               fontSize: 13,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HubProgressDialog extends StatelessWidget {
+  final String label;
+
+  const _HubProgressDialog({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      content: Row(
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(width: 20),
+          Expanded(child: Text('Скачивание с ПК…\n$label')),
         ],
       ),
     );

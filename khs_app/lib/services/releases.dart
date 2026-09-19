@@ -24,6 +24,18 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.28',
+    date: '18.09.2026',
+    changes: [
+      ChangeEntry('QutZem Reader: листание и прокрутка больше не «рассыпаются» — системный масштаб шрифта ограничен, страницы не серые', ChangeType.bugfix),
+      ChangeEntry('QutZem Reader: текст не прячется под панелями и статус-баром на телефоне', ChangeType.bugfix),
+      ChangeEntry('QutZem Reader: панель кнопок скроллится — поиск и настройки доступны на узком экране', ChangeType.bugfix),
+      ChangeEntry('QutZem Reader: поиск книг чинится — заголовки браузера, надёжный каталог Archive.org, понятные ошибки и таймауты', ChangeType.bugfix),
+      ChangeEntry('Хаб: QutZem Reader упакован внутри KHS — установка без интернета и браузера из бандла (~130 МБ одним APK)', ChangeType.feature),
+      ChangeEntry('Хаб: кнопка «Обновить всё» — обновляет KHS и QutZem Reader по Wi-Fi с ПК в один шаг', ChangeType.feature),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.27',
     date: '18.09.2026',
     changes: [
