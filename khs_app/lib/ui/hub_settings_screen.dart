@@ -1,8 +1,15 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../localization/app_strings.dart';
 import '../services/releases.dart';
+import '../services/update_checker.dart';
 import '../state/app_state.dart';
 import 'changelog_screen.dart';
 import 'widgets/color_picker_dialog.dart';
@@ -16,6 +23,7 @@ class HubSettingsScreen extends StatefulWidget {
 }
 
 class _HubSettingsScreenState extends State<HubSettingsScreen> {
+  static const _khsPackage = 'com.qutzem.khs';
   String? _version;
 
   @override
@@ -29,6 +37,287 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
     if (!mounted) return;
     setState(() =>
         _version = '${info.version}+${info.buildNumber}');
+  }
+
+  /// Версия без build-суффикса — для сравнения.
+  String? get _baseVersion {
+    final v = _version;
+    if (v == null) return null;
+    return v.split('+').first;
+  }
+
+  /// Плитка «Проверить обновления» как в KHS Tasks:
+  /// на ПК — локальный статус и новое, на телефоне — обновление по Wi-Fi с ПК.
+  Future<void> _checkUpdates(BuildContext context, AppStrings strings) async {
+    final state = context.read<AppState>();
+    if (!state.isPc) {
+      await _checkRemoteUpdate(state, strings);
+      return;
+    }
+    final current = _baseVersion;
+    final latest = khsHubReleases.first;
+    if (current == null || latest.version.isEmpty) return;
+    final upToDate = compareVersions(current, latest.version) >= 0;
+    final updates = khsHubReleases
+        .where((r) => compareVersions(current, r.version) < 0)
+        .toList();
+    final showReleases = updates.isNotEmpty ? updates : <ReleaseInfo>[latest];
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return AlertDialog(
+          title: Text(
+            upToDate ? strings.t('upToDate') : strings.t('updateAvailable'),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('${strings.t('currentVersion')}: v$current'),
+                if (!upToDate) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    strings.t('howToGetUpdate'),
+                    style: TextStyle(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Text(
+                  upToDate
+                      ? '${strings.t('whatsNewIn')} v${latest.version}:'
+                      : strings.t('whatsNewIn'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ..._releaseTiles(showReleases, strings),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(strings.t('ok')),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// На телефоне: спрашивает ПК про более новую версию хаба и предлагает скачать.
+  Future<void> _checkRemoteUpdate(AppState state, AppStrings strings) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (state.syncAddress.trim().isEmpty) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(strings.t('updateNoAddress'))),
+      );
+      return;
+    }
+    final info = await state.checkForUpdate();
+    if (!mounted) return;
+    if (info.status != UpdateCheckStatus.ok || info.info == null) {
+      final msg = info.status == UpdateCheckStatus.noUpdate
+          ? strings.t('updateNotConfigured')
+          : strings.t('updateConnectFail');
+      messenger.showSnackBar(SnackBar(content: Text(msg)));
+      return;
+    }
+    final meta = info.info!;
+    final current = _baseVersion;
+    final newer = current == null || compareVersions(current, meta.version) < 0;
+    if (!newer) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(strings.t('upToDate')),
+          content: Text(
+            '${strings.t('currentVersion')}: v$current\n'
+            '${strings.t('upToDateRemote')}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(strings.t('ok')),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    await _showUpdateDialog(state, strings, meta);
+  }
+
+  Future<void> _showUpdateDialog(
+    AppState state,
+    AppStrings strings,
+    UpdateInfo info,
+  ) async {
+    final releases = info.history.isNotEmpty
+        ? info.history
+        : (info.notes.isEmpty
+              ? <ReleaseInfo>[]
+              : [
+                  ReleaseInfo(
+                    version: info.version,
+                    date: '',
+                    changes: [
+                      for (final line in info.notes.split('\n'))
+                        if (line.trim().isNotEmpty) ChangeEntry(line.trim()),
+                    ],
+                  ),
+                ]);
+    final wantUpdate = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          strings.t('updateRemoteTitle').replaceFirst('{1}', info.version),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: releases.isEmpty
+                ? [Text(strings.t('whatsNewIn'))]
+                : _releaseTiles(releases, strings),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(strings.t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(strings.t('download')),
+          ),
+        ],
+      ),
+    );
+    if (wantUpdate != true || !mounted) return;
+    await _downloadAndInstall(state, strings, info);
+  }
+
+  Future<void> _downloadAndInstall(
+    AppState state,
+    AppStrings strings,
+    UpdateInfo info,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final file = info.androidFile;
+    if (file == null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(strings.t('noUpdateFile'))),
+      );
+      return;
+    }
+    final dir = await getTemporaryDirectory();
+    final progress = ValueNotifier<double?>(null);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) =>
+            _DownloadProgressDialog(fileName: file, progress: progress),
+      ),
+    );
+    File saved;
+    try {
+      saved = await state.downloadUpdate(
+        file,
+        dir,
+        expectedSha256: info.androidSha256,
+        onProgress: (received, total) =>
+            progress.value = total > 0 ? received / total : null,
+      );
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      progress.dispose();
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('${strings.t('downloadFailed')}: $e')),
+      );
+      return;
+    }
+    if (mounted) Navigator.of(context).pop();
+    progress.dispose();
+    if (!mounted) return;
+    final expected = info.androidSize;
+    if (expected != null && expected > 0 && saved.lengthSync() != expected) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(strings.t('downloadFailed'))),
+      );
+      return;
+    }
+    final canInstall = await state.canInstallPackages();
+    if (!mounted) return;
+    if (!canInstall) {
+      final open = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(strings.t('allowInstallTitle')),
+          content: Text(strings.t('allowInstallBody')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(strings.t('cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(strings.t('openSettings')),
+            ),
+          ],
+        ),
+      );
+      if (open != true || !mounted) return;
+      await state.openInstallSourcesSettings();
+    }
+    var installed = await state.installApkSilent(saved.path, package: _khsPackage);
+    if (!mounted) return;
+    if (!installed) {
+      try {
+        final result = await OpenFilex.open(
+          saved.path,
+          type: 'application/vnd.android.package-archive',
+        );
+        installed = result.type == ResultType.done;
+      } catch (_) {
+        installed = false;
+      }
+    }
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(installed ? strings.t('allUpdated') : strings.t('installPrompt')),
+      ),
+    );
+  }
+
+  /// Список записей «KHS vX · дата» с изменениями.
+  static List<Widget> _releaseTiles(
+    List<ReleaseInfo> releases,
+    AppStrings strings,
+  ) {
+    return [
+      for (final r in releases) ...[
+        Text(
+          'KHS v${r.version} · ${r.date}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        for (final change in r.changes)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, bottom: 3),
+            child: Text('• ${change.text}'),
+          ),
+        const SizedBox(height: 8),
+      ],
+    ];
   }
 
   @override
@@ -131,6 +420,20 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
             onChanged: (v) => state.setShowHubSoonTiles(v),
           ),
           const Divider(height: 24),
+          _sectionHeader(strings.t('hubSettingsSectionUpdate')),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.system_update_alt),
+            title: Text(strings.t('checkUpdates')),
+            subtitle: Text(
+              _version == null
+                  ? strings.t('currentVersion')
+                  : '${strings.t('currentVersion')}: v$_version',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _checkUpdates(context, strings),
+          ),
+          const Divider(height: 24),
           _sectionHeader(strings.t('hubSettingsSectionAbout')),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -194,6 +497,58 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
         color: selected ? scheme.primary : null,
       ),
       onTap: onTap,
+    );
+  }
+}
+
+class _DownloadProgressDialog extends StatelessWidget {
+  final String fileName;
+  final ValueNotifier<double?> progress;
+  const _DownloadProgressDialog({required this.fileName, required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.read<AppState>().strings;
+    return AlertDialog(
+      title: Text(strings.t('downloading')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            fileName,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 18),
+          ValueListenableBuilder<double?>(
+            valueListenable: progress,
+            builder: (context, value, _) {
+              final pct = value == null
+                  ? null
+                  : (value.clamp(0.0, 1.0) * 100).round();
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(
+                    minHeight: 6,
+                    borderRadius: BorderRadius.circular(3),
+                    value: value,
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      pct == null ? '…' : '$pct%',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

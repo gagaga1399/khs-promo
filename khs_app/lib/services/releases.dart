@@ -24,6 +24,14 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.30',
+    date: '21.09.2026',
+    changes: [
+      ChangeEntry('Хаб: в настройках появилась плитка «Проверить обновления» — обновление хаба по Wi-Fi с ПК, как в KHS Tasks', ChangeType.feature),
+      ChangeEntry('Хаб: история версий в настройках приведена к реальным версиям KHS (вместо отдельных 1.0.x)', ChangeType.improvement),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.29',
     date: '20.09.2026',
     changes: [
@@ -395,37 +403,46 @@ ReleaseInfo? get latestRelease =>
 /// История самого хаба KHS (без изменений KHS Tasks).
 const List<ReleaseInfo> khsHubReleases = [
   ReleaseInfo(
-    version: '1.0.3',
+    version: '1.2.30',
+    date: '21.09.2026',
+    changes: [
+      ChangeEntry('«Проверить обновления» в настройках хаба — обновление по Wi-Fi с ПК, как в KHS Tasks', ChangeType.feature),
+      ChangeEntry('История версий хаба приведена к реальным версиям KHS', ChangeType.improvement),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.2.29',
     date: '20.09.2026',
     changes: [
-      ChangeEntry('Читалка ставится сама из бандла при первом запуске — без диалогов установки', ChangeType.feature),
+      ChangeEntry('Читалка ставится сама из бандла при первом запуске — без диалогов установки, всё работает сразу', ChangeType.feature),
+      ChangeEntry('Тихая установка читалки через системный PackageInstaller — без окна установщика', ChangeType.improvement),
     ],
   ),
   ReleaseInfo(
-    version: '1.0.2',
-    date: '15.09.2026',
+    version: '1.2.28',
+    date: '18.09.2026',
     changes: [
-      ChangeEntry('Настройки хаба: управление плитками и смена темы', ChangeType.feature),
-      ChangeEntry('Главный экран: декоративные фигуры на фоне', ChangeType.improvement),
+      ChangeEntry('QutZem Reader упакован внутри KHS — установка из бандла без интернета и браузера', ChangeType.feature),
+      ChangeEntry('Кнопка «Обновить всё» — KHS и читалка обновляются по Wi-Fi с ПК одним нажатием', ChangeType.feature),
     ],
   ),
   ReleaseInfo(
-    version: '1.0.1',
-    date: '15.09.2026',
+    version: '1.2.26',
+    date: '16.09.2026',
     changes: [
-      ChangeEntry('Плитка QutZem Reader — запуск читалки и ярлык на рабочий стол', ChangeType.feature),
-      ChangeEntry('Под плитками — мини-описания приложений с иконками', ChangeType.improvement),
+      ChangeEntry('Плитки хаба: высота подстраивается под текст, ряды выровнены — ничего не наезжает', ChangeType.bugfix),
+      ChangeEntry('Ярлык KHS Tasks на рабочий стол; плитка читалки на Android: запуск, ярлык и установка', ChangeType.feature),
+      ChangeEntry('В «О приложении» хаба добавлен автор платформы', ChangeType.improvement),
     ],
   ),
   ReleaseInfo(
-    version: '1.0.0',
+    version: '1.2.25',
     date: '15.09.2026',
     changes: [
       ChangeEntry('Главный экран — центр KHS: стартовый хаб с плитками приложений', ChangeType.feature),
-      ChangeEntry('Плитка KHS Tasks — быстрый вход в задачи, заметки, календарь', ChangeType.feature),
-      ChangeEntry('Мини-кнопка на плитке выносит KHS Tasks на рабочий стол отдельным ярлыком', ChangeType.feature),
-      ChangeEntry('Настройки хаба: анимация запуска, Pre-release и история хаба', ChangeType.improvement),
-      ChangeEntry('Место под будущие разделы — плитки «Скоро»', ChangeType.improvement),
+      ChangeEntry('Плитки KHS Tasks и QutZem Reader с мини-описаниями и ярлыками', ChangeType.feature),
+      ChangeEntry('Настройки хаба в шестерёнке: плитки, тема, анимация запуска, история версий', ChangeType.improvement),
+      ChangeEntry('Плитки «Скоро» — место под будущие разделы', ChangeType.improvement),
     ],
   ),
 ];
