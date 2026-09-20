@@ -1,6 +1,10 @@
 package com.qutzem.khs
 
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInstaller
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
@@ -12,6 +16,7 @@ import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 
 class MainActivity : FlutterActivity() {
     private val installChannelName = "khs/install"
@@ -25,6 +30,12 @@ class MainActivity : FlutterActivity() {
     private var pendingVaultResult: MethodChannel.Result? = null
     private var vaultPickRequestCode = 0x0A11
 
+    companion object {
+        /** Результат тихой установки APK, ожидающий «commit» сессии. */
+        @JvmStatic
+        var pendingInstallResult: MethodChannel.Result? = null
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
@@ -34,6 +45,11 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "canRequestPackageInstalls" -> result.success(canRequestPackageInstalls())
                 "openInstallSourcesSettings" -> openInstallSourcesSettings()
+                "installApkSilent" -> {
+                    val path = call.argument<String>("path") ?: ""
+                    val pkg = call.argument<String>("package") ?: ""
+                    installApkSilent(path, pkg, result)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -201,6 +217,65 @@ class MainActivity : FlutterActivity() {
             packageManager.canRequestPackageInstalls()
     }
 
+    /** Тихая установка APK через системный PackageInstaller (без окна
+     *  установщика). Требует один раз разрешить «установку из неизвестных
+     *  источников» для KHS (см. canInstallPackages). Без разрешения —
+     *  результат false, без открытия каких-либо окон. */
+    private fun installApkSilent(
+        path: String,
+        packageName: String,
+        result: MethodChannel.Result
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+            !canRequestPackageInstalls()
+        ) {
+            result.success(false)
+            return
+        }
+        try {
+            val file = File(path)
+            if (!file.exists()) {
+                result.success(false)
+                return
+            }
+            val installer = packageManager.packageInstaller
+            val params = PackageInstaller.SessionParams(
+                PackageInstaller.SessionParams.MODE_FULL_INSTALL
+            ).apply {
+                if (packageName.isNotEmpty()) setAppPackageName(packageName)
+            }
+            val sessionId = installer.createSession(params)
+            val session = installer.openSession(sessionId)
+            try {
+                val out = session.openWrite("bundled", 0L, file.length())
+                file.inputStream().use { input ->
+                    val buf = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var read: Int
+                    while (input.read(buf).also { read = it } != -1) {
+                        out.write(buf, 0, read)
+                    }
+                }
+                session.fsync(out)
+                out.close()
+            } catch (e: Exception) {
+                try { session.abandon() } catch (_: Exception) {}
+                result.success(false)
+                return
+            }
+            val pending = PendingIntent.getBroadcast(
+                this,
+                sessionId,
+                Intent(this, InstallResultReceiver::class.java)
+                    .putExtra(PackageInstaller.EXTRA_SESSION_ID, sessionId),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            pendingInstallResult = result
+            session.commit(pending.intentSender)
+        } catch (_: Exception) {
+            result.success(false)
+        }
+    }
+
     private fun isIgnoringBatteryOptimizations(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
         val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
@@ -293,5 +368,25 @@ class MainActivity : FlutterActivity() {
         }
         if (root == null) return null
         return if (relative.isEmpty()) root else "$root/$relative"
+    }
+}
+
+/** Принимает результат тихой установки (broadcast от PackageInstaller)
+ *  и отдаёт его в Dart через отложенный результат MethodChannel. */
+class InstallResultReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val status = intent.getIntExtra(
+            PackageInstaller.EXTRA_STATUS,
+            PackageInstaller.STATUS_FAILURE
+        )
+        val pending = MainActivity.pendingInstallResult
+        if (pending != null) {
+            MainActivity.pendingInstallResult = null
+            try {
+                pending.success(status == PackageInstaller.STATUS_SUCCESS)
+            } catch (_: Exception) {
+                // Канал уже закрыт — результат не нужен.
+            }
+        }
     }
 }

@@ -24,6 +24,17 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.29',
+    date: '20.09.2026',
+    changes: [
+      ChangeEntry('Хаб: читалка устанавливается сама из бандла при первом запуске — никаких диалогов, всё работает сразу после установки хаба', ChangeType.feature),
+      ChangeEntry('Хаб: тихая установка APK через системный PackageInstaller — без окна установщика', ChangeType.improvement),
+      ChangeEntry('QutZem Reader: кнопка «Вернуться на главную» на экране подготовки книги; выход прерывает расчёт', ChangeType.feature),
+      ChangeEntry('QutZem Reader: панель управления PDF-страницами — масштаб, ширина экрана, листание', ChangeType.feature),
+      ChangeEntry('QutZem Reader: книга удаляется правым кликом мыши (контекстное меню)', ChangeType.feature),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.28',
     date: '18.09.2026',
     changes: [
@@ -383,6 +394,13 @@ ReleaseInfo? get latestRelease =>
 
 /// История самого хаба KHS (без изменений KHS Tasks).
 const List<ReleaseInfo> khsHubReleases = [
+  ReleaseInfo(
+    version: '1.0.3',
+    date: '20.09.2026',
+    changes: [
+      ChangeEntry('Читалка ставится сама из бандла при первом запуске — без диалогов установки', ChangeType.feature),
+    ],
+  ),
   ReleaseInfo(
     version: '1.0.2',
     date: '15.09.2026',

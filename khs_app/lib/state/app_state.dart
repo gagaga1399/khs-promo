@@ -824,6 +824,23 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  /// Тихая установка APK через системный PackageInstaller — без окна
+  /// системного установщика. Возвращает true после успешной установки.
+  /// Требует один раз разрешить установку для KHS (canInstallPackages),
+  /// иначе возвращает false.
+  Future<bool> installApkSilent(String path, {String package = ''}) async {
+    if (isPc) return false;
+    try {
+      return await _installChannel.invokeMethod<bool>(
+            'installApkSilent',
+            {'path': path, 'package': package},
+          ) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Разрешён ли точный будильник (Android 12+).
   Future<bool> canScheduleExactAlarms() async {
     if (isPc) return true;

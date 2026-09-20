@@ -8,7 +8,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../services/launcher_shortcut.dart';
 import '../services/update_checker.dart';
@@ -26,23 +25,52 @@ class HubScreen extends StatefulWidget {
   State<HubScreen> createState() => _HubScreenState();
 }
 
-class _HubScreenState extends State<HubScreen> {
+class _HubScreenState extends State<HubScreen> with WidgetsBindingObserver {
   static const _qutzemExe =
       'C:\\Users\\user\\Projects\\qutzem-reader\\dist\\windows\\qutzem_reader.exe';
   static const _qutzemPackage = 'dev.qutzem.qutzem_reader';
-  static const _qutzemFallbackUrl =
-      'https://github.com/gagaga1399/khs-promo/raw/main/qutzem-reader.apk';
+  static const _khsPackage = 'com.qutzem.khs';
   static const _qutzemBundleAsset = 'assets/bundled/qutzem-reader.apk';
   static const _qutzemBundleVersionAsset =
       'assets/bundled/qutzem-reader.version';
 
   bool _shortcutBusy = false;
   bool _updateBusy = false;
+  bool _readerInstalling = false;
 
   @override
   void initState() {
     super.initState();
     LauncherShortcut.listenStartTasks(_openTasksFromShortcut);
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoInstallReaderOnFirstRun();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && Platform.isAndroid) {
+      // Пользователь мог только что разрешить установку — доделываем молча.
+      _autoInstallReaderOnFirstRun();
+    }
+  }
+
+  /// При первом запуске ставим встроенную читалку молча, без диалогов:
+  /// если разрешение на установку уже дано — она окажется установленной
+  /// сразу после старта хаба.
+  Future<void> _autoInstallReaderOnFirstRun() async {
+    if (!Platform.isAndroid) return;
+    if (_readerInstalling) return;
+    if (await LauncherShortcut.isPackageInstalled(_qutzemPackage)) return;
+    if (!mounted) return;
+    await _ensureReader(userInitiated: false);
   }
 
   /// Версия читалки, упакованной в этот APK (из ассета), или null.
@@ -116,7 +144,7 @@ class _HubScreenState extends State<HubScreen> {
       if (installed) {
         await LauncherShortcut.launchPackage(_qutzemPackage);
       } else {
-        _promptQutzemInstall();
+        await _ensureReader(userInitiated: true);
       }
       return;
     }
@@ -125,142 +153,71 @@ class _HubScreenState extends State<HubScreen> {
     }
   }
 
-  /// Диалог, если читалка не установлена: бандл (без интернета) или
-  /// скачивание APK в браузере.
-  Future<void> _promptQutzemInstall() async {
-    final strings = context.read<AppState>().strings;
-    final hasBundle = await _bundledReaderVersion() != null;
-    if (!mounted) return;
-    final action = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('QutZem Reader'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Читалка не установлена на устройстве.'),
-            const SizedBox(height: 12),
-            if (hasBundle)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.inventory_2_outlined),
-                title: Text(strings.t('readerFromBundle')),
-                subtitle: Text(strings.t('bundleInstallBody')),
-                onTap: () => Navigator.pop(ctx, 'bundle'),
-              )
-            else
-              Text(strings.t('readerOfflineUnavailable')),
-            if (hasBundle) const Divider(),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.cloud_download_outlined),
-              title: Text(strings.t('readerFromInternet')),
-              subtitle: const Text('Загрузка через браузер'),
-              onTap: () => Navigator.pop(ctx, 'web'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, 'cancel'),
-            child: const Text('Отмена'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || action == null) return;
-    if (action == 'web') {
-      final uri = Uri.parse(_qutzemFallbackUrl);
-      try {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } catch (_) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '${strings.t('shortcutError')} $_qutzemFallbackUrl'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+  /// Установка читалки из встроенного APK бандла максимально тихо:
+  /// без модальных диалогов, в фоне. Если разрешение на установку ещё не
+  /// дано и выход запросил сам пользователь — один раз молча открываем
+  /// системный экран разрешения; после возврата установку доделывает
+  /// [didChangeAppLifecycleState].
+  Future<void> _ensureReader({required bool userInitiated}) async {
+    if (_readerInstalling) return;
+    _readerInstalling = true;
+    try {
+      if (await LauncherShortcut.isPackageInstalled(_qutzemPackage)) return;
+      final state = context.read<AppState>();
+      final strings = state.strings;
+      final file = await _extractBundledReader();
+      if (!mounted || file == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(strings.t('readerOfflineUnavailable')),
+              behavior: SnackBarBehavior.floating));
+        }
+        return;
       }
-      return;
-    }
-    if (action == 'bundle') {
-      await _installBundledReader();
-    }
-  }
-
-  /// Установка читалки из встроенного APK бандла.
-  Future<void> _installBundledReader() async {
-    final strings = context.read<AppState>().strings;
-    final messenger = ScaffoldMessenger.of(context);
-    final file = await _extractBundledReader();
-    if (!mounted) return;
-    if (file == null) {
-      messenger.showSnackBar(SnackBar(
-          content: Text(strings.t('readerOfflineUnavailable')),
+      final canInstall = await state.canInstallPackages();
+      if (!canInstall) {
+        if (!mounted) return;
+        if (userInitiated) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(strings.t('readerPermissionHint')),
+              behavior: SnackBarBehavior.floating));
+          await state.openInstallSourcesSettings();
+        }
+        return;
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(strings.t('readerInstalling')),
           behavior: SnackBarBehavior.floating));
-      return;
+      final ok = await state.installApkSilent(
+        file.path,
+        package: _qutzemPackage,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:
+            Text(ok ? strings.t('readerUpdated') : strings.t('openFileFailed')),
+        behavior: SnackBarBehavior.floating,
+      ));
+    } finally {
+      _readerInstalling = false;
     }
-    final ok = await _installApk(file.path, strings, confirm: true);
-    if (!mounted) return;
-    messenger.showSnackBar(SnackBar(
-      content: Text(ok ? strings.t('readerUpdated') : strings.t('openFileFailed')),
-      behavior: SnackBarBehavior.floating,
-    ));
   }
 
-  /// Установка APK с запросом разрешения «из неизвестных источников».
-  /// Возвращает true, если системный установщик открыт.
+  /// Установка APK: на современных Android — тихо через системный
+  /// PackageInstaller (без окна установщика), иначе — системный установщик.
+  /// Никаких модальных диалогов KHS.
   Future<bool> _installApk(
     String path,
     AppStrings strings, {
-    bool confirm = false,
+    String package = _khsPackage,
   }) async {
     final state = context.read<AppState>();
-    if (confirm) {
-      final go = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(strings.t('bundleInstallTitle')),
-          content: Text(strings.t('bundleInstallBody')),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Отмена'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Установить'),
-            ),
-          ],
-        ),
-      );
-      if (go != true || !mounted) return false;
-    }
+    if (state.isPc) return false;
     final canInstall = await state.canInstallPackages();
     if (!mounted) return false;
-    if (!canInstall) {
-      final open = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(strings.t('allowInstallTitle')),
-          content: Text(strings.t('readerInstallSources')),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Отмена'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(strings.t('openSettings')),
-            ),
-          ],
-        ),
-      );
-      if (open != true || !mounted) return false;
-      await state.openInstallSourcesSettings();
+    if (canInstall) {
+      return state.installApkSilent(path, package: package);
     }
     try {
       final result = await OpenFilex.open(
@@ -540,14 +497,14 @@ try {
       }
       if (mounted) Navigator.of(context).pop();
       if (!mounted) return false;
-      return await _installApk(saved.path, strings, confirm: false);
+      return await _installApk(saved.path, strings);
     } catch (_) {
       if (mounted) Navigator.of(context).pop();
       return false;
     }
   }
 
-  /// Качает APK читалки с ПК и открывает системный установщик.
+  /// Качает APK читалки с ПК и ставит тихо.
   Future<bool> _downloadAndInstallReader(
       UpdateInfo info, AppStrings strings) async {
     final state = context.read<AppState>();
@@ -572,7 +529,7 @@ try {
       }
       if (mounted) Navigator.of(context).pop();
       if (!mounted) return false;
-      return await _installApk(saved.path, strings, confirm: false);
+      return await _installApk(saved.path, strings, package: _qutzemPackage);
     } catch (_) {
       if (mounted) Navigator.of(context).pop();
       return false;
@@ -583,7 +540,7 @@ try {
     final file = await _extractBundledReader();
     if (file == null) return false;
     if (!mounted) return false;
-    return _installApk(file.path, strings, confirm: false);
+    return _installApk(file.path, strings, package: _qutzemPackage);
   }
 
   @override
