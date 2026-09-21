@@ -345,7 +345,31 @@ class _BookCard extends StatelessWidget {
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: _cover(context)),
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _cover(context),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Material(
+                      color: Colors.black38,
+                      shape: const CircleBorder(),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        iconSize: 18,
+                        icon: const Icon(Icons.delete_outline,
+                            color: Colors.white),
+                        tooltip: 'Удалить книгу',
+                        onPressed: onDelete,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
               child: Column(
