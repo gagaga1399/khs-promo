@@ -27,8 +27,9 @@ const List<ReleaseInfo> khsReleases = [
     version: '1.2.31',
     date: '21.09.2026',
     changes: [
+      ChangeEntry('PDF с «сломанной» кодировкой шрифта (учебники: мусор вместо текста) теперь открываются как страницы, а не текстом', ChangeType.bugfix),
       ChangeEntry('QutZem Reader встроен в хаб, как KHS Tasks: одна APK, читалка открывается из плитки внутри, ничего не устанавливается и не докачивается', ChangeType.feature),
-      ChangeEntry('Хаб похудел: бандл читалки больше не зашит в APK (~95 → ~40 МБ)', ChangeType.improvement),
+      ChangeEntry('Хаб похудел: бандл читалки больше не зашит в APK (~95 → ~75 МБ)', ChangeType.improvement),
     ],
   ),
   ReleaseInfo(
@@ -414,6 +415,7 @@ const List<ReleaseInfo> khsHubReleases = [
     version: '1.2.31',
     date: '21.09.2026',
     changes: [
+      ChangeEntry('Чтение PDF: учебники с ломаной кодировкой шрифта (мусор вместо текста) больше не уходят в текстовый режим — открываются как страницы', ChangeType.bugfix),
       ChangeEntry('QutZem Reader встроен в хаб, как KHS Tasks: одна APK, читалка из плитки внутри хаба, без установок и докачек', ChangeType.feature),
     ],
   ),

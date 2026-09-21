@@ -67,6 +67,11 @@ Future<TextDocument?> _extract(String path) async {
     if (e.text.trim().isNotEmpty) realChapters++;
   }
 
+  // Сломанный ToUnicode/кодировка шрифта: PDF визуально читается, а текст
+  // извлекается кашей — «т005010 006n010» вместо слов. Для таких PDF
+  // текстовый режим бесполезен, читаем как страницы.
+  if (cleaned.isNotEmpty && _isGarbled(cleaned)) return null;
+
   // Скан или почти без текста — вернуть null, чтобы ридер показал страницы.
   // Нормальные PDF дают сотни символов на страницу; сканы — единицы.
   if (realChapters == 0 || realChars < 400) return null;
@@ -85,6 +90,38 @@ Future<TextDocument?> _extract(String path) async {
 // Повторяющийся между страницами шум (водяные знаки, URL, сноски).
 bool _isNoiseLine(String line) =>
     line.startsWith('www') || line.startsWith('http');
+
+/// Признаки того, что извлечённый текст — мусор из-за сломанной карты
+/// кодировок: либо управляющие символы, либо «слова» с цифрой и буквой
+/// внутри (код-в-код вместо Unicode).
+bool _isGarbled(Iterable<({String title, String text})> cleaned) {
+  var totalTokens = 0;
+  var mixedTokens = 0;
+  var controls = 0;
+  var totalChars = 0;
+  final hasDigit = RegExp(r'[0-9]');
+  final hasLetter = RegExp(r'[A-Za-zА-Яа-яёЁ]');
+  for (final e in cleaned) {
+    final text = e.text;
+    totalChars += text.length;
+    for (final tok in text.split(RegExp(r'\s+'))) {
+      if (tok.isEmpty) continue;
+      totalTokens++;
+      if (hasDigit.hasMatch(tok) && hasLetter.hasMatch(tok)) mixedTokens++;
+    }
+    for (final code in text.codeUnits) {
+      if (code < 0x20 && code != 0x09 && code != 0x0A && code != 0x0D) {
+        controls++;
+      }
+    }
+  }
+  if (totalChars == 0) return false;
+  final controlRatio = controls / totalChars;
+  if (controlRatio > 0.005) return true;
+  if (totalTokens == 0) return false;
+  final mixedRatio = mixedTokens / totalTokens;
+  return mixedRatio > 0.35;
+}
 
 class _PdfPageRef {
   final int number;
