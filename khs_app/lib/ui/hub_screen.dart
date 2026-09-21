@@ -2,17 +2,16 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../localization/app_strings.dart';
+import '../qutzem_reader/embedded.dart';
 import '../services/launcher_shortcut.dart';
 import '../services/update_checker.dart';
 import '../state/app_state.dart';
-import '../localization/app_strings.dart';
 import 'home_screen.dart';
 import 'hub_settings_screen.dart';
 
@@ -25,77 +24,12 @@ class HubScreen extends StatefulWidget {
   State<HubScreen> createState() => _HubScreenState();
 }
 
-class _HubScreenState extends State<HubScreen> with WidgetsBindingObserver {
+class _HubScreenState extends State<HubScreen> {
   static const _qutzemExe =
       'C:\\Users\\user\\Projects\\qutzem-reader\\dist\\windows\\qutzem_reader.exe';
-  static const _qutzemPackage = 'dev.qutzem.qutzem_reader';
-  static const _khsPackage = 'com.qutzem.khs';
-  static const _qutzemBundleAsset = 'assets/bundled/qutzem-reader.apk';
-  static const _qutzemBundleVersionAsset =
-      'assets/bundled/qutzem-reader.version';
 
   bool _shortcutBusy = false;
   bool _updateBusy = false;
-  bool _readerInstalling = false;
-
-  @override
-  void initState() {
-    super.initState();
-    LauncherShortcut.listenStartTasks(_openTasksFromShortcut);
-    WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _autoInstallReaderOnFirstRun();
-    });
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && Platform.isAndroid) {
-      // Пользователь мог только что разрешить установку — доделываем молча.
-      _autoInstallReaderOnFirstRun();
-    }
-  }
-
-  /// При первом запуске ставим встроенную читалку молча, без диалогов:
-  /// если разрешение на установку уже дано — она окажется установленной
-  /// сразу после старта хаба.
-  Future<void> _autoInstallReaderOnFirstRun() async {
-    if (!Platform.isAndroid) return;
-    if (_readerInstalling) return;
-    if (await LauncherShortcut.isPackageInstalled(_qutzemPackage)) return;
-    if (!mounted) return;
-    await _ensureReader(userInitiated: false);
-  }
-
-  /// Версия читалки, упакованной в этот APK (из ассета), или null.
-  static Future<String?> _bundledReaderVersion() async {
-    try {
-      final text = (await rootBundle.loadString(_qutzemBundleVersionAsset))
-          .trim();
-      return text.isEmpty ? null : text;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Достаёт вложенный APK читалки во временную папку (для установки).
-  static Future<File?> _extractBundledReader() async {
-    try {
-      final data = await rootBundle.load(_qutzemBundleAsset);
-      final dir = await getTemporaryDirectory();
-      final file = File(p.join(dir.path, 'qutzem-reader-bundled.apk'));
-      await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
-      return file;
-    } catch (_) {
-      return null;
-    }
-  }
 
   /// Сравнение версий вида «1.2.3»: true, если [a] новее [b].
   static bool _isNewer(String a, String b) {
@@ -114,6 +48,12 @@ class _HubScreenState extends State<HubScreen> with WidgetsBindingObserver {
       if (x != y) return x > y;
     }
     return false;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    LauncherShortcut.listenStartTasks(_openTasksFromShortcut);
   }
 
   void _openTasksFromShortcut() {
@@ -136,71 +76,17 @@ class _HubScreenState extends State<HubScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _openQutzem() async {
+  void _openQutzem() {
     if (Platform.isAndroid) {
-      final installed =
-          await LauncherShortcut.isPackageInstalled(_qutzemPackage);
-      if (!mounted) return;
-      if (installed) {
-        await LauncherShortcut.launchPackage(_qutzemPackage);
-      } else {
-        await _ensureReader(userInitiated: true);
-      }
+      // Читалка — встроенный модуль хаба, как KHS Tasks: открывается внутри.
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ReaderHome()),
+      );
       return;
     }
     if (File(_qutzemExe).existsSync()) {
       unawaited(Process.start(_qutzemExe, []));
-    }
-  }
-
-  /// Установка читалки из встроенного APK бандла максимально тихо:
-  /// без модальных диалогов, в фоне. Если разрешение на установку ещё не
-  /// дано и выход запросил сам пользователь — один раз молча открываем
-  /// системный экран разрешения; после возврата установку доделывает
-  /// [didChangeAppLifecycleState].
-  Future<void> _ensureReader({required bool userInitiated}) async {
-    if (_readerInstalling) return;
-    _readerInstalling = true;
-    try {
-      if (await LauncherShortcut.isPackageInstalled(_qutzemPackage)) return;
-      final state = context.read<AppState>();
-      final strings = state.strings;
-      final file = await _extractBundledReader();
-      if (!mounted || file == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(strings.t('readerOfflineUnavailable')),
-              behavior: SnackBarBehavior.floating));
-        }
-        return;
-      }
-      final canInstall = await state.canInstallPackages();
-      if (!canInstall) {
-        if (!mounted) return;
-        if (userInitiated) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(strings.t('readerPermissionHint')),
-              behavior: SnackBarBehavior.floating));
-          await state.openInstallSourcesSettings();
-        }
-        return;
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(strings.t('readerInstalling')),
-          behavior: SnackBarBehavior.floating));
-      final ok = await state.installApkSilent(
-        file.path,
-        package: _qutzemPackage,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:
-            Text(ok ? strings.t('readerUpdated') : strings.t('openFileFailed')),
-        behavior: SnackBarBehavior.floating,
-      ));
-    } finally {
-      _readerInstalling = false;
     }
   }
 
@@ -210,7 +96,7 @@ class _HubScreenState extends State<HubScreen> with WidgetsBindingObserver {
   Future<bool> _installApk(
     String path,
     AppStrings strings, {
-    String package = _khsPackage,
+    String package = 'com.qutzem.khs',
   }) async {
     final state = context.read<AppState>();
     if (state.isPc) return false;
@@ -260,31 +146,16 @@ class _HubScreenState extends State<HubScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _createQutzemShortcut() async {
-    final strings = context.read<AppState>().strings;
-    if (Platform.isAndroid) {
-      final ok = await LauncherShortcut.createAppShortcut(
-        _qutzemPackage,
-        'QutZem Reader',
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            ok ? strings.t('shortcutCreated') : strings.t('shortcutError'),
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-    await _createShortcut(
+  void _createQutzemShortcut() {
+    // Windows: ярлык отдельного окна читалки. На Android читалка встроена
+    // в хаб — отдельного приложения и ярлыка нет.
+    _createShortcut(
       name: 'QutZem Reader',
       target: _qutzemExe,
       args: '',
       icon: '${File(Platform.resolvedExecutable).parent.path}\\qutzem_icon.ico',
-      busyText: strings.t('shortcutCreated'),
-      errorText: strings.t('shortcutError'),
+      busyText: context.read<AppState>().strings.t('shortcutCreated'),
+      errorText: context.read<AppState>().strings.t('shortcutError'),
     );
   }
 
@@ -349,8 +220,8 @@ try {
     }
   }
 
-  /// «Обновить всё»: обновляет KHS и QutZem Reader по Wi-Fi с ПК.
-  /// Читалку можно обновить и из бандла (когда ПК недоступен).
+  /// «Обновить всё»: обновляет только хаб KHS по Wi-Fi с ПК.
+  /// Читалка встроена в хаб — отдельное её обновление не нужно.
   Future<void> _updateAll() async {
     if (!Platform.isAndroid || _updateBusy) return;
     final state = context.read<AppState>();
@@ -359,26 +230,21 @@ try {
     try {
       final check = await state.checkForUpdate();
       final info = check.info;
+      if (check.status != UpdateCheckStatus.ok || info == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                check.status == UpdateCheckStatus.noUpdate
+                    ? strings.t('updateNotConfigured')
+                    : strings.t('updateConnectFail')),
+            behavior: SnackBarBehavior.floating));
+        return;
+      }
       final pkgInfo = await PackageInfo.fromPlatform();
       final currentHub = pkgInfo.version;
-      final installedReader =
-          await LauncherShortcut.getPackageVersion(_qutzemPackage);
-      final bundled = await _bundledReaderVersion();
-
-      final needHub = check.status == UpdateCheckStatus.ok &&
-          info != null &&
-          info.version.isNotEmpty &&
+      final needHub = info.version.isNotEmpty &&
           _isNewer(info.version, currentHub);
-      final lanReader = info != null &&
-          info.readerFile != null &&
-          info.readerVersion != null &&
-          (installedReader == null ||
-              _isNewer(info.readerVersion!, installedReader));
-      final bundleReader = !lanReader &&
-          bundled != null &&
-          (installedReader == null || _isNewer(bundled, installedReader));
-
-      if (!needHub && !lanReader && !bundleReader) {
+      if (!needHub) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(strings.t('updateAllUpToDate')),
@@ -387,20 +253,11 @@ try {
       }
       if (!mounted) return;
 
-      final readerTarget = lanReader
-          ? info.readerVersion
-          : (bundleReader ? bundled : null);
       final lines = <String>[
-        if (needHub)
-          strings
-              .t('appKhsLine')
-              .replaceFirst('{1}', currentHub)
-              .replaceFirst('{2}', info.version),
-        if (readerTarget != null)
-          strings.t('appReaderLine').replaceFirst('{1}', installedReader ?? '—')
-              .replaceFirst('{2}', readerTarget),
-        if (readerTarget == null && installedReader != null)
-          strings.t('appAlreadyLine'),
+        strings
+            .t('appKhsLine')
+            .replaceFirst('{1}', currentHub)
+            .replaceFirst('{2}', info.version),
       ];
       final go = await showDialog<bool>(
         context: context,
@@ -440,31 +297,10 @@ try {
       );
       if (go != true || !mounted) return;
 
-      var hubOk = true;
-      var readerOk = true;
-      if (needHub) {
-        hubOk = await _downloadAndInstallKhs(info, strings);
-        if (mounted && hubOk) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('KHS обновлён'),
-              behavior: SnackBarBehavior.floating));
-        }
-      }
-      if (readerTarget != null && mounted) {
-        if (lanReader) {
-          readerOk = await _downloadAndInstallReader(info, strings);
-        } else {
-          readerOk = await _installBundledReaderSilently(strings);
-        }
-        if (mounted && readerOk) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('QutZem Reader обновлён'),
-              behavior: SnackBarBehavior.floating));
-        }
-      }
-      if (hubOk && readerOk && mounted) {
+      final hubOk = await _downloadAndInstallKhs(info, strings);
+      if (mounted && hubOk) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(strings.t('allUpdated')),
+            content: const Text('KHS обновлён'),
             behavior: SnackBarBehavior.floating));
       }
     } finally {
@@ -502,45 +338,6 @@ try {
       if (mounted) Navigator.of(context).pop();
       return false;
     }
-  }
-
-  /// Качает APK читалки с ПК и ставит тихо.
-  Future<bool> _downloadAndInstallReader(
-      UpdateInfo info, AppStrings strings) async {
-    final state = context.read<AppState>();
-    final file = info.readerFile;
-    if (file == null || file.isEmpty) return false;
-    try {
-      final dir = await getTemporaryDirectory();
-      if (!mounted) return false;
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const _HubProgressDialog(label: 'QutZem Reader…'),
-      );
-      final saved = await state.downloadUpdate(
-        file,
-        dir,
-        expectedSha256: info.readerSha256,
-      );
-      if (info.readerSize != null && saved.lengthSync() != info.readerSize) {
-        if (mounted) Navigator.of(context).pop();
-        return false;
-      }
-      if (mounted) Navigator.of(context).pop();
-      if (!mounted) return false;
-      return await _installApk(saved.path, strings, package: _qutzemPackage);
-    } catch (_) {
-      if (mounted) Navigator.of(context).pop();
-      return false;
-    }
-  }
-
-  Future<bool> _installBundledReaderSilently(AppStrings strings) async {
-    final file = await _extractBundledReader();
-    if (file == null) return false;
-    if (!mounted) return false;
-    return _installApk(file.path, strings, package: _qutzemPackage);
   }
 
   @override
@@ -619,9 +416,7 @@ try {
                   title: 'QutZem Reader',
                   subtitle: strings.t('hubQutzemSubtitle'),
                   onTap: _openQutzem,
-                  onShortcut: (Platform.isWindows || Platform.isAndroid)
-                      ? _createQutzemShortcut
-                      : null,
+                  onShortcut: Platform.isWindows ? _createQutzemShortcut : null,
                   shortcutTooltip: strings.t('shortcutCreate'),
                   shortcutBusy: _shortcutBusy,
                 ),

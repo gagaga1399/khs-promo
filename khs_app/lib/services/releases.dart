@@ -24,6 +24,14 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.31',
+    date: '21.09.2026',
+    changes: [
+      ChangeEntry('QutZem Reader встроен в хаб, как KHS Tasks: одна APK, читалка открывается из плитки внутри, ничего не устанавливается и не докачивается', ChangeType.feature),
+      ChangeEntry('Хаб похудел: бандл читалки больше не зашит в APK (~95 → ~40 МБ)', ChangeType.improvement),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.30',
     date: '21.09.2026',
     changes: [
@@ -402,6 +410,13 @@ ReleaseInfo? get latestRelease =>
 
 /// История самого хаба KHS (без изменений KHS Tasks).
 const List<ReleaseInfo> khsHubReleases = [
+  ReleaseInfo(
+    version: '1.2.31',
+    date: '21.09.2026',
+    changes: [
+      ChangeEntry('QutZem Reader встроен в хаб, как KHS Tasks: одна APK, читалка из плитки внутри хаба, без установок и докачек', ChangeType.feature),
+    ],
+  ),
   ReleaseInfo(
     version: '1.2.30',
     date: '21.09.2026',
