@@ -288,11 +288,6 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
       children: [
         Expanded(
           child: SelectionArea(
-            onSelectionChanged: (sel) {
-              if (sel != null && sel.plainText.trim().isNotEmpty) {
-                setState(() => _lastSelected = sel.plainText);
-              }
-            },
             child: SingleChildScrollView(
               controller: _scroll,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
@@ -318,6 +313,13 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
                       ),
                       children: spans,
                     ),
+                    onSelectionChanged: (sel, _) {
+                      if (sel == null || sel.isCollapsed) return;
+                      final t = current.text;
+                      final start = sel.start.clamp(0, t.length);
+                      final end = sel.end.clamp(start, t.length);
+                      setState(() => _lastSelected = t.substring(start, end));
+                    },
                     textScaler: readerTextScaler(context),
                   ),
                 ],

@@ -98,10 +98,12 @@ class _SpreadReaderState extends State<SpreadReader> {
   void _onSelected(SelectedContent? content) {
     _selPanelTimer?.cancel();
     final text = content?.plainText.trim() ?? '';
-    _lastSelected = text;
-    if (text.isEmpty) {
-      if (mounted) setState(() {});
-      return;
+    if (text.isEmpty) return;
+    // SelectionArea в конце драга может прислать ещё одно событие с уже
+    // «схлопнутым» фрагментом (например, только первое предложение).
+    // Не затираем полный выделенный текст поздним частичным событием.
+    if (text.length >= _lastSelected.length) {
+      _lastSelected = text;
     }
     _selPanelTimer = Timer(const Duration(milliseconds: 200), () {
       if (mounted) setState(() {});
