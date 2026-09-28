@@ -287,43 +287,41 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
     return Column(
       children: [
         Expanded(
-          child: SelectionArea(
-            child: SingleChildScrollView(
-              controller: _scroll,
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (current.title.isNotEmpty) ...[
-                    Text(
-                      current.title,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
+          child: SingleChildScrollView(
+            controller: _scroll,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (current.title.isNotEmpty) ...[
+                  Text(
+                    current.title,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                  SelectableText.rich(
-                    TextSpan(
-                      style: TextStyle(
-                        fontSize: _fontSize,
-                        height: 1.55,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                      children: spans,
-                    ),
-                    onSelectionChanged: (sel, _) {
-                      if (sel == null || sel.isCollapsed) return;
-                      final t = current.text;
-                      final start = sel.start.clamp(0, t.length);
-                      final end = sel.end.clamp(start, t.length);
-                      setState(() => _lastSelected = t.substring(start, end));
-                    },
-                    textScaler: readerTextScaler(context),
                   ),
+                  const SizedBox(height: 16),
                 ],
-              ),
+                SelectableText.rich(
+                  TextSpan(
+                    style: TextStyle(
+                      fontSize: _fontSize,
+                      height: 1.55,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    children: spans,
+                  ),
+                  onSelectionChanged: (sel, _) {
+                    if (sel == null || sel.isCollapsed) return;
+                    final t = current.text;
+                    final start = sel.start.clamp(0, t.length);
+                    final end = sel.end.clamp(start, t.length);
+                    setState(() => _lastSelected = t.substring(start, end));
+                  },
+                  textScaler: readerTextScaler(context),
+                ),
+              ],
             ),
           ),
         ),
