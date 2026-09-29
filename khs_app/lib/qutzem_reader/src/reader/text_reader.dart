@@ -9,7 +9,6 @@ import '../models.dart';
 import '../text_document.dart';
 import 'reader_screen.dart';
 import 'reader_settings.dart';
-import 'selection_utils.dart';
 import 'text_scale.dart';
 
 class TextReaderWidget extends StatefulWidget {
@@ -43,6 +42,8 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
   bool _loading = false;
   String? _error;
   String _lastSelected = '';
+  int _selStart = 0;
+  int _selEnd = 0;
   Timer? _saveTimer;
   final ScrollController _scroll = ScrollController();
 
@@ -313,11 +314,15 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
                     children: spans,
                   ),
                   onSelectionChanged: (sel, _) {
-                    if (sel == null || sel.isCollapsed) return;
+                    if (sel.isCollapsed) return;
                     final t = current.text;
                     final start = sel.start.clamp(0, t.length);
                     final end = sel.end.clamp(start, t.length);
-                    setState(() => _lastSelected = t.substring(start, end));
+                    setState(() {
+                      _lastSelected = t.substring(start, end);
+                      _selStart = start;
+                      _selEnd = end;
+                    });
                   },
                   textScaler: readerTextScaler(context),
                 ),
@@ -352,21 +357,30 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
   }
 
   Future<void> _showHighlightActions() async {
-    final text = _lastSelected.trim();
-    if (text.isEmpty) return;
+    final doc = _doc;
+    if (doc == null) return;
+    final chapterText = doc.chapters[_chapter].text;
+    // Точные границы выделения берём из SelectableText (sel.start/sel.end),
+    // а не ищем фрагмент по тексту: поиск находит ПЕРВОЕ вхождение фразы в
+    // главе, и подсветка ложилась не на то место. Обрезаем краевые пробелы
+    // и синхронно сдвигаем границы.
+    var start = _selStart.clamp(0, chapterText.length);
+    var end = _selEnd.clamp(start, chapterText.length);
+    var text = chapterText.substring(start, end);
+    final lead = text.length - text.trimLeft().length;
+    final trail = text.length - text.trimRight().length;
+    start += lead;
+    end = max(start, end - trail);
+    text = chapterText.substring(start, end);
+    if (text.trim().isEmpty) return;
     showSelectionActions(
       context,
       text,
       (t, color, note) async {
-        final doc = _doc;
-        if (doc == null) return;
-        final chapterText = doc.chapters[_chapter].text;
-        final found = findFragment(chapterText, t) ?? [0, 0];
-        final end = found[1];
         final added = await _service.addHighlight(
           chapter: _chapter,
           text: t,
-          start: found[0],
+          start: start,
           end: end,
           colorIndex: color,
           note: note,
@@ -374,7 +388,11 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(added ? 'Добавлено в заметки' : 'Уже есть в заметках')));
-        setState(() => _lastSelected = '');
+        setState(() {
+          _lastSelected = '';
+          _selStart = 0;
+          _selEnd = 0;
+        });
         _scheduleSave();
       },
       widget.aiSettings,

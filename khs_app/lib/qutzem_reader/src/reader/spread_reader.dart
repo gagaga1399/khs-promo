@@ -262,21 +262,43 @@ class _SpreadReaderState extends State<SpreadReader> {
         content: Text('Цитата скопирована (${widget.book.title})')));
   }
 
-  /// Найти (глава, start, end) выделенного текста. Выделение всегда в текущей
-  /// главе (странице) или на её границе, поэтому ищем только в ней и соседних,
-  /// а не по всей книге — иначе на больших PDF будут зависания.
+  /// Найти (глава, start, end) выделенного текста.
+  ///
+  /// Ищем ТОЛЬКО в блоках текущей страницы и возвращаем точные офсеты исходной
+  /// главы (startChar блока + локальный индекс). Раньше поиск шёл по всей
+  /// главе и находил ПЕРВОЕ вхождение фразы — подсветка ложилась не туда.
   (int, int, int)? _locate(String text) {
-    final order = <int>[
-      _topChapter,
-      _topChapter - 1,
-      _topChapter + 1,
-    ];
-    for (final ch in order) {
-      if (ch < 0 || ch >= widget.doc.chapters.length) continue;
-      final found = findFragment(widget.doc.chapters[ch].text, text);
-      if (found != null) return (ch, found[0], found[1]);
+    final pager = _paginator;
+    int from;
+    int to;
+    if (pager != null && pager.isReady && pager.pages.isNotEmpty) {
+      final page = pager.pages[_currentPage.clamp(0, pager.pages.length - 1)];
+      from = page.startBlock;
+      to = page.endBlock;
+    } else {
+      from = _global.clamp(0, _blocks.length);
+      to = min(_blocks.length, from + 40);
     }
-    return null;
+    // Склеиваем блоки страницы; для каждого символа запоминаем, откуда он
+    // взят (глава + абсолютный офсет в тексте главы). Разделитель '\n' —
+    // только для поиска, findFragment индексов пробелов не возвращает.
+    final buf = StringBuffer();
+    final map = <(int, int)>[];
+    for (var i = from; i < to; i++) {
+      final b = _blocks[i];
+      final t = b.text;
+      if (t.isEmpty) continue;
+      buf.write(t);
+      for (var c = 0; c < t.length; c++) {
+        map.add((b.sourceChapter, b.startChar + c));
+      }
+      buf.write('\n');
+    }
+    final found = findFragment(buf.toString(), text);
+    if (found == null) return null;
+    final (ch, abs) = map[found[0]];
+    final (_, absEnd) = map[found[1] - 1];
+    return (ch, abs, absEnd + 1);
   }
 
   Future<void> _saveSelection(String text, int colorIndex) async {
