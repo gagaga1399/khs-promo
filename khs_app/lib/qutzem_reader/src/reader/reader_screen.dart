@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../ai.dart';
 import '../library.dart';
@@ -44,6 +45,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
         widget.book.format == BookFormat.fb2) {
       _loadTextDoc();
     }
+    // Запоминаем последнюю открытую книгу сразу, чтобы при следующем
+    // запуске продолжалось чтение именно этой книги (а не более ранней).
+    SharedPreferences.getInstance().then(
+        (p) => p.setString('lastBookId', widget.book.id));
   }
 
   Future<void> _loadTextDoc() async {
