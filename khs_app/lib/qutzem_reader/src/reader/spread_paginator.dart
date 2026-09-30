@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
@@ -132,8 +133,16 @@ class SpreadPaginator {
   /// Измеряет пачками по [batch] блоков, отдавая управление между кадрами,
   /// чтобы UI не «зависал» на больших книгах. [onProgress] вызывается между
   /// пачками с долей 0..1.
+  ///
+  /// На больших книгах (FB2 на 5–7 тыс. абзацев) ТОЧНОЕ измерение каждого
+  /// блока занимало десятки секунд и замораживало интерфейс. Поэтому точно
+  /// измеряются первые [measureLimit] блоков, по ним выводится «ёмкость
+  /// строки» (символов в строке), а высоты остальных блоков оцениваются по
+  /// длине текста с запасом 4 % — оценка завышена, чтобы текст на странице
+  /// никогда не обрезался снизу.
   Future<void> build({
-    int batch = 30,
+    int batch = 60,
+    int measureLimit = 400,
     bool Function()? isCancelled,
     void Function(double p)? onProgress,
   }) async {
@@ -150,7 +159,9 @@ class SpreadPaginator {
       ..addAll(List<double>.filled(blocks.length, 0));
     _measured = 0;
     try {
-      for (var i = 0; i < blocks.length; i++) {
+      final lineH = fontSize * lineHeight * textScaler.scale(1);
+      final exact = blocks.length <= measureLimit ? blocks.length : measureLimit;
+      for (var i = 0; i < exact; i++) {
         if (isCancelled?.call() ?? false) {
           onProgress?.call(1.0);
           return;
@@ -159,10 +170,36 @@ class SpreadPaginator {
         _heights[i] = b.isPageBreak ? 24 : _styleHeight(b);
         _measured = i + 1;
         if (i > 0 && (i % batch) == 0) {
-          onProgress?.call(i / blocks.length);
+          onProgress?.call((i / blocks.length) * 0.9);
           // Отдаём управление, чтобы кадр успел отрисоваться и UI не висел.
           await Future<void>.delayed(const Duration(milliseconds: 1));
         }
+      }
+      // Ёмкость строки по измеренным блокам.
+      var chars = 0.0;
+      var lines = 0.0;
+      for (var i = 0; i < exact; i++) {
+        final b = blocks[i];
+        if (b.isPageBreak || _heights[i] <= 0) continue;
+        chars += b.text.length;
+        lines += math.max(1.0, _heights[i] / lineH);
+      }
+      final cpl =
+          lines > 0 ? chars / lines : (columnWidth / (fontSize * 0.5));
+      for (var i = exact; i < blocks.length; i++) {
+        if ((i % 500) == 0 && (isCancelled?.call() ?? false)) {
+          onProgress?.call(1.0);
+          return;
+        }
+        final b = blocks[i];
+        if (b.isPageBreak) {
+          _heights[i] = 24;
+        } else {
+          final nLines = math.max(1.0, b.text.length / cpl).ceilToDouble();
+          final pad = b.isHeading ? 12.0 : 10.0;
+          _heights[i] = nLines * lineH * 1.04 + pad;
+        }
+        _measured = i + 1;
       }
       _pages = _buildPages();
       _built = true;
@@ -229,5 +266,9 @@ class SpreadPaginator {
     final s = spreadForBlock(blockIndex);
     return (s / (p.length - 1)).clamp(0.0, 1.0);
   }
+
+  // Доступ к высотам для тестов замера точности оценки.
+  double heightsForTest(int i) => _heights[i];
+  double exactHeightForTest(ReaderBlock b) => _styleHeight(b);
 }
 

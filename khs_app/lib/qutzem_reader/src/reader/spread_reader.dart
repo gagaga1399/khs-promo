@@ -551,28 +551,26 @@ class _SpreadReaderState extends State<SpreadReader> {
     final blocks = <ReaderBlock>[];
     for (var c = 0; c < widget.doc.chapters.length; c++) {
       final ch = widget.doc.chapters[c];
-      final lines = ch.text.split(RegExp(r'\n{1,}'));
-      var first = true;
-      var charPos = 0;
-      for (final raw in lines) {
+      // Идём по НЕПУСТЫМ строкам главы, сохраняя их НАСТОЯЩИЕ индексы в
+      // ch.text. Раньше использовался split(RegExp(r'\n{1,}')), из-за чего
+      // пустые строки (разделители абзацев «\n\n») и trim() строк сдвигали
+      // startChar каждого следующего блока назад — закраска заметок и
+      // поиск выделения попадали мимо (начало сходилось, конец уезжал).
+      var firstOfChapter = true;
+      for (final m in RegExp(r'[^\n]+').allMatches(ch.text)) {
+        final raw = m.group(0)!;
         final t = raw.trim();
-        if (t.isEmpty) {
-          charPos += raw.length + 1;
-          continue;
-        }
-        final isHeading = first && c < widget.doc.chapters.length &&
-            t.length < 90 && t == _titleOf(ch);
-        final start = charPos;
-        final end = start + t.length;
+        if (t.isEmpty) continue;
+        final start = m.start + (raw.length - raw.trimLeft().length);
+        final isHeading = firstOfChapter && t.length < 90 && t == _titleOf(ch);
+        firstOfChapter = false;
         blocks.add(ReaderBlock(
           text: t,
           sourceChapter: c,
           isHeading: isHeading,
           startChar: start,
-          endChar: end,
+          endChar: start + t.length,
         ));
-        first = false;
-        charPos = end + 1;
       }
     }
     _blocks = blocks;

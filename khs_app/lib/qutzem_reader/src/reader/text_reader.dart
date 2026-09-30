@@ -9,6 +9,7 @@ import '../models.dart';
 import '../text_document.dart';
 import 'reader_screen.dart';
 import 'reader_settings.dart';
+import 'selection_utils.dart';
 import 'text_scale.dart';
 
 class TextReaderWidget extends StatefulWidget {
@@ -360,22 +361,29 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
     final doc = _doc;
     if (doc == null) return;
     final chapterText = doc.chapters[_chapter].text;
-    // Точные границы выделения берём из SelectableText (sel.start/sel.end),
-    // а не ищем фрагмент по тексту: поиск находит ПЕРВОЕ вхождение фразы в
-    // главе, и подсветка ложилась не на то место. Обрезаем краевые пробелы
-    // и синхронно сдвигаем границы.
     var start = _selStart.clamp(0, chapterText.length);
     var end = _selEnd.clamp(start, chapterText.length);
-    var text = chapterText.substring(start, end);
-    final lead = text.length - text.trimLeft().length;
-    final trail = text.length - text.trimRight().length;
+    String selText = chapterText.substring(start, end);
+    // Обрезаем пробелы по краям выделения (визуально)
+    final lead = selText.length - selText.trimLeft().length;
+    final trail = selText.length - selText.trimRight().length;
     start += lead;
     end = max(start, end - trail);
-    text = chapterText.substring(start, end);
-    if (text.trim().isEmpty) return;
+    selText = chapterText.substring(start, end).trim();
+    if (selText.isEmpty) return;
+    // Надёжный поиск в окне вокруг приблизительных координат (SelectableText.rich
+    // с разбитыми спанами может немного смещать индексы)
+    final wStart = max(0, start - 80);
+    final wEnd = min(chapterText.length, end + 80);
+    final window = chapterText.substring(wStart, wEnd);
+    final f = findFragment(window, selText);
+    if (f != null) {
+      start = wStart + f[0];
+      end = wStart + f[1];
+    }
     showSelectionActions(
       context,
-      text,
+      selText,
       (t, color, note) async {
         final added = await _service.addHighlight(
           chapter: _chapter,
