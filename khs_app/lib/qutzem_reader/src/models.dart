@@ -92,6 +92,12 @@ class Highlight {
   final String? chapterTitle;
   final DateTime createdAt;
 
+  /// Точные диапазоны выделения в тексте главы: плоский список
+  /// [s1, e1, s2, e2, ...]. Заполняется, когда выделение шло через несколько
+  /// абзацев — тогда одиночные [start]/[end] описывают только его начало.
+  /// Старые заметки без [parts] рисуются по [start]/[end].
+  final List<int> parts;
+
   Highlight({
     required this.id,
     required this.chapter,
@@ -101,6 +107,7 @@ class Highlight {
     this.colorIndex = 0,
     this.note,
     this.chapterTitle,
+    this.parts = const [],
     required this.createdAt,
   });
 
@@ -113,6 +120,10 @@ class Highlight {
         colorIndex: json['colorIndex'] as int? ?? 0,
         note: json['note'] as String?,
         chapterTitle: json['chapterTitle'] as String?,
+        parts: (json['parts'] as List?)
+                ?.map((e) => (e as num).toInt())
+                .toList() ??
+            const [],
         createdAt:
             DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
       );
@@ -126,6 +137,7 @@ class Highlight {
         'colorIndex': colorIndex,
         'note': note,
         'chapterTitle': chapterTitle,
+        'parts': parts,
         'createdAt': createdAt.millisecondsSinceEpoch,
       };
 }

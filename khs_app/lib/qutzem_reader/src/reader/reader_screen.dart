@@ -244,6 +244,8 @@ class ReaderService {
         text: existing.text,
         colorIndex: colorIndex ?? existing.colorIndex,
         note: note ?? existing.note,
+        chapterTitle: existing.chapterTitle,
+        parts: existing.parts,
         createdAt: existing.createdAt,
       );
       await library.saveBookData(data);

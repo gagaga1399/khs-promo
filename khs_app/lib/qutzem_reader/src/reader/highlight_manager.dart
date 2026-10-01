@@ -22,6 +22,7 @@ class HighlightManager {
     int colorIndex = 0,
     String? note,
     String? chapterTitle,
+    List<int> parts = const [],
   }) async {
     final d = _data;
     if (d == null) return false;
@@ -38,6 +39,7 @@ class HighlightManager {
       colorIndex: colorIndex,
       note: note,
       chapterTitle: chapterTitle,
+      parts: parts,
       createdAt: DateTime.now(),
     );
     d.highlights.add(h);
@@ -60,6 +62,7 @@ class HighlightManager {
       colorIndex: colorIndex ?? e.colorIndex,
       note: note ?? e.note,
       chapterTitle: e.chapterTitle,
+      parts: e.parts,
       createdAt: e.createdAt,
     );
     await library.saveBookData(d);
@@ -69,6 +72,30 @@ class HighlightManager {
     final d = _data;
     if (d == null) return;
     d.highlights.removeWhere((e) => e.id == h.id);
+    await library.saveBookData(d);
+  }
+
+  /// Проставить точные диапазоны заметке, созданной до их появления.
+  Future<void> setParts(Highlight h, List<int> parts) async {
+    if (parts.length < 2) return;
+    final d = _data;
+    if (d == null) return;
+    final idx = d.highlights.indexWhere((e) => e.id == h.id);
+    if (idx < 0) return;
+    final e = d.highlights[idx];
+    if (e.parts.length == parts.length) return;
+    d.highlights[idx] = Highlight(
+      id: e.id,
+      chapter: e.chapter,
+      start: parts.first,
+      end: parts.last,
+      text: e.text,
+      colorIndex: e.colorIndex,
+      note: e.note,
+      chapterTitle: e.chapterTitle,
+      parts: parts,
+      createdAt: e.createdAt,
+    );
     await library.saveBookData(d);
   }
 }

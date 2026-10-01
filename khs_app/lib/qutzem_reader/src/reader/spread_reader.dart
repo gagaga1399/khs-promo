@@ -74,6 +74,8 @@ class _SpreadReaderState extends State<SpreadReader> {
   bool _restored = false;
   String _lastSelected = '';
   Highlight? _highlightTarget;
+  /// Диапазоны, восстановленные для старых заметок (ключ — id заметки).
+  final Map<String, List<int>> _repairedParts = {};
 
   int? _searchBlockIndex;
 
@@ -262,57 +264,64 @@ class _SpreadReaderState extends State<SpreadReader> {
         content: Text('Цитата скопирована (${widget.book.title})')));
   }
 
-  /// Найти (глава, start, end) выделенного текста.
-  ///
-  /// Ищем ТОЛЬКО в блоках текущей страницы и возвращаем точные офсеты исходной
-  /// главы (startChar блока + локальный индекс). Раньше поиск шёл по всей
-  /// главе и находил ПЕРВОЕ вхождение фразы — подсветка ложилась не туда.
-  (int, int, int)? _locate(String text) {
+  /// Диапазоны блоков, по которым ищем текст выделения: в постраничном
+  /// режиме — только текущая страница, в скролле — окно вокруг текущего
+  /// места (выделение не может быть длиннее нескольких экранов).
+  (int, int) _pageBlockRange() {
     final pager = _paginator;
-    int from;
-    int to;
     if (pager != null && pager.isReady && pager.pages.isNotEmpty) {
       final page = pager.pages[_currentPage.clamp(0, pager.pages.length - 1)];
-      from = page.startBlock;
-      to = page.endBlock;
-    } else {
-      from = _global.clamp(0, _blocks.length);
-      to = min(_blocks.length, from + 40);
+      return (page.startBlock, page.endBlock);
     }
-    // Склеиваем блоки страницы; для каждого символа запоминаем, откуда он
-    // взят (глава + абсолютный офсет в тексте главы). Разделитель '\n' —
-    // только для поиска, findFragment индексов пробелов не возвращает.
-    final buf = StringBuffer();
-    final map = <(int, int)>[];
-    for (var i = from; i < to; i++) {
-      final b = _blocks[i];
-      final t = b.text;
-      if (t.isEmpty) continue;
-      buf.write(t);
-      for (var c = 0; c < t.length; c++) {
-        map.add((b.sourceChapter, b.startChar + c));
-      }
-      buf.write('\n');
-    }
-    final found = findFragment(buf.toString(), text);
-    if (found == null) return null;
-    final (ch, abs) = map[found[0]];
-    final (_, absEnd) = map[found[1] - 1];
-    return (ch, abs, absEnd + 1);
+    final from = (_global - 100).clamp(0, _blocks.length);
+    return (from, min(_blocks.length, from + 200));
   }
 
+  /// Разложить выделение на точные диапазоны (глава, start, end) по блокам
+  /// текущей страницы.
+  ///
+  /// SelectionArea отдаёт выделение одной строкой, где границы абзацев
+  /// разделены '\n'. Каждая часть такого выделения целиком лежит внутри
+  /// одного блока, поэтому части сопоставляются блокам страницы ПО ПОРЯДКУ —
+  /// это даёт точные офсеты вместо поиска «первого вхождения фразы».
+  List<(int, int, int)> _locateAll(String text) {
+    final (from, to) = _pageBlockRange();
+    if (from >= to) return const [];
+    return locateSelectionParts(
+      selection: text,
+      blocks: [
+        for (final b in _blocks.sublist(from, to))
+          (chapter: b.sourceChapter, start: b.startChar, end: b.endChar,
+              text: b.text)
+      ],
+    );
+  }
+
+  /// Разложить выделение SelectionArea на точные диапазоны по блокам
+  /// текущей страницы и сохранить заметку.
   Future<void> _saveSelection(String text, int colorIndex) async {
     final t = text.trim();
     if (t.isEmpty) return;
-    final loc = _locate(t);
-    final chapter = loc?.$1 ?? _topChapter;
+    final all = _locateAll(t);
+    if (all.isEmpty) {
+      _dismissSelection();
+      return;
+    }
+    final chapter = all.first.$1;
+    final flat = <int>[];
+    for (final r in all) {
+      flat
+        ..add(r.$2)
+        ..add(r.$3);
+    }
     final added = await _hmanager.add(
       chapter: chapter,
       text: t,
-      start: loc?.$2 ?? 0,
-      end: loc?.$3 ?? 0,
+      start: all.first.$2,
+      end: all.last.$3,
       colorIndex: colorIndex,
       chapterTitle: _chapterTitleOf(chapter),
+      parts: flat,
     );
     _lastSelected = '';
     if (!mounted) return;
@@ -607,8 +616,22 @@ class _SpreadReaderState extends State<SpreadReader> {
     });
   }
 
-  /// Найти глобальный индекс блока, соответствующий заметке (глава + текст).
+  /// Найти глобальный индекс блока, соответствующего заметке.
+  ///
+  /// Приоритет — точные офсеты из [Highlight.parts] (они однозначны даже
+  /// при повторяющихся фразах). Старые заметки без parts ищем по тексту.
   int _blockForHighlight(Highlight h) {
+    if (h.parts.isNotEmpty) {
+      final s = h.parts.first;
+      for (var i = 0; i < _blocks.length; i++) {
+        final b = _blocks[i];
+        if (b.sourceChapter == h.chapter &&
+            s >= b.startChar &&
+            s < b.endChar) {
+          return i;
+        }
+      }
+    }
     for (var i = 0; i < _blocks.length; i++) {
       final b = _blocks[i];
       if (b.sourceChapter != h.chapter) continue;
@@ -950,6 +973,52 @@ class _SpreadReaderState extends State<SpreadReader> {
     );
   }
 
+  /// Точные диапазоны заметки; для старых заметок (без parts) они
+  /// вычисляются один раз по блокам главы и сразу сохраняются.
+  List<int> _partsOf(Highlight h) {
+    if (h.parts.length >= 2) return h.parts;
+    final cached = _repairedParts[h.id];
+    if (cached != null) return cached;
+    final parts = _computeParts(h);
+    if (parts.length >= 2) {
+      _repairedParts[h.id] = parts;
+      _hmanager.setParts(h, parts);
+    }
+    return parts;
+  }
+
+  /// Разложить текст старой заметки на диапазоны по блокам её главы.
+  List<int> _computeParts(Highlight h) {
+    final chapterBlocks = <SelectionBlock>[
+      for (final b in _blocks)
+        if (b.sourceChapter == h.chapter)
+          (chapter: b.sourceChapter, start: b.startChar, end: b.endChar,
+              text: b.text)
+    ];
+    if (chapterBlocks.isEmpty) return const [];
+    // Старт с блока, где заметка начиналась, — иначе фраза ищется с начала
+    // главы и попадает в другое место.
+    var from = 0;
+    for (var i = 0; i < chapterBlocks.length; i++) {
+      if (h.start >= chapterBlocks[i].start && h.start < chapterBlocks[i].end) {
+        from = i;
+        break;
+      }
+    }
+    final parts = locateSelectionParts(
+      selection: h.text,
+      blocks: chapterBlocks,
+      from: from,
+    );
+    final flat = <int>[];
+    for (final p in parts) {
+      flat
+        ..add(p.$2)
+        ..add(p.$3);
+    }
+    return flat;
+  }
+
   List<TextSpan> _blockSpans(ReaderBlock block, ReaderColors colors) {
     final text = block.text;
     if (text.isEmpty) return const [];
@@ -957,9 +1026,20 @@ class _SpreadReaderState extends State<SpreadReader> {
     final ranges = <(int, int, int)>[]; // (start, end, colorIndex)
     for (final h in _hmanager.highlights) {
       if (h.chapter != block.sourceChapter) continue;
-      final hs = h.start.clamp(block.startChar, block.endChar);
-      final he = h.end.clamp(hs, block.endChar);
-      if (he > hs) ranges.add((hs, he, h.colorIndex));
+      // Заметка, шедшая через несколько абзацев, хранит все свои диапазоны
+      // в parts; одиночные start/end тогда описывают только начало.
+      final all = _partsOf(h);
+      final spans = all.length >= 2
+          ? <(int, int)>[
+              for (var i = 0; i + 1 < all.length; i += 2) (all[i], all[i + 1])
+            ]
+          : <(int, int)>[(h.start, h.end)];
+      for (final sp in spans) {
+        if (sp.$2 <= block.startChar || sp.$1 >= block.endChar) continue;
+        final hs = sp.$1.clamp(block.startChar, block.endChar);
+        final he = sp.$2.clamp(hs, block.endChar);
+        if (he > hs) ranges.add((hs, he, h.colorIndex));
+      }
     }
     if (ranges.isEmpty) return [TextSpan(text: text)];
     ranges.sort((a, b) {
