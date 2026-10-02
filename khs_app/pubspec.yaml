@@ -79,6 +79,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   test: ^1.31.1
+  fake_cloud_firestore: ^4.3.0
 
 dependency_overrides:
   flutter_local_notifications_windows:

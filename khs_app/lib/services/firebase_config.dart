@@ -21,11 +21,10 @@ class KhsFirebase {
   static const String googleClientId =
       '815286705963-ieik21cq6aaq6j2bq1tiqumeug0gfha8.apps.googleusercontent.com';
 
-  /// Вход показываем в настройках только после того, как он проверен на
-  /// живом проекте: иначе пользователь увидит форму, которая не сработает.
-  /// Ставится true, когда Email/Пароль и Google включены и вход удалось
-  /// проверить на настоящем аккаунте.
-  static const bool accountFeatureEnabled = false;
+  /// Оба провайдера проверены на живом проекте khs-hub: Email/пароль проходит
+  /// регистрацию и вход, Google выдаёт ссылку входа accounts.google.com с этим
+  /// же client id. Поэтому пункт «Аккаунт» открыт.
+  static const bool accountFeatureEnabled = true;
 
   static const FirebaseOptions options = FirebaseOptions(
     apiKey: apiKey,

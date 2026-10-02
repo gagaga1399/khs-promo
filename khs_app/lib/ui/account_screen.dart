@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
+import '../state/app_state.dart';
 
 /// Экран аккаунта: вход по почте и паролю, вход кнопкой Google, выход.
 class AccountScreen extends StatefulWidget {
@@ -48,8 +50,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(title: const Text('Аккаунт')),
       body: ListenableBuilder(
@@ -85,6 +85,7 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Widget _signedIn() {
     final theme = Theme.of(context);
+    final state = context.watch<AppState>();
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -104,13 +105,65 @@ class _AccountScreenState extends State<AccountScreen> {
             style: theme.textTheme.titleLarge,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Синхронизация с облаком появится следующим шагом.',
-            style: theme.textTheme.bodySmall,
-            textAlign: TextAlign.center,
+          const SizedBox(height: 18),
+          Card(
+            child: ListenableBuilder(
+              listenable: Listenable.merge([state, _auth]),
+              builder: (context, _) => Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          state.cloudStatus == 'error'
+                              ? Icons.cloud_off
+                              : Icons.cloud_done_outlined,
+                          size: 20,
+                          color: state.cloudStatus == 'error'
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _syncCaption(state),
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Задачи и заметки синхронизируются между устройствами. '
+                      'Файлы книг остаются на этом устройстве.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: state.cloudSyncing
+                          ? null
+                          : () => state.syncWithCloud(),
+                      icon: state.cloudSyncing
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.sync),
+                      label: Text(
+                        state.cloudSyncing ? 'Синхронизация…' : 'Синхронизировать',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
           FilledButton.tonalIcon(
             onPressed: _auth.busy ? null : _auth.signOut,
             icon: const Icon(Icons.logout),
@@ -119,6 +172,22 @@ class _AccountScreenState extends State<AccountScreen> {
         ],
       ),
     );
+  }
+
+  String _syncCaption(AppState state) {
+    if (state.cloudSyncing) return 'Синхронизация с облаком…';
+    switch (state.cloudStatus) {
+      case 'ok':
+        final at = state.cloudSyncedAt;
+        if (at == null) return 'Синхронизировано';
+        final hh = at.hour.toString().padLeft(2, '0');
+        final mm = at.minute.toString().padLeft(2, '0');
+        return 'Синхронизировано в $hh:$mm';
+      case 'error':
+        return 'Не удалось связаться с облаком';
+      default:
+        return 'Ожидает синхронизации';
+    }
   }
 
   Widget _form() {

@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../localization/app_strings.dart';
 import '../models/note.dart';
 import '../models/task.dart';
+import '../services/auth_service.dart';
+import '../services/cloud_sync_service.dart';
 import '../services/notification_service.dart';
 import '../services/obsidian_service.dart';
 import '../services/sync_client.dart';
@@ -60,6 +62,20 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool _syncing = false;
   SyncServer? _syncServer;
   Timer? _syncTimer;
+
+  /// Облачная синхронизация с Firestore. Работает, когда есть вход в Firebase;
+  /// без входа [CloudSyncService] просто ничего не делает, поэтому отдельного
+  /// флага включения не нужно.
+  CloudSyncService? _cloud;
+  bool _cloudSyncing = false;
+  DateTime? _cloudSyncedAt;
+  String _cloudStatus = ''; // '' | 'ok' | 'error'
+  Timer? _cloudTimer;
+
+  bool get cloudSyncing => _cloudSyncing;
+  DateTime? get cloudSyncedAt => _cloudSyncedAt;
+  String get cloudStatus => _cloudStatus;
+  bool get cloudReady => AuthService.instance.signedIn;
 
   /// Откуда в прошлый раз пришли метаданные обновления — оттуда же качаем
   /// сам файл, чтобы не искать его на ПК после ответа из интернета.
@@ -461,9 +477,82 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     } else if (!isPc && _syncEnabled && _syncAddress.trim().isNotEmpty) {
       _startAutoSync();
     }
+    _startCloudSync();
+    AuthService.instance.addListener(_onAuthChanged);
     if (!isPc) {
       WidgetsBinding.instance.addObserver(this);
       _scheduleNoteReminder();
+    }
+  }
+
+  /// Вход или выход в аккаунт: облачную синхронизацию надо начать сразу, не
+  /// дожидаясь перезапуска приложения.
+  void _onAuthChanged() {
+    if (AuthService.instance.signedIn) {
+      _startCloudSync();
+    } else {
+      _cloudTimer?.cancel();
+      _cloudTimer = null;
+      _cloud = null;
+      _cloudStatus = '';
+      _cloudSyncedAt = null;
+      notifyListeners();
+    }
+  }
+
+  /// Облачная синхронизация с Firestore.
+  ///
+  /// Запускается один раз, когда есть вход, и дальше по таймеру: первый
+  /// проход сразу после старта, дальше раз в пять минут. Без входа таймер
+  /// не крутится, чтобы не стучаться в облако впустую. После входа на экране
+  /// аккаунта можно запустить вручную кнопкой.
+  void _startCloudSync() {
+    _cloudTimer?.cancel();
+    _cloudTimer = null;
+    if (!AuthService.instance.signedIn) return;
+
+    _cloud = CloudSyncService(
+      db: db,
+      uidProvider: () => AuthService.instance.user?.uid,
+    );
+
+    unawaited(syncWithCloud());
+    _cloudTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      unawaited(syncWithCloud());
+    });
+  }
+
+  /// Один проход облачной синхронизации. Данные, пришедшие с других
+  /// устройств, перечитываются из базы; при ошибке (нет сети, нет прав)
+  /// локальные данные не трогаем и просто ждём следующего раза.
+  Future<CloudSyncResult?> syncWithCloud() async {
+    if (_cloud == null && AuthService.instance.signedIn) {
+      _cloud = CloudSyncService(
+        db: db,
+        uidProvider: () => AuthService.instance.user?.uid,
+      );
+    }
+    final cloud = _cloud;
+    if (cloud == null || _cloudSyncing) return null;
+
+    _cloudSyncing = true;
+    notifyListeners();
+    try {
+      final result = await cloud.run();
+      if (result.status == 'ok') {
+        _cloudStatus = 'ok';
+        _cloudSyncedAt = DateTime.now();
+        // Пришедшие изменения надо показать в списках.
+        _tasks = await db.getTasks();
+        _notes = await db.getNotes();
+        _deletedNotes = await db.getDeletedNotes();
+      } else if (result.status == 'error') {
+        _cloudStatus = 'error';
+      }
+      return result;
+    } finally {
+      _cloudSyncing = false;
+      notifyListeners();
     }
   }
 
@@ -472,12 +561,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _ensureDailyOccurrences();
       _maybeSync();
+      if (AuthService.instance.signedIn) {
+        unawaited(syncWithCloud());
+      }
     }
   }
 
   @override
   void dispose() {
     _syncTimer?.cancel();
+    _cloudTimer?.cancel();
+    AuthService.instance.removeListener(_onAuthChanged);
     if (!isPc) {
       WidgetsBinding.instance.removeObserver(this);
     }
