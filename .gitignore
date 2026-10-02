@@ -7,3 +7,7 @@ khs_app/khs_log.txt
 presentation_mkt.html
 ~$*.txt
 ~$*.md
+
+# Логи Firebase CLI
+firebase-debug.log
+.firebase/
