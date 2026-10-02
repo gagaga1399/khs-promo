@@ -1,0 +1,11 @@
+{
+    "android":  "khs-1.2.31.apk",
+    "android_sha256":  "7990377f2971a3edba65b8d8478cb4d7174873b42bbf142617c53ece0fd4cb78",
+    "android_size":  79803531,
+    "notes":  "Стеклянная нижняя панель навигации (KHS и QutZem Reader)",
+    "signature":  "EpBsEZPF9AKYWW319c4JWfOx7Pv1hZDmyHql8iPSbX9EZDSJEKEdCYXcbmqvyWAi0USjLj3AGP0Pod24mkZvAA==",
+    "version":  "1.2.31",
+    "windows":  "khs-1.2.31-windows.zip",
+    "windows_sha256":  "57d9316c12502664742fb090daa0e422f93cc5435a45a8d3135c768bcdee76ae",
+    "windows_size":  18768181
+}
