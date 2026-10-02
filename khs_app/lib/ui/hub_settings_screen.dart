@@ -110,10 +110,11 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
     );
   }
 
-  /// На телефоне: спрашивает ПК про более новую версию хаба и предлагает скачать.
+  /// Проверяет обновление хаба: сначала интернет, при неудаче — ПК по Wi-Fi.
   Future<void> _checkRemoteUpdate(AppState state, AppStrings strings) async {
     final messenger = ScaffoldMessenger.of(context);
-    if (state.syncAddress.trim().isEmpty) {
+    if (state.syncAddress.trim().isEmpty &&
+        state.updateWebBaseUrl.trim().isEmpty) {
       messenger.showSnackBar(
         SnackBar(content: Text(strings.t('updateNoAddress'))),
       );

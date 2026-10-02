@@ -52,6 +52,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   String _syncAddress = '';
   String _syncBindHost = '';
   String _syncToken = '';
+  String _updateWebBaseUrl = kUpdateWebBaseUrl;
   bool _syncServerEnabled = false;
   int _syncPort = defaultSyncPort;
   DateTime? _lastSyncTime;
@@ -59,6 +60,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool _syncing = false;
   SyncServer? _syncServer;
   Timer? _syncTimer;
+
+  /// Откуда в прошлый раз пришли метаданные обновления — оттуда же качаем
+  /// сам файл, чтобы не искать его на ПК после ответа из интернета.
+  UpdateSource? _lastUpdateSource;
   List<String> _localAddresses = const [];
 
   // Anti-replay / привязка к серверу: постоянные счётчики и идентификаторы
@@ -114,6 +119,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool get syncEnabled => _syncEnabled;
   String get syncAddress => _syncAddress;
   String get syncToken => _syncToken;
+
+  /// Откуда качать обновления по интернету; пусто — только ПК по Wi-Fi.
+  String get updateWebBaseUrl => _updateWebBaseUrl;
   bool get syncServerEnabled => _syncServerEnabled;
   int get syncPort => _syncPort;
   String get syncBindHost => _syncBindHost;
@@ -391,6 +399,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _syncEnabled = _prefs?.getBool('sync_enabled') ?? false;
     _syncAddress = _cleanSyncAddress(_prefs?.getString('sync_address') ?? '');
     _syncToken = _prefs?.getString('sync_token') ?? '';
+    _updateWebBaseUrl =
+        _prefs?.getString('update_web_url') ?? kUpdateWebBaseUrl;
     if (isPc && _syncToken.isEmpty) {
       _syncToken = TaskDatabase.newKey();
       await _prefs?.setString('sync_token', _syncToken);
@@ -555,6 +565,15 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       _startAutoSync();
       unawaited(syncWithPc());
     }
+    notifyListeners();
+  }
+
+  /// Меняет адрес публичной страницы с обновлениями. Только https: без
+  /// шифрования подпись защищает файл, но не защищает сам ответ.
+  Future<void> setUpdateWebBaseUrl(String value) async {
+    final v = value.trim();
+    _updateWebBaseUrl = v;
+    await _prefs?.setString('update_web_url', v);
     notifyListeners();
   }
 
@@ -779,29 +798,37 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     ).check();
   }
 
-  /// Проверяет на ПК наличие более новой версии KHS (обновление по Wi-Fi).
+  /// Проверяет, есть ли более новая версия KHS: сначала интернет
+  /// (обновление работает без ПК), при неудаче — ПК по Wi-Fi.
   Future<UpdateCheckResult> checkForUpdate() async {
-    if (_syncAddress.trim().isEmpty) {
-      return const UpdateCheckResult(UpdateCheckStatus.unreachable);
-    }
-    return UpdateChecker(host: _syncAddress, token: _syncToken).fetch();
+    final result = await _checker().fetch();
+    _lastUpdateSource = result.source;
+    return result;
   }
 
-  /// Скачивает файл обновления с ПК в [targetDir].
+  /// Откуда скачивать обновление: интернет или ПК (null — обновлений не было).
+  UpdateSource? get updateSource => _lastUpdateSource;
+
+  UpdateChecker _checker() => UpdateChecker(
+        host: _syncAddress,
+        token: _syncToken,
+        webBaseUrl: updateWebBaseUrl,
+      );
+
+  /// Скачивает файл обновления в [targetDir] оттуда, откуда пришли
+  /// метаданные (см. [updateSource]).
   Future<File> downloadUpdate(
     String filename,
     Directory targetDir, {
     String? expectedSha256,
     void Function(int received, int total)? onProgress,
   }) =>
-      UpdateChecker(
-        host: _syncAddress,
-        token: _syncToken,
-      ).download(
+      _checker().download(
         filename,
         targetDir,
         expectedSha256: expectedSha256,
         onProgress: onProgress,
+        source: _lastUpdateSource ?? UpdateSource.pc,
       );
 
   /// Разрешена ли на Android установка APK «из неизвестных источников».

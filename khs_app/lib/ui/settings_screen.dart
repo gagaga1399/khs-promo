@@ -34,6 +34,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _tokenController;
   late final TextEditingController _portController;
   late final TextEditingController _bindHostController;
+  late final TextEditingController _updateUrlController;
   bool _inited = false;
   bool _checking = false;
   bool _checkingServer = false;
@@ -49,6 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _tokenController = TextEditingController();
     _portController = TextEditingController();
     _bindHostController = TextEditingController();
+    _updateUrlController = TextEditingController();
     AppInfo.version().then((v) {
       if (mounted) setState(() => _version = v);
     });
@@ -62,6 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _tokenController.text = state.syncToken;
     _portController.text = '${state.syncPort}';
     _bindHostController.text = state.syncBindHost;
+    _updateUrlController.text = state.updateWebBaseUrl;
   }
 
   @override
@@ -77,6 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _tokenController.dispose();
     _portController.dispose();
     _bindHostController.dispose();
+    _updateUrlController.dispose();
     super.dispose();
   }
 
@@ -237,10 +241,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// На телефоне: спрашивает ПК про более новую версию и предлагает скачать.
+  /// Проверяет, есть ли более новая версия: сначала интернет, при неудаче —
+  /// ПК по Wi-Fi. Поэтому адрес ПК больше не обязателен.
   Future<void> _checkRemoteUpdate(AppState state, AppStrings strings) async {
     final messenger = ScaffoldMessenger.of(context);
-    if (state.syncAddress.trim().isEmpty) {
+    if (state.syncAddress.trim().isEmpty &&
+        state.updateWebBaseUrl.trim().isEmpty) {
       messenger.showSnackBar(
         SnackBar(content: Text(strings.t('updateNoAddress'))),
       );
@@ -830,7 +836,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-        if (isPc && state.syncServerEnabled) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _updateUrlController,
+              keyboardType: TextInputType.url,
+              decoration: InputDecoration(
+                labelText: strings.t('updateWebUrl'),
+                hintText: kUpdateWebBaseUrl,
+                prefixIcon: const Icon(Icons.cloud_download_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              onChanged: (v) => state.setUpdateWebBaseUrl(v),
+            ),
+          ),
+          if (isPc && state.syncServerEnabled) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
