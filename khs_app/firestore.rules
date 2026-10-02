@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Схема данных: users/{uid}/{коллекция}/{документ}. Второй сегмент пути всегда
+// владелец записи, поэтому проверка сводится к совпадению uid с токеном входа.
+// Чужой uid не прочитать и не изменить, даже если знать точный путь документа.
+// Путь документа обязан иметь чётное число сегментов (users/uid/коллекция/id —
+// четыре), иначе Firestore его не примет вовсе.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /users/{uid}/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // Всё, что не лежит под users/{uid}/..., клиенту недоступно.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -15,10 +15,11 @@ class KhsFirebase {
   static const String authDomain = 'khs-hub.firebaseapp.com';
   static const String storageBucket = 'khs-hub.firebasestorage.app';
 
-  /// OAuth-клиент для входа кнопкой Google. Firebase создаёт его сам, когда
-  /// провайдер Google включают в консоли; пока пусто — кнопка сообщает, что
-  /// вход ещё не настроен, а не падает.
-  static const String googleClientId = '';
+  /// OAuth-клиент для входа кнопкой Google (создан Firebase при включении
+  /// провайдера). На Windows это clientId, на Android — serverClientId,
+  /// поэтому значение одно для обоих.
+  static const String googleClientId =
+      '815286705963-ieik21cq6aaq6j2bq1tiqumeug0gfha8.apps.googleusercontent.com';
 
   /// Вход показываем в настройках только после того, как он проверен на
   /// живом проекте: иначе пользователь увидит форму, которая не сработает.
