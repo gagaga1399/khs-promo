@@ -7,6 +7,7 @@ import 'package:pdfx/pdfx.dart';
 import '../ai.dart';
 import '../library.dart';
 import '../models.dart';
+import 'glass_panel.dart';
 import 'reader_screen.dart';
 
 class PdfReaderWidget extends StatefulWidget {
@@ -295,8 +296,9 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
       bottom: 0,
       child: SafeArea(
         top: false,
-        child: Container(
-          color: Colors.black.withValues(alpha: 0.72),
+        child: GlassPanel(
+          tint: Colors.black,
+          blur: 24,
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,

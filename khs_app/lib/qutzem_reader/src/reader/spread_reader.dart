@@ -16,6 +16,7 @@ import '../screens/settings_screen.dart';
 import '../settings.dart';
 import '../text_document.dart';
 import 'book_search.dart';
+import 'glass_panel.dart';
 import 'highlight_manager.dart';
 import 'reader_screen.dart';
 import 'reader_settings.dart';
@@ -127,15 +128,14 @@ class _SpreadReaderState extends State<SpreadReader> {
       right: 8,
       bottom: 86 + bottomPad,
       child: Center(
-        child: Material(
-          elevation: 8,
-          borderRadius: BorderRadius.circular(24),
-          color: colors.ui,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+        child: GlassPanel(
+          radius: 24,
+          blur: 24,
+          shadow: true,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
                 Text(
                   clip(_lastSelected, 22),
                   style: TextStyle(color: colors.muted, fontSize: 12),
@@ -208,7 +208,6 @@ class _SpreadReaderState extends State<SpreadReader> {
               ],
             ),
           ),
-        ),
       ),
     );
   }
@@ -1200,8 +1199,8 @@ class _SpreadReaderState extends State<SpreadReader> {
       bottom: 0,
       left: 0,
       right: 0,
-      child: Container(
-        color: colors.ui.withValues(alpha: 0.95),
+      child: GlassPanel(
+        tint: colors.ui,
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).padding.bottom + 6,
           top: 4,

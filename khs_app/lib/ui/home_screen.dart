@@ -9,6 +9,7 @@ import '../ui/widgets/dashboard_right.dart';
 import '../ui/widgets/dashboard_sidebar.dart';
 import '../ui/widgets/event_card.dart';
 import 'calendar_screen.dart';
+import 'glass_bottom_bar.dart';
 import 'notes_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
@@ -150,28 +151,28 @@ class _MobileShellState extends State<MobileShell> {
           SettingsScreen(embedded: true),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: _goTo,
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
+      bottomNavigationBar: GlassBottomBar(
+        currentIndex: _index,
+        onTap: _goTo,
+        items: [
+          GlassNavItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home,
             label: strings.t('home'),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.calendar_month_outlined),
-            selectedIcon: const Icon(Icons.calendar_month),
+          GlassNavItem(
+            icon: Icons.calendar_month_outlined,
+            activeIcon: Icons.calendar_month,
             label: strings.t('calendar'),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.book_outlined),
-            selectedIcon: const Icon(Icons.book),
+          GlassNavItem(
+            icon: Icons.book_outlined,
+            activeIcon: Icons.book,
             label: strings.t('notes'),
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings),
+          GlassNavItem(
+            icon: Icons.settings_outlined,
+            activeIcon: Icons.settings,
             label: strings.t('settings'),
           ),
         ],
