@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../localization/app_strings.dart';
 import '../services/app_info.dart';
 import '../services/auth_service.dart';
+import '../services/firebase_config.dart';
 import '../services/releases.dart';
 import '../services/update_checker.dart';
 import '../state/app_state.dart';
@@ -1194,46 +1195,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final body = ListView(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            'Аккаунт',
-            style: Theme.of(context).textTheme.titleSmall,
+        if (KhsFirebase.accountFeatureEnabled) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Аккаунт',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
           ),
-        ),
-        ListenableBuilder(
-          listenable: AuthService.instance,
-          builder: (context, _) {
-            final auth = AuthService.instance;
-            return ListTile(
-              leading: Icon(
-                auth.signedIn ? Icons.account_circle : Icons.person_outline,
-                color: auth.signedIn
-                    ? Theme.of(context).colorScheme.primary
-                    : null,
-              ),
-              title: Text(
-                auth.signedIn
-                    ? (auth.displayName?.isNotEmpty == true
-                        ? auth.displayName!
-                        : (auth.email ?? 'Аккаунт'))
-                    : 'Войти в аккаунт',
-              ),
-              subtitle: Text(
-                auth.signedIn
-                    ? 'Задачи и читалка синхронизируются через интернет'
-                    : 'Синхронизация между устройствами по почте или через Google',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const AccountScreen(),
+          ListenableBuilder(
+            listenable: AuthService.instance,
+            builder: (context, _) {
+              final auth = AuthService.instance;
+              return ListTile(
+                leading: Icon(
+                  auth.signedIn
+                      ? Icons.account_circle
+                      : Icons.person_outline,
+                  color: auth.signedIn
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
                 ),
-              ),
-            );
-          },
-        ),
-        const Divider(),
+                title: Text(
+                  auth.signedIn
+                      ? (auth.displayName?.isNotEmpty == true
+                          ? auth.displayName!
+                          : (auth.email ?? 'Аккаунт'))
+                      : 'Войти в аккаунт',
+                ),
+                subtitle: Text(
+                  auth.signedIn
+                      ? 'Задачи и читалка синхронизируются через интернет'
+                      : 'Синхронизация между устройствами по почте или через '
+                          'Google',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AccountScreen(),
+                  ),
+                ),
+              );
+            },
+          ),
+          const Divider(),
+        ],
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Text(

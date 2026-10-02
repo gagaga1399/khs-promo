@@ -20,6 +20,12 @@ class KhsFirebase {
   /// вход ещё не настроен, а не падает.
   static const String googleClientId = '';
 
+  /// Вход показываем в настройках только после того, как он проверен на
+  /// живом проекте: иначе пользователь увидит форму, которая не сработает.
+  /// Ставится true, когда Email/Пароль и Google включены и вход удалось
+  /// проверить на настоящем аккаунте.
+  static const bool accountFeatureEnabled = false;
+
   static const FirebaseOptions options = FirebaseOptions(
     apiKey: apiKey,
     appId: appId,
