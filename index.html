@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -13,6 +13,7 @@
     --ink: #f2f2f2;
     --muted: #8a8a8a;
     --faint: #555;
+    --ease: cubic-bezier(.22, 1, .36, 1);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
@@ -22,8 +23,52 @@
     color: var(--ink);
     line-height: 1.6;
     letter-spacing: .1px;
+    overflow-x: hidden;
   }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- Полоса прогресса прокрутки ---------- */
+  #progress {
+    position: fixed; inset: 0 auto auto 0; height: 2px; width: 0;
+    background: var(--ink); z-index: 40;
+    transition: width .1s linear;
+  }
+
+  /* ---------- Блоки ---------- */
+  .block { counter-increment: block; position: relative; }
+  body { counter-reset: block; }
+  .block > .sec-title::before {
+    content: counter(block, decimal-leading-zero);
+    display: inline-block;
+    margin-right: 14px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Появление блоков при прокрутке ---------- */
+  .reveal {
+    opacity: 0;
+    transform: translateY(34px);
+    transition:
+      opacity .8s var(--ease),
+      transform .8s var(--ease);
+    transition-delay: var(--d, 0ms);
+    will-change: opacity, transform;
+  }
+  .reveal.is-visible { opacity: 1; transform: none; }
+  /* Пока скрипт не сработал, контент обязан быть виден: иначе при
+     отключённом JS страница осталась бы пустой. */
+  .no-js .reveal { opacity: 1; transform: none; }
+
+  /* Мягкое подсвечивание строки при появлении. */
+  .hero .kicker, .hero h1, .hero .sub, .hero .btns, .hero .meta {
+    transition:
+      opacity .8s var(--ease),
+      transform .8s var(--ease),
+      letter-spacing 1.2s var(--ease);
+    transition-delay: var(--d, 0ms);
+  }
+
   header { padding: 26px 0; }
   .logo {
     display: flex; align-items: center; gap: 14px;
@@ -60,39 +105,105 @@
   .meta { margin-top: 18px; color: var(--faint); font-size: 13px; }
   #verline { color: var(--ink); font-weight: 700; }
   section { padding: 48px 0; }
+
+  /* ---------- Заголовок блока ---------- */
   .sec-title {
+    display: flex; align-items: center; gap: 18px;
     font-size: 15px; font-weight: 700; margin-bottom: 26px;
     letter-spacing: 4px; text-transform: uppercase; color: var(--muted);
   }
-  .manifest {
-    max-width: 760px;
-    border-left: 3px solid var(--ink); padding-left: 26px;
-    font-size: 17px;
+  .sec-title::after {
+    content: ""; flex: 1; height: 1px; background: var(--line);
   }
-  .manifest p { margin-bottom: 18px; }
-  .manifest .lead { font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+
+  /* ---------- Манифест: каждый тезис отдельным блоком ---------- */
+  .manifest {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1px; background: var(--line); border: 1px solid var(--line);
+  }
+  .manifest p {
+    background: var(--card); padding: 26px 24px;
+    font-size: 16px; color: var(--muted);
+    transition: background .3s;
+  }
+  .manifest p:hover { background: var(--panel); }
+  .manifest .lead {
+    font-size: 20px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--ink); grid-column: 1 / -1;
+  }
   .manifest .em { color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+
+  /* ---------- Сетки карточек ---------- */
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
-  .card { background: var(--card); padding: 22px; }
+  .card {
+    background: var(--card); padding: 22px;
+    transition: background .3s, transform .3s var(--ease);
+  }
+  .card:hover { background: var(--panel); }
   .card h3 { font-size: 15px; margin-bottom: 10px; letter-spacing: .5px; text-transform: uppercase; }
   .card p { color: var(--muted); font-size: 14px; }
-  .card .ico { display: block; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 4px; margin-bottom: 14px; display: grid; place-items: center; font-size: 16px; color: var(--ink); }
+  .card .ico {
+    display: block; width: 32px; height: 32px; border: 1px solid var(--line);
+    border-radius: 4px; margin-bottom: 14px; display: grid; place-items: center;
+    font-size: 16px; color: var(--ink);
+  }
+
+  /* ---------- Цикл метода ---------- */
+  .cycle { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; counter-reset: step; }
+  .step {
+    counter-increment: step; position: relative;
+    border: 1px solid var(--line); background: var(--card);
+    padding: 28px 24px 26px;
+    transition: border-color .3s, background .3s;
+  }
+  .step:hover { border-color: var(--faint); background: var(--panel); }
+  .step::before {
+    content: "0" counter(step);
+    display: block; font-size: 34px; font-weight: 800;
+    line-height: 1; margin-bottom: 16px; color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .step h3 { font-size: 15px; margin-bottom: 8px; letter-spacing: .5px; text-transform: uppercase; }
+  .step p { color: var(--muted); font-size: 14px; }
+
+  /* ---------- Скриншоты ---------- */
   .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--line); }
   .shot {
     aspect-ratio: 9/16; background: var(--panel);
     display: grid; place-items: center; color: var(--faint); font-size: 13px;
+    overflow: hidden;
   }
-  .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .shot img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    opacity: 0; transform: scale(1.04);
+    transition: opacity .7s var(--ease), transform .7s var(--ease);
+  }
+  .shot img.is-visible { opacity: 1; transform: none; }
   #shotsSection { display: none; }
   #shotsSection.show { display: block; }
+
+  /* ---------- Подвал ---------- */
   footer {
     padding: 30px 0 44px; text-align: center; color: var(--faint); font-size: 13px;
     border-top: 1px solid var(--line); margin-top: 20px;
   }
   footer a { color: var(--ink); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal,
+    .hero .kicker, .hero h1, .hero .sub, .hero .btns, .hero .meta,
+    .shot img {
+      opacity: 1 !important; transform: none !important; transition: none !important;
+    }
+    #progress { display: none; }
+  }
 </style>
 </head>
-<body>
+<body class="no-js">
+
+<div id="progress"></div>
 
 <header>
   <div class="wrap">
@@ -100,98 +211,185 @@
   </div>
 </header>
 
-<div class="hero wrap">
-  <div class="kicker">Метод пересборки себя</div>
-  <h1>Убей<br>привычную<br>структуру</h1>
-  <p class="sub">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS не разрушает ради хаоса — он заменяет то, что держит тебя в покое, на то, что ведёт в движение.</p>
-  <div class="btns">
-    <a class="btn btn-primary" href="khs-1.2.31.apk" id="btnAndroid" rel="noopener">Скачать хаб для Android <small id="apkSize"></small></a>
-    <a class="btn btn-ghost" href="khs-1.2.31-windows.zip" id="btnWindows" rel="noopener">Скачать хаб для Windows <small id="zipSize"></small></a>
+<div class="hero wrap block">
+  <div class="kicker reveal">Метод пересборки себя</div>
+  <h1 class="reveal">Убей<br>привычную<br>структуру</h1>
+  <p class="sub reveal">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS не разрушает ради хаоса — он заменяет то, что держит тебя в покое, на то, что ведёт в движение.</p>
+  <div class="btns reveal">
+    <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.32.apk" id="btnAndroid" target="_blank" rel="noopener">Скачать для Android <small id="apkSize"></small></a>
+    <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.32-windows.zip" id="btnWindows" target="_blank" rel="noopener">Скачать для Windows <small id="zipSize"></small></a>
   </div>
-  <div class="meta">Версия <span id="verline">1.2.31</span> · читалка встроена в хаб · обновление по Wi-Fi</div>
+  <div class="meta reveal">Версия <span id="verline">1.2.32</span> · обновление по Wi-Fi из приложения</div>
 </div>
 
-<section class="wrap" id="appsSection">
-  <div class="sec-title">Приложения центра</div>
+<section class="wrap block" id="appsSection">
+  <div class="sec-title reveal">Приложения центра</div>
   <div class="grid">
-    <div class="card">
+    <div class="card reveal">
       <span class="ico">✔</span>
       <h3>KHS Tasks</h3>
       <p>Задачи и приоритеты, заметки дня, календарь. Живёт внутри хаба KHS.</p>
       <p style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
-        <a class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="khs-1.2.31.apk">Android <small id="apkSize3"></small></a>
-        <a class="btn btn-ghost" style="padding:10px 16px;font-size:12px" href="khs-1.2.31-windows.zip">Windows <small id="zipSize3"></small></a>
+        <a id="btnAndroidCard" class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.32.apk" target="_blank" rel="noopener">Android <small id="apkSize3"></small></a>
+        <a id="btnWindowsCard" class="btn btn-ghost" style="padding:10px 16px;font-size:12px" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.32-windows.zip" target="_blank" rel="noopener">Windows <small id="zipSize3"></small></a>
       </p>
     </div>
-    <div class="card">
+    <div class="card reveal">
       <span class="ico">☰</span>
       <h3>QutZem Reader</h3>
-      <p>Читалка книг и документов. Теперь встроена прямо в хаб KHS — открывается из плитки без установок.</p>
-      <p style="margin-top:16px;color:rgba(255,255,255,.55);font-size:13px">Внутри хаба KHS · не требует отдельной установки</p>
+      <p>Читалка книг и документов. Запускается прямо из хаба KHS отдельной плиткой.</p>
+      <p style="margin-top:16px">
+        <a id="btnReaderApk" class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="https://github.com/gagaga1399/khs-reader-promo/releases/latest/download/qutzem-reader.apk" target="_blank" rel="noopener">Скачать APK <small id="qzSize"></small></a>
+      </p>
     </div>
   </div>
 </section>
 
-<section class="wrap">
-  <div class="sec-title">Манифест</div>
+<section class="wrap block">
+  <div class="sec-title reveal">Манифест</div>
   <div class="manifest">
-    <p class="lead">KHS — это метод пересборки себя.</p>
-    <p>Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS предлагает не разрушать ради хаоса, а заменять то, что держит тебя в покое, на то, что ведёт в движение.</p>
-    <p>В основе — действие. Нет молитв, нет ритуалов. Есть <span class="em">выбор</span>.</p>
-    <p>Каждый день ты либо укрепляешь старую рутину, либо строишь новую. KHS не говорит, что правильно. Он говорит: <span class="em">выбери и делай</span>.</p>
-    <p>Цель — не «стать лучше». Цель — создать систему, в которой ты действуешь без борьбы. Когда привычка становится не обязанностью, а естественным состоянием.</p>
-    <p>KHS не имеет конца. Ты не заканчиваешь. Ты продолжаешь. И всё завязано на <span class="em">дисциплине</span>.</p>
+    <p class="lead reveal">KHS — это метод пересборки себя.</p>
+    <p class="reveal">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS предлагает не разрушать ради хаоса, а заменять то, что держит тебя в покое, на то, что ведёт в движение.</p>
+    <p class="reveal">В основе — действие. Нет молитв, нет ритуалов. Есть <span class="em">выбор</span>.</p>
+    <p class="reveal">Каждый день ты либо укрепляешь старую рутину, либо строишь новую. KHS не говорит, что правильно. Он говорит: <span class="em">выбери и делай</span>.</p>
+    <p class="reveal">Цель — не «стать лучше». Цель — создать систему, в которой ты действуешь без борьбы. Когда привычка становится не обязанностью, а естественным состоянием.</p>
+    <p class="reveal">KHS не имеет конца. Ты не заканчиваешь. Ты продолжаешь. И всё завязано на <span class="em">дисциплине</span>.</p>
   </div>
 </section>
 
-<section id="shotsSection" class="wrap">
-  <div class="sec-title">Скриншоты</div>
+<section class="wrap block">
+  <div class="sec-title reveal">Цикл</div>
+  <div class="cycle">
+    <div class="step reveal">
+      <h3>Выбери</h3>
+      <p>Утром открываешь день и решаешь, что действительно важно. Приоритеты высокие, средние, низкие — решение каждый день, а не один раз на всю жизнь.</p>
+    </div>
+    <div class="step reveal">
+      <h3>Сделай</h3>
+      <p>Задача появляется одной фразой: дата, время и приоритет распознаются сами. Остаётся только нажать — и не дать списку разрастись.</p>
+    </div>
+    <div class="step reveal">
+      <h3>Закрой</h3>
+      <p>Вечером отмечаешь сделанное, пишешь заметку дня и видишь ритм на календаре. Завтрашний день собран из сегодняшнего.</p>
+    </div>
+  </div>
+</section>
+
+<section id="shotsSection" class="wrap block">
+  <div class="sec-title reveal">Скриншоты</div>
   <div class="shots" id="shotsGrid"></div>
 </section>
 
-<section class="wrap">
-  <div class="sec-title">Инструменты метода</div>
+<section class="wrap block">
+  <div class="sec-title reveal">Инструменты метода</div>
   <div class="grid">
-    <div class="card"><span class="ico">✔</span><h3>Задачи и приоритеты</h3><p>Высокие / средние / низкие, фильтры, ежедневное планирование — выбор каждый день.</p></div>
-    <div class="card"><span class="ico">⌛</span><h3>Календарь</h3><p>Все задачи на датах с маркерами — видно загруженные дни, ритм держится сам.</p></div>
-    <div class="card"><span class="ico">✎</span><h3>Заметки дня</h3><p>Ежедневная заметка с датой и отдельные заметки — фиксируй, а не забывай.</p></div>
-    <div class="card"><span class="ico">✚</span><h3>Быстрый ввод</h3><p>Добавляй задачи одним предложением — дата, время, приоритет распознаются автоматически.</p></div>
-    <div class="card"><span class="ico">⇄</span><h3>Синк по Wi-Fi</h3><p>Телефон и ПК обмениваются данными в одной сети — система всегда с тобой.</p></div>
-    <div class="card"><span class="ico">▦</span><h3>Obsidian</h3><p>Заметки пишутся в vault: ежедневные файлы в папке дат, остальные — в «заметки».</p></div>
-    <div class="card"><span class="ico">◐</span><h3>Темы и цвет</h3><p>Системная, тёмная, светлая или своя — выбери фон и текст любой палитрой, вся тема меняется сразу.</p></div>
-    <div class="card"><span class="ico">●</span><h3>Напоминания</h3><p>Уведомления в нужное время, оптимизация батареи подскажет. Действуй по сигналу.</p></div>
+    <div class="card reveal"><span class="ico">✔</span><h3>Задачи и приоритеты</h3><p>Высокие / средние / низкие, фильтры, ежедневное планирование — выбор каждый день.</p></div>
+    <div class="card reveal"><span class="ico">⌛</span><h3>Календарь</h3><p>Все задачи на датах с маркерами — видно загруженные дни, ритм держится сам.</p></div>
+    <div class="card reveal"><span class="ico">✎</span><h3>Заметки дня</h3><p>Ежедневная заметка с датой и отдельные заметки — фиксируй, а не забывай.</p></div>
+    <div class="card reveal"><span class="ico">✚</span><h3>Быстрый ввод</h3><p>Добавляй задачи одним предложением — дата, время, приоритет распознаются автоматически.</p></div>
+    <div class="card reveal"><span class="ico">⇄</span><h3>Синк по Wi-Fi</h3><p>Телефон и ПК обмениваются данными в одной сети — система всегда с тобой.</p></div>
+    <div class="card reveal"><span class="ico">▦</span><h3>Obsidian</h3><p>Заметки пишутся в vault: ежедневные файлы в папке дат, остальные — в «заметки».</p></div>
+    <div class="card reveal"><span class="ico">◐</span><h3>Темы и цвет</h3><p>Системная, тёмная, светлая или своя — выбери фон и текст любой палитрой, вся тема меняется сразу.</p></div>
+    <div class="card reveal"><span class="ico">●</span><h3>Напоминания</h3><p>Уведомления в нужное время, оптимизация батареи подскажет. Действуй по сигналу.</p></div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    KHS · метод, а не приложение · выбери и делай · <a href="update.json">update.json</a>
+    KHS · метод, а не приложение · выбери и делай · <a href="https://github.com/gagaga1399/khs-promo">update.json</a>
   </div>
 </footer>
 
 <script>
 (function () {
+  document.body.classList.remove('no-js');
+
+  // ---------- Появление блоков при прокрутке ----------
+  var revealables = document.querySelectorAll('.reveal');
+
+  if (!('IntersectionObserver' in window)) {
+    revealables.forEach(function (el) { el.classList.add('is-visible'); });
+  } else {
+    // Задержка растёт по индексу внутри блока: карточки выезжают
+    // одна за другой, а не все разом.
+    document.querySelectorAll('.block').forEach(function (block) {
+      block.querySelectorAll('.reveal').forEach(function (el, i) {
+        el.style.setProperty('--d', Math.min(i, 8) * 70 + 'ms');
+      });
+    });
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        io.unobserve(entry.target);
+      });
+    }, {
+      // Появление чуть раньше, чем элемент доедет до низа экрана: блок
+      // уже готов встречать взгляд, а не догонять его.
+      rootMargin: '0px 0px -12% 0px',
+      threshold: 0.05
+    });
+
+    revealables.forEach(function (el) { io.observe(el); });
+  }
+
+  // ---------- Полоса прогресса ----------
+  var bar = document.getElementById('progress');
+  var ticking = false;
+
+  function updateProgress() {
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    var pct = max > 0 ? (window.scrollY / max) * 100 : 0;
+    bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', function () {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(updateProgress);
+  }, { passive: true });
+  window.addEventListener('resize', updateProgress);
+  updateProgress();
+
+  // ---------- Скриншоты ----------
   var shots = ['shot-1.png','shot-2.png','shot-3.png','shot-4.png','shot-5.png','shot-6.png'];
   var grid = document.getElementById('shotsGrid');
   var shown = 0;
   shots.forEach(function (name) {
     var img = new Image();
+    img.alt = 'Скриншот KHS';
+    img.loading = 'lazy';
     img.onload = function () {
       var d = document.createElement('div');
-      d.className = 'shot';
+      d.className = 'shot reveal is-visible';
       d.appendChild(img);
       grid.appendChild(d);
       shown++;
       if (shown > 0) document.getElementById('shotsSection').classList.add('show');
+      if ('IntersectionObserver' in window) {
+        var shotIo = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add('is-visible');
+            shotIo.unobserve(entry.target);
+          });
+        }, { threshold: 0.1 });
+        shotIo.observe(img);
+      } else {
+        img.classList.add('is-visible');
+      }
     };
     img.src = name;
   });
 
-      document.getElementById('verline').textContent = '1.2.31';
-    document.getElementById('apkSize').textContent = fmt(79803551);
-    document.getElementById('zipSize').textContent = fmt(18769649);
-    document.getElementById('apkSize3').textContent = fmt(79803551);
-    document.getElementById('zipSize3').textContent = fmt(18769649);
+      document.getElementById('verline').textContent = '1.2.32';
+    document.getElementById('apkSize').textContent = '78.5 MB';
+    document.getElementById('zipSize').textContent = '26.1 MB';
+    document.getElementById('apkSize3').textContent = '78.5 MB';
+    document.getElementById('zipSize3').textContent = '26.1 MB';
+    document.getElementById('qzSize').textContent = '56.6 MB';
 function fmt(b) {
     var mb = b / 1024 / 1024;
     return (mb >= 1000 ? (mb/1024).toFixed(1) + ' GB' : mb.toFixed(1) + ' MB');
