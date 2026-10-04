@@ -1,11 +1,11 @@
 {
-    "android":  "khs-1.2.31.apk",
-    "android_sha256":  "d03c6f31a7246b4f5bef55d56fc1c456c03ab66c428488540a778ce1a69f0096",
-    "android_size":  79803551,
-    "notes":  "Обновление по интернету (без ПК) + стеклянная нижняя панель в KHS и QutZem Reader",
-    "signature":  "6q7ueyXFbhQxgqQJWI+Kv8lkl7mzr7FTPwn8RNhgu0nmQyDBpjnalOENJYDmSMco5G0krwF8KgMDSA+x0frsCA==",
-    "version":  "1.2.31",
-    "windows":  "khs-1.2.31-windows.zip",
-    "windows_sha256":  "04a37dcde5b26a8c584e1c072f071c17e30f351a5b3db7fd7953d5b44b91830e",
-    "windows_size":  18769649
+    "android":  "khs-1.2.32.apk",
+    "android_sha256":  "b207f215a61eeb52cf607df121bb42494ac344f1f3ec8378f725172364c96606",
+    "android_size":  82325611,
+    "notes":  "Вернулись книги: перенос старой библиотеки. Настройки в карточках с плавным появлением и нижней панелью действий. Счётчик символов и лимиты в полях.",
+    "signature":  "/oq3tAvJbzj1DCFYTwQHOFIl7sJws3zh7CwV23Mlv7uMZjX39E9/l1XOGoyK4M8hAVk8gDPxPKKjJR8Hyc2+AQ==",
+    "version":  "1.2.32",
+    "windows":  "khs-1.2.32-windows.zip",
+    "windows_sha256":  "57cbbf33300835e9087e412f0070f3ff4a68154eb40e0072456c9140805c6bed",
+    "windows_size":  27408660
 }
