@@ -1,11 +1,11 @@
 {
-    "android":  "khs-1.2.32.apk",
-    "android_sha256":  "b207f215a61eeb52cf607df121bb42494ac344f1f3ec8378f725172364c96606",
-    "android_size":  82325611,
-    "notes":  "Вернулись книги: перенос старой библиотеки. Настройки в карточках с плавным появлением и нижней панелью действий. Счётчик символов и лимиты в полях.",
-    "signature":  "/oq3tAvJbzj1DCFYTwQHOFIl7sJws3zh7CwV23Mlv7uMZjX39E9/l1XOGoyK4M8hAVk8gDPxPKKjJR8Hyc2+AQ==",
-    "version":  "1.2.32",
-    "windows":  "khs-1.2.32-windows.zip",
-    "windows_sha256":  "57cbbf33300835e9087e412f0070f3ff4a68154eb40e0072456c9140805c6bed",
-    "windows_size":  27408660
+    "android":  "khs-1.2.33.apk",
+    "android_sha256":  "1a7b502787952b163f7331527f13cacbd7d520df86ecce1fe49a68ccf53fda10",
+    "android_size":  82178155,
+    "notes":  "Обновление из интернета снова работает, при скачивании видно процент и скорость. На телефоне прокрутка идёт на всю длину жеста.",
+    "signature":  "y+ZVUTt4nXRBxyU/dsog25cLW7JEUweSRxIK39BD0uYqfb2HQhpmhSo/xHRobX53J1cc/XkZXAi2i+FBvF8qDw==",
+    "version":  "1.2.33",
+    "windows":  "khs-1.2.33-windows.zip",
+    "windows_sha256":  "b05d4f35189ecebc246b01e025681472bb5b79989c982f4677397aef56f1b4a2",
+    "windows_size":  26980670
 }
