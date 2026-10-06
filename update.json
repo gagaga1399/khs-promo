@@ -1,11 +1,11 @@
 {
-    "android":  "khs-1.2.33.apk",
-    "android_sha256":  "1a7b502787952b163f7331527f13cacbd7d520df86ecce1fe49a68ccf53fda10",
-    "android_size":  82178155,
-    "notes":  "Обновление из интернета снова работает, при скачивании видно процент и скорость. На телефоне прокрутка идёт на всю длину жеста.",
-    "signature":  "y+ZVUTt4nXRBxyU/dsog25cLW7JEUweSRxIK39BD0uYqfb2HQhpmhSo/xHRobX53J1cc/XkZXAi2i+FBvF8qDw==",
-    "version":  "1.2.33",
-    "windows":  "khs-1.2.33-windows.zip",
-    "windows_sha256":  "b05d4f35189ecebc246b01e025681472bb5b79989c982f4677397aef56f1b4a2",
-    "windows_size":  26980670
+    "android":  "khs-1.2.34.apk",
+    "android_sha256":  "1f1074d0a5820df327fc0fa2279e64e381f122c86102e09bb33507c0f5958214",
+    "android_size":  82737432,
+    "notes":  "Задачи и заметки синхронизируются с облаком через аккаунт: вход по почте и через Google. Появились анимации: кольцо у кнопки быстрого добавления, свечение в календаре, а нижняя панель на настройках уезжает вниз и её место занимает кнопка возврата.",
+    "signature":  "wvt00DvJP1Xu8kbhTHRGzPOog++e0w6M0v0bhP7Kh2oAyimkErX6MwvXMOoestD/edYWCiTOeICiqbjElYFoDg==",
+    "version":  "1.2.34",
+    "windows":  "khs-1.2.34-windows.zip",
+    "windows_sha256":  "603bc649b9773c45590672de909febc981578aab4999b6f1856fb441888d6d81",
+    "windows_size":  27052861
 }
