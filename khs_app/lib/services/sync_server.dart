@@ -206,10 +206,21 @@ class SyncServer {
     return result;
   }
 
+  /// В поле адреса старые сборки позволяли писать «IP:порт» — хотя порт
+  /// живёт отдельно (sync_port). Такое значение не является адресом, и
+  /// строгая проверка в start() отвергала его целиком: сервер не поднимался
+  /// вовсе, и обновления по ПК не скачивались. Хвост отбрасываем, только
+  /// когда перед ним настоящий IPv4 — остальное остаётся ошибкой.
+  static String _stripLegacyPort(String host) {
+    final m = RegExp(r'^(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}$').firstMatch(host);
+    if (m == null) return host;
+    return InternetAddress.tryParse(m.group(1)!) == null ? host : m.group(1)!;
+  }
+
   Future<void> start() async {
     if (_running) return;
     _state = await SyncServerState.load(token);
-    final host = bindHost.trim();
+    final host = _stripLegacyPort(bindHost.trim());
     late final InternetAddress address;
     if (host.isEmpty || host == '0.0.0.0') {
       // Либо адрес не настраивали (тогда его подобрали выше по preferredBindHost),

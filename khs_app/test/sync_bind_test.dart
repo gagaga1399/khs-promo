@@ -74,6 +74,28 @@ void main() {
     await server.stop();
   });
 
+  test('старый формат «IP:порт» поднимает сервер, хвост отброшен', () async {
+    // Так реально занесён адрес на одном из компьютеров: 192.168.0.107:4680.
+    // Порт здесь ни при чём — он задаётся отдельно, поэтому брать его не надо,
+    // но и ронять из-за него сервер нельзя.
+    final server = await make('127.0.0.1:4680');
+    await server.start();
+    expect(server.isRunning, isTrue);
+    await server.stop();
+  });
+
+  test('порт не спасает не-IP адрес: мусор по-прежнему отклоняется', () async {
+    for (final bad in ['256.256.256.256:4680', 'example.com:4680', '::1:4680']) {
+      final server = await make(bad);
+      await expectLater(
+        server.start(),
+        throwsA(isA<FormatException>()),
+        reason: 'адрес «$bad» должен отклоняться',
+      );
+      expect(server.isRunning, isFalse, reason: 'сервер не должен подняться');
+    }
+  });
+
   test(
     'пустое поле и явный 0.0.0.0 — осознанный выбор слушать везде',
     () async {
