@@ -14,31 +14,32 @@ import '../services/update_checker.dart';
 import '../state/app_state.dart';
 import 'home_screen.dart';
 import 'hub_settings_screen.dart';
+import 'download_progress.dart';
 
 /// Экран-центр KHS: плитки приложений. Стартует после сплэша, если не
 /// задан флаг запуска (--tasks). Настройки хаба — иконка в шапке.
 class HubScreen extends StatefulWidget {
   const HubScreen({super.key});
 
+  /// Открыть читалку сразу при старте (ярлык рабочего стола, аргумент
+  /// `--reader`). Флаг одноразовый: хаб забирает его в initState.
+  static bool openReaderOnStart = false;
+
   @override
   State<HubScreen> createState() => _HubScreenState();
 }
 
 class _HubScreenState extends State<HubScreen> {
-  static const _qutzemExe =
-      'C:\\Users\\user\\Projects\\qutzem-reader\\dist\\windows\\qutzem_reader.exe';
+  /// Открыта ли читалка в теле хаба (без отдельного маршрута).
+  bool _readerOpen = false;
 
   bool _shortcutBusy = false;
   bool _updateBusy = false;
 
   /// Сравнение версий вида «1.2.3»: true, если [a] новее [b].
   static bool _isNewer(String a, String b) {
-    List<int> parse(String v) => v
-        .split('+')
-        .first
-        .split('.')
-        .map((s) => int.tryParse(s) ?? 0)
-        .toList();
+    List<int> parse(String v) =>
+        v.split('+').first.split('.').map((s) => int.tryParse(s) ?? 0).toList();
     final aa = parse(a);
     final bb = parse(b);
     final n = aa.length > bb.length ? aa.length : bb.length;
@@ -54,6 +55,11 @@ class _HubScreenState extends State<HubScreen> {
   void initState() {
     super.initState();
     LauncherShortcut.listenStartTasks(_openTasksFromShortcut);
+    // Ярлык рабочего стола с аргументом --reader: открыть хаб сразу на читалке.
+    if (HubScreen.openReaderOnStart) {
+      HubScreen.openReaderOnStart = false;
+      _readerOpen = true;
+    }
   }
 
   void _openTasksFromShortcut() {
@@ -77,17 +83,9 @@ class _HubScreenState extends State<HubScreen> {
   }
 
   void _openQutzem() {
-    if (Platform.isAndroid) {
-      // Читалка — встроенный модуль хаба, как KHS Tasks: открывается внутри.
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ReaderHome()),
-      );
-      return;
-    }
-    if (File(_qutzemExe).existsSync()) {
-      unawaited(Process.start(_qutzemExe, []));
-    }
+    // Читалка открывается внутри хаба: отдельного маршрута и своей шапки
+    // нет, верхняя панель остаётся хабовской. Так же устроены KHS Tasks.
+    setState(() => _readerOpen = true);
   }
 
   /// Установка APK: на современных Android — тихо через системный
@@ -140,24 +138,31 @@ class _HubScreenState extends State<HubScreen> {
       name: strings.t('hubTasksTitle'),
       target: exe,
       args: '--tasks',
-      icon: '${File(exe).parent.path}\\tasks_icon.ico',
+      icon: _iconOrExe('${File(exe).parent.path}\\tasks_icon.ico', exe),
       busyText: strings.t('shortcutCreated'),
       errorText: strings.t('shortcutError'),
     );
   }
 
   void _createQutzemShortcut() {
-    // Windows: ярлык отдельного окна читалки. На Android читалка встроена
-    // в хаб — отдельного приложения и ярлыка нет.
+    // Ярлык рабочего стола: читалка встроена в KHS, поэтому ярлык открывает
+    // сам KHS сразу на читалке (аргумент --reader), а не отдельный exe.
+    final exe = Platform.resolvedExecutable;
     _createShortcut(
       name: 'QutZem Reader',
-      target: _qutzemExe,
-      args: '',
-      icon: '${File(Platform.resolvedExecutable).parent.path}\\qutzem_icon.ico',
+      target: exe,
+      args: '--reader',
+      icon: _iconOrExe('${File(exe).parent.path}\\qutzem_icon.ico', exe),
       busyText: context.read<AppState>().strings.t('shortcutCreated'),
       errorText: context.read<AppState>().strings.t('shortcutError'),
     );
   }
+
+  /// Иконка ярлыка: отдельный .ico, если файл на месте, иначе сам exe.
+  /// Ссылка на несуществующий .ico даёт ярлык со сломанной иконкой, а
+  /// папка сборки при пересборке очищается — такое уже случалось.
+  static String _iconOrExe(String iconPath, String exe) =>
+      File(iconPath).existsSync() ? iconPath : exe;
 
   Future<void> _createShortcut({
     required String name,
@@ -171,7 +176,8 @@ class _HubScreenState extends State<HubScreen> {
     setState(() => _shortcutBusy = true);
     final exe = target;
     final dir = File(exe).parent.path;
-    final script = '''
+    final script =
+        '''
 \$ErrorActionPreference = 'Stop'
 try {
   \$shell = New-Object -ComObject WScript.Shell
@@ -201,9 +207,9 @@ try {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result.exitCode == 0
-              ? busyText
-              : '$errorText ${result.stderr}'),
+          content: Text(
+            result.exitCode == 0 ? busyText : '$errorText ${result.stderr}',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -232,23 +238,30 @@ try {
       final info = check.info;
       if (check.status != UpdateCheckStatus.ok || info == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                check.status == UpdateCheckStatus.noUpdate
-                    ? strings.t('updateNotConfigured')
-                    : strings.t('updateConnectFail')),
-            behavior: SnackBarBehavior.floating));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(switch (check.status) {
+              UpdateCheckStatus.badSignature => strings.t('updateBadSignature'),
+              UpdateCheckStatus.noUpdate => strings.t('updateNotConfigured'),
+              _ => strings.t('updateConnectFail'),
+            }),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         return;
       }
       final pkgInfo = await PackageInfo.fromPlatform();
       final currentHub = pkgInfo.version;
-      final needHub = info.version.isNotEmpty &&
-          _isNewer(info.version, currentHub);
+      final needHub =
+          info.version.isNotEmpty && _isNewer(info.version, currentHub);
       if (!needHub) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Text(strings.t('updateAllUpToDate')),
-            behavior: SnackBarBehavior.floating));
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         return;
       }
       if (!mounted) return;
@@ -274,8 +287,11 @@ try {
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Row(
                     children: [
-                      const Icon(Icons.system_update_alt,
-                          size: 18, color: Colors.grey),
+                      const Icon(
+                        Icons.system_update_alt,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(child: Text(line)),
                     ],
@@ -299,43 +315,65 @@ try {
 
       final hubOk = await _downloadAndInstallKhs(info, strings);
       if (mounted && hubOk) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: const Text('KHS обновлён'),
-            behavior: SnackBarBehavior.floating));
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _updateBusy = false);
     }
   }
 
-  /// Качает APK KHS с ПК и открывает системный установщик.
+  /// Качает APK KHS (с сайта или с ПК — как ответил сервер) и открывает
+  /// системный установщик.
   Future<bool> _downloadAndInstallKhs(
-      UpdateInfo info, AppStrings strings) async {
+    UpdateInfo info,
+    AppStrings strings,
+  ) async {
     final state = context.read<AppState>();
     final file = info.androidFile;
     if (file == null) return false;
+    // Объявлен снаружи try, чтобы освободить notifier и на пути ошибки.
+    DownloadProgress? progress;
     try {
       final dir = await getTemporaryDirectory();
       if (!mounted) return false;
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const _HubProgressDialog(label: 'KHS…'),
+      final watch = DownloadProgress();
+      progress = watch;
+      unawaited(
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => DownloadProgressDialog(
+            fileName: file,
+            progress: watch,
+            title: strings.t('downloading'),
+          ),
+        ),
       );
       final saved = await state.downloadUpdate(
         file,
         dir,
         expectedSha256: info.androidSha256,
+        onProgress: watch.call,
       );
+      // Окно закрываем раньше, чем освобождаем notifier: пока диалог на
+      // экране, ValueListenableBuilder в нём ещё может запросить
+      // перестроение и упасть на уже освобождённом объекте.
+      if (mounted) Navigator.of(context).pop();
+      watch.dispose();
+      progress = null;
       if (info.androidSize != null && saved.lengthSync() != info.androidSize) {
-        if (mounted) Navigator.of(context).pop();
         return false;
       }
-      if (mounted) Navigator.of(context).pop();
       if (!mounted) return false;
       return await _installApk(saved.path, strings);
     } catch (_) {
       if (mounted) Navigator.of(context).pop();
+      progress?.dispose();
       return false;
     }
   }
@@ -346,23 +384,33 @@ try {
     final strings = state.strings;
     final scheme = Theme.of(context).colorScheme;
 
-    final hasQutzem =
-        Platform.isAndroid || (Platform.isWindows && File(_qutzemExe).existsSync());
+    // Читалка встроена, поэтому доступна везде без проверки файлов.
+    const hasQutzem = true;
 
     return Scaffold(
       appBar: AppBar(
+        // Пока открыта читалка, заголовок и кнопка «назад» относятся к ней, но
+        // панель остаётся хабовской — читалка не приносит свою шапку.
         title: Text(
-          strings.t('hubTitle'),
+          _readerOpen ? 'QutZem Reader' : strings.t('hubTitle'),
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
+        leading: _readerOpen
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => setState(() => _readerOpen = false),
+              )
+            : null,
         actions: [
-          if (Platform.isAndroid)
+          if (!_readerOpen && Platform.isAndroid)
             IconButton(
               icon: _updateBusy
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.system_update_alt),
               tooltip: strings.t('updateAll'),
               onPressed: _updateBusy ? null : _updateAll,
@@ -374,171 +422,183 @@ try {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          const _HubBackdrop(),
-          SafeArea(
-            child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 640;
-            final cols = compact ? 2 : 4;
-            const spacing = 16.0;
+      body: _readerOpen
+          ? const ReaderHome()
+          : Stack(
+              children: [
+                const _HubBackdrop(),
+                SafeArea(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 640;
+                      final cols = compact ? 2 : 4;
+                      const spacing = 16.0;
 
-            final items = <({Widget tile, List<_Feature> desc})>[];
-            void addTile(Widget tile, List<_Feature> desc) {
-              items.add((tile: tile, desc: desc));
-            }
+                      final items = <({Widget tile, List<_Feature> desc})>[];
+                      void addTile(Widget tile, List<_Feature> desc) {
+                        items.add((tile: tile, desc: desc));
+                      }
 
-            if (state.showHubTasksTile) {
-              addTile(
-                _HubTile(
-                  iconAsset: 'assets/hubs/tasks-icon.png',
-                  title: strings.t('hubTasksTitle'),
-                  subtitle: strings.t('hubTasksSubtitle'),
-                  onTap: _openTasks,
-                  onShortcut: Platform.isWindows
-                      ? _createTasksShortcut
-                      : (Platform.isAndroid ? _pinTasksShortcut : null),
-                  shortcutTooltip: strings.t('shortcutCreate'),
-                  shortcutBusy: _shortcutBusy,
-                ),
-                [
-                  _Feature(Icons.task_alt, strings.t('tasks')),
-                  _Feature(Icons.edit_note, strings.t('notes')),
-                  _Feature(Icons.calendar_month_outlined, strings.t('calendar')),
-                ],
-              );
-            }
-            if (state.showHubQutzemTile && hasQutzem) {
-              addTile(
-                _HubTile(
-                  iconAsset: 'assets/hubs/qutzem-icon.png',
-                  title: 'QutZem Reader',
-                  subtitle: strings.t('hubQutzemSubtitle'),
-                  onTap: _openQutzem,
-                  onShortcut: Platform.isWindows ? _createQutzemShortcut : null,
-                  shortcutTooltip: strings.t('shortcutCreate'),
-                  shortcutBusy: _shortcutBusy,
-                ),
-                const [
-                  _Feature(Icons.menu_book, 'EPUB'),
-                  _Feature(Icons.article_outlined, 'FB2'),
-                  _Feature(Icons.picture_as_pdf_outlined, 'PDF'),
-                  _Feature(Icons.description_outlined, 'TXT'),
-                ],
-              );
-            }
-            if (state.showHubSoonTiles) {
-              var i = 0;
-              while (items.length < 4) {
-                addTile(
-                  _HubTile(
-                    icon: i.isEven
-                        ? Icons.rocket_launch_outlined
-                        : Icons.widgets_outlined,
-                    title: strings.t('hubSoon'),
-                    subtitle: strings.t('hubSoonSubtitle'),
-                    dimmed: true,
-                  ),
-                  const [],
-                );
-                i++;
-              }
-            }
+                      if (state.showHubTasksTile) {
+                        addTile(
+                          _HubTile(
+                            iconAsset: 'assets/hubs/tasks-icon.png',
+                            title: strings.t('hubTasksTitle'),
+                            subtitle: strings.t('hubTasksSubtitle'),
+                            onTap: _openTasks,
+                            onShortcut: Platform.isWindows
+                                ? _createTasksShortcut
+                                : (Platform.isAndroid
+                                      ? _pinTasksShortcut
+                                      : null),
+                            shortcutTooltip: strings.t('shortcutCreate'),
+                            shortcutBusy: _shortcutBusy,
+                          ),
+                          [
+                            _Feature(Icons.task_alt, strings.t('tasks')),
+                            _Feature(Icons.edit_note, strings.t('notes')),
+                            _Feature(
+                              Icons.calendar_month_outlined,
+                              strings.t('calendar'),
+                            ),
+                          ],
+                        );
+                      }
+                      if (state.showHubQutzemTile && hasQutzem) {
+                        addTile(
+                          _HubTile(
+                            iconAsset: 'assets/hubs/qutzem-icon.png',
+                            title: 'QutZem Reader',
+                            subtitle: strings.t('hubQutzemSubtitle'),
+                            onTap: _openQutzem,
+                            onShortcut: Platform.isWindows
+                                ? _createQutzemShortcut
+                                : null,
+                            shortcutTooltip: strings.t('shortcutCreate'),
+                            shortcutBusy: _shortcutBusy,
+                          ),
+                          const [
+                            _Feature(Icons.menu_book, 'EPUB'),
+                            _Feature(Icons.article_outlined, 'FB2'),
+                            _Feature(Icons.picture_as_pdf_outlined, 'PDF'),
+                            _Feature(Icons.description_outlined, 'TXT'),
+                          ],
+                        );
+                      }
+                      if (state.showHubSoonTiles) {
+                        var i = 0;
+                        while (items.length < 4) {
+                          addTile(
+                            _HubTile(
+                              icon: i.isEven
+                                  ? Icons.rocket_launch_outlined
+                                  : Icons.widgets_outlined,
+                              title: strings.t('hubSoon'),
+                              subtitle: strings.t('hubSoonSubtitle'),
+                              dimmed: true,
+                            ),
+                            const [],
+                          );
+                          i++;
+                        }
+                      }
 
-            final blocks = <Widget>[];
-            for (var i = 0; i < items.length; i += cols) {
-              final slice = items.sublist(
-                i,
-                (i + cols) < items.length ? i + cols : items.length,
-              );
-              final hasDesc = slice.any((it) => it.desc.isNotEmpty);
+                      final blocks = <Widget>[];
+                      for (var i = 0; i < items.length; i += cols) {
+                        final slice = items.sublist(
+                          i,
+                          (i + cols) < items.length ? i + cols : items.length,
+                        );
+                        final hasDesc = slice.any((it) => it.desc.isNotEmpty);
 
-              blocks.add(
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var j = 0; j < cols; j++) ...[
-                        if (j > 0) const SizedBox(width: spacing),
-                        Expanded(
-                          child: j < slice.length
-                              ? slice[j].tile
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-
-              if (hasDesc) {
-                blocks.add(const SizedBox(height: 12));
-                blocks.add(
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var j = 0; j < cols; j++) ...[
-                        if (j > 0) const SizedBox(width: spacing),
-                        Expanded(
-                          child: (j < slice.length && slice[j].desc.isNotEmpty)
-                              ? Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 4),
-                                  child: _Descriptions(
-                                    features: slice[j].desc,
+                        blocks.add(
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                for (var j = 0; j < cols; j++) ...[
+                                  if (j > 0) const SizedBox(width: spacing),
+                                  Expanded(
+                                    child: j < slice.length
+                                        ? slice[j].tile
+                                        : const SizedBox.shrink(),
                                   ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              }
-              blocks.add(const SizedBox(height: 24));
-            }
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          strings.t('hubKicker').toUpperCase(),
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                letterSpacing: 1.5,
+                        if (hasDesc) {
+                          blocks.add(const SizedBox(height: 12));
+                          blocks.add(
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (var j = 0; j < cols; j++) ...[
+                                  if (j > 0) const SizedBox(width: spacing),
+                                  Expanded(
+                                    child:
+                                        (j < slice.length &&
+                                            slice[j].desc.isNotEmpty)
+                                        ? Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                            ),
+                                            child: _Descriptions(
+                                              features: slice[j].desc,
+                                            ),
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        }
+                        blocks.add(const SizedBox(height: 24));
+                      }
+
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    strings.t('hubKicker').toUpperCase(),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium
+                                        ?.copyWith(
+                                          color: scheme.onSurfaceVariant,
+                                          letterSpacing: 1.5,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    strings.t('hubTitle'),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineMedium
+                                        ?.copyWith(fontWeight: FontWeight.w800),
+                                  ),
+                                ],
                               ),
+                            ),
+                            ...blocks,
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          strings.t('hubTitle'),
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                  ...blocks,
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-      ],
-    ),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -619,7 +679,11 @@ class _HubTile extends StatelessWidget {
                           color: scheme.surface,
                           borderRadius: BorderRadius.circular(18),
                         ),
-                        child: Icon(icon, size: 34, color: scheme.onSurfaceVariant),
+                        child: Icon(
+                          icon,
+                          size: 34,
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     const SizedBox(height: 14),
                     Text(
@@ -679,9 +743,7 @@ class _Descriptions extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: [
-        for (final f in features) _FeatureBadge(feature: f),
-      ],
+      children: [for (final f in features) _FeatureBadge(feature: f)],
     );
   }
 }
@@ -727,25 +789,7 @@ class _FeatureBadge extends StatelessWidget {
   }
 }
 
-class _HubProgressDialog extends StatelessWidget {
-  final String label;
-
-  const _HubProgressDialog({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      content: Row(
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(width: 20),
-          Expanded(child: Text('Скачивание с ПК…\n$label')),
-        ],
-      ),
-    );
-  }
-}
-
+/// Порция прогресса скачивания: получено, всего и текущая скорость.
 class _HubBackdrop extends StatelessWidget {
   const _HubBackdrop();
 

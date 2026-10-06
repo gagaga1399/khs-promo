@@ -8,10 +8,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../localization/app_strings.dart';
+import '../services/auth_service.dart';
 import '../services/releases.dart';
 import '../services/update_checker.dart';
 import '../state/app_state.dart';
+import 'account_screen.dart';
 import 'changelog_screen.dart';
+import 'download_progress.dart';
+import 'settings_kit.dart';
 import 'widgets/color_picker_dialog.dart';
 
 /// Настройки хаба KHS: плитки, внешний вид, история версий, о приложении.
@@ -25,6 +29,16 @@ class HubSettingsScreen extends StatefulWidget {
 class _HubSettingsScreenState extends State<HubSettingsScreen> {
   static const _khsPackage = 'com.qutzem.khs';
   String? _version;
+  String _query = '';
+
+  /// Группа видна, если запрос пуст или совпал с одним из её пунктов.
+  bool _visible(List<String> haystack) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase().replaceAll('ё', 'е');
+    return haystack.any(
+      (raw) => raw.toLowerCase().replaceAll('ё', 'е').contains(q),
+    );
+  }
 
   @override
   void initState() {
@@ -35,8 +49,7 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
   Future<void> _loadVersion() async {
     final info = await PackageInfo.fromPlatform();
     if (!mounted) return;
-    setState(() =>
-        _version = '${info.version}+${info.buildNumber}');
+    setState(() => _version = '${info.version}+${info.buildNumber}');
   }
 
   /// Версия без build-суффикса — для сравнения.
@@ -123,9 +136,11 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
     final info = await state.checkForUpdate();
     if (!mounted) return;
     if (info.status != UpdateCheckStatus.ok || info.info == null) {
-      final msg = info.status == UpdateCheckStatus.noUpdate
-          ? strings.t('updateNotConfigured')
-          : strings.t('updateConnectFail');
+      final msg = switch (info.status) {
+        UpdateCheckStatus.badSignature => strings.t('updateBadSignature'),
+        UpdateCheckStatus.noUpdate => strings.t('updateNotConfigured'),
+        _ => strings.t('updateConnectFail'),
+      };
       messenger.showSnackBar(SnackBar(content: Text(msg)));
       return;
     }
@@ -218,13 +233,19 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
       return;
     }
     final dir = await getTemporaryDirectory();
-    final progress = ValueNotifier<double?>(null);
+    // Пользователь мог уйти с экрана, пока искали папку: диалог уже нельзя
+    // показывать, а progress нельзя забыть Dispose-ить.
+    if (!mounted) return;
+    final progress = DownloadProgress();
     unawaited(
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (_) =>
-            _DownloadProgressDialog(fileName: file, progress: progress),
+        builder: (_) => DownloadProgressDialog(
+          fileName: file,
+          progress: progress,
+          title: strings.t('downloading'),
+        ),
       ),
     );
     File saved;
@@ -233,15 +254,20 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
         file,
         dir,
         expectedSha256: info.androidSha256,
-        onProgress: (received, total) =>
-            progress.value = total > 0 ? received / total : null,
+        onProgress: progress.call,
       );
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
       progress.dispose();
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('${strings.t('downloadFailed')}: $e')),
+        SnackBar(
+          content: Text(
+            e is TimeoutException
+                ? strings.t('downloadStalled')
+                : '${strings.t('downloadFailed')}: $e',
+          ),
+        ),
       );
       return;
     }
@@ -278,7 +304,10 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
       if (open != true || !mounted) return;
       await state.openInstallSourcesSettings();
     }
-    var installed = await state.installApkSilent(saved.path, package: _khsPackage);
+    var installed = await state.installApkSilent(
+      saved.path,
+      package: _khsPackage,
+    );
     if (!mounted) return;
     if (!installed) {
       try {
@@ -294,7 +323,9 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
     if (!mounted) return;
     messenger.showSnackBar(
       SnackBar(
-        content: Text(installed ? strings.t('allUpdated') : strings.t('installPrompt')),
+        content: Text(
+          installed ? strings.t('allUpdated') : strings.t('installPrompt'),
+        ),
       ),
     );
   }
@@ -327,229 +358,261 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
     final strings = state.strings;
 
     return Scaffold(
-      appBar: AppBar(title: Text(strings.t('hubSettingsTitle'))),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      backgroundColor: SettingsTokens.background(context),
+      body: SettingsView(
+        title: strings.t('hubSettingsTitle'),
+        onBack: () => Navigator.maybePop(context),
+        search: SettingsSearch(
+          hint: strings.t('hubSettingsSearchHint'),
+          onChanged: (v) => setState(() => _query = v.trim()),
+        ),
         children: [
-          _sectionHeader(strings.t('hubSettingsSectionAppearance')),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.movie_creation_outlined),
-            title: Text(strings.t('splashAnimation')),
-            subtitle: Text(strings.t('splashAnimationHelp')),
-            value: state.showSplashAnimation,
-            onChanged: (v) => state.setSplashAnimation(v),
-          ),
-          _themeOf(
-            icon: Icons.phone_android,
-            title: strings.t('themeSystem'),
-            subtitle: strings.t('themeSystemHelp'),
-            selected: state.themeMode == 'system',
-            onTap: () => state.setThemeMode('system'),
-          ),
-          _themeOf(
-            icon: Icons.light_mode_outlined,
-            title: strings.t('themeLight'),
-            subtitle: strings.t('themeLightHelp'),
-            selected: state.themeMode == 'light',
-            onTap: () => state.setThemeMode('light'),
-          ),
-          _themeOf(
-            icon: Icons.dark_mode_outlined,
-            title: strings.t('themeDark'),
-            subtitle: strings.t('themeDarkHelp'),
-            selected: state.themeMode == 'dark',
-            onTap: () => state.setThemeMode('dark'),
-          ),
-          _themeOf(
-            icon: Icons.palette_outlined,
-            title: strings.t('themeCustom'),
-            subtitle: strings.t('themeCustomHelp'),
-            selected: state.themeMode == 'custom',
-            onTap: () => state.setThemeMode('custom'),
-          ),
-          if (state.themeMode == 'custom')
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.palette_outlined),
-              title: Text(strings.t('themeColor')),
-              subtitle: Text(strings.t('themeColorSubtitle')),
-              trailing: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: state.accentColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-              ),
-              onTap: () async {
-                final picked = await showColorPickerDialog(
-                  context,
-                  initial: state.accentColor,
-                  title: strings.t('themeColor'),
-                  cancelLabel: strings.t('cancel'),
-                  okLabel: strings.t('ok'),
+          // Вход в аккаунт нужен и с плиточного экрана: без него синхронизацию
+          // на ПК включить негде — экран задач тут не открывается.
+          if (_visible([
+            'аккаунт',
+            'вход',
+            'профил',
+            'задач и заметки',
+            'войти',
+          ]))
+            ListenableBuilder(
+              listenable: AuthService.instance,
+              builder: (context, _) {
+                final auth = AuthService.instance;
+                return SettingsProfileCard(
+                  icon: auth.signedIn
+                      ? Icons.account_circle
+                      : Icons.person_outline,
+                  iconColor: auth.signedIn
+                      ? SettingsPalette.of(context).accent
+                      : SettingsTokens.iconAccount,
+                  title: auth.signedIn
+                      ? (auth.displayName?.isNotEmpty == true
+                            ? auth.displayName!
+                            : (auth.email ?? 'Аккаунт'))
+                      : 'Войти в аккаунт',
+                  subtitle: auth.signedIn
+                      ? 'Задачи и заметки синхронизируются через интернет'
+                      : 'Синхронизация между устройствами по почте или через '
+                            'Google',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const AccountScreen(),
+                    ),
+                  ),
                 );
-                if (picked != null && mounted) {
-                  await state.setAccentColor(picked);
-                }
               },
             ),
-          const Divider(height: 24),
-          _sectionHeader(strings.t('hubSettingsSectionTiles')),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.task_alt),
-            title: Text(strings.t('hubTasksTile')),
-            value: state.showHubTasksTile,
-            onChanged: (v) => state.setShowHubTasksTile(v),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.menu_book_outlined),
-            title: Text(strings.t('hubQutzemTile')),
-            value: state.showHubQutzemTile,
-            onChanged: (v) => state.setShowHubQutzemTile(v),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.widgets_outlined),
-            title: Text(strings.t('hubSoonTiles')),
-            subtitle: Text(strings.t('hubSoonTilesHelp')),
-            value: state.showHubSoonTiles,
-            onChanged: (v) => state.setShowHubSoonTiles(v),
-          ),
-          const Divider(height: 24),
-          _sectionHeader(strings.t('hubSettingsSectionUpdate')),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.system_update_alt),
-            title: Text(strings.t('checkUpdates')),
-            subtitle: Text(
-              _version == null
-                  ? strings.t('currentVersion')
-                  : '${strings.t('currentVersion')}: v$_version',
+          if (_visible([
+            strings.t('splashAnimation'),
+            strings.t('themeSystem'),
+            strings.t('themeLight'),
+            strings.t('themeDark'),
+            strings.t('themeCustom'),
+            strings.t('themeColor'),
+          ]))
+            SettingsCard(
+              title: strings.t('hubSettingsSectionAppearance'),
+              children: [
+                SettingsRow(
+                  title: strings.t('splashAnimation'),
+                  subtitle: strings.t('splashAnimationHelp'),
+                  icon: Icons.movie_creation_outlined,
+                  iconColor: SettingsTokens.iconPlayback,
+                  trailing: Switch(
+                    value: state.showSplashAnimation,
+                    onChanged: (v) => state.setSplashAnimation(v),
+                  ),
+                  onTap: () =>
+                      state.setSplashAnimation(!state.showSplashAnimation),
+                  showChevron: false,
+                ),
+                _themeOf(
+                  icon: Icons.phone_android,
+                  iconColor: SettingsTokens.iconFiles,
+                  title: strings.t('themeSystem'),
+                  subtitle: strings.t('themeSystemHelp'),
+                  selected: state.themeMode == 'system',
+                  onTap: () => state.setThemeMode('system'),
+                ),
+                _themeOf(
+                  icon: Icons.light_mode_outlined,
+                  iconColor: SettingsTokens.iconMetadata,
+                  title: strings.t('themeLight'),
+                  subtitle: strings.t('themeLightHelp'),
+                  selected: state.themeMode == 'light',
+                  onTap: () => state.setThemeMode('light'),
+                ),
+                _themeOf(
+                  icon: Icons.dark_mode_outlined,
+                  iconColor: SettingsTokens.iconPlayback,
+                  title: strings.t('themeDark'),
+                  subtitle: strings.t('themeDarkHelp'),
+                  selected: state.themeMode == 'dark',
+                  onTap: () => state.setThemeMode('dark'),
+                ),
+                _themeOf(
+                  icon: Icons.palette_outlined,
+                  iconColor: SettingsTokens.iconAppearance,
+                  title: strings.t('themeCustom'),
+                  subtitle: strings.t('themeCustomHelp'),
+                  selected: state.themeMode == 'custom',
+                  onTap: () => state.setThemeMode('custom'),
+                ),
+                if (state.themeMode == 'custom')
+                  SettingsRow(
+                    title: strings.t('themeColor'),
+                    subtitle: strings.t('themeColorSubtitle'),
+                    icon: Icons.palette_outlined,
+                    iconColor: SettingsTokens.iconAppearance,
+                    trailing: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: state.accentColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: SettingsTokens.divider(context),
+                        ),
+                      ),
+                    ),
+                    onTap: () async {
+                      final picked = await showColorPickerDialog(
+                        context,
+                        initial: state.accentColor,
+                        title: strings.t('themeColor'),
+                        cancelLabel: strings.t('cancel'),
+                        okLabel: strings.t('ok'),
+                      );
+                      if (picked != null && mounted) {
+                        await state.setAccentColor(picked);
+                      }
+                    },
+                  ),
+              ],
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _checkUpdates(context, strings),
-          ),
-          const Divider(height: 24),
-          _sectionHeader(strings.t('hubSettingsSectionAbout')),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.person_outline),
-            title: Text(strings.t('developer')),
-            subtitle: const Text('QutZem'),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.info_outline),
-            title: Text(strings.t('version')),
-            subtitle: Text(
-              _version == null ? 'Pre-release' : 'Pre-release v$_version',
+          if (_visible([
+            strings.t('hubTasksTile'),
+            strings.t('hubQutzemTile'),
+            strings.t('hubSoonTiles'),
+          ]))
+            SettingsCard(
+              title: strings.t('hubSettingsSectionTiles'),
+              children: [
+                SettingsRow(
+                  title: strings.t('hubTasksTile'),
+                  icon: Icons.task_alt,
+                  iconColor: SettingsTokens.iconTasks,
+                  trailing: Switch(
+                    value: state.showHubTasksTile,
+                    onChanged: (v) => state.setShowHubTasksTile(v),
+                  ),
+                  onTap: () =>
+                      state.setShowHubTasksTile(!state.showHubTasksTile),
+                  showChevron: false,
+                ),
+                SettingsRow(
+                  title: strings.t('hubQutzemTile'),
+                  icon: Icons.menu_book_outlined,
+                  iconColor: SettingsTokens.iconText,
+                  trailing: Switch(
+                    value: state.showHubQutzemTile,
+                    onChanged: (v) => state.setShowHubQutzemTile(v),
+                  ),
+                  onTap: () =>
+                      state.setShowHubQutzemTile(!state.showHubQutzemTile),
+                  showChevron: false,
+                ),
+                SettingsRow(
+                  title: strings.t('hubSoonTiles'),
+                  subtitle: strings.t('hubSoonTilesHelp'),
+                  icon: Icons.widgets_outlined,
+                  iconColor: SettingsTokens.iconStorage,
+                  trailing: Switch(
+                    value: state.showHubSoonTiles,
+                    onChanged: (v) => state.setShowHubSoonTiles(v),
+                  ),
+                  onTap: () =>
+                      state.setShowHubSoonTiles(!state.showHubSoonTiles),
+                  showChevron: false,
+                ),
+              ],
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    const ChangelogScreen(releases: khsHubReleases),
-              ),
+          if (_visible([
+            strings.t('checkUpdates'),
+            strings.t('currentVersion'),
+          ]))
+            SettingsCard(
+              title: strings.t('hubSettingsSectionUpdate'),
+              children: [
+                SettingsRow(
+                  title: strings.t('checkUpdates'),
+                  subtitle: _version == null
+                      ? strings.t('currentVersion')
+                      : '${strings.t('currentVersion')}: v$_version',
+                  icon: Icons.system_update_alt,
+                  iconColor: SettingsTokens.iconUpdate,
+                  onTap: () => _checkUpdates(context, strings),
+                ),
+              ],
             ),
-          ),
+          if (_visible([
+            strings.t('developer'),
+            strings.t('version'),
+            'qutzem',
+          ]))
+            SettingsCard(
+              title: strings.t('hubSettingsSectionAbout'),
+              children: [
+                SettingsRow(
+                  title: strings.t('developer'),
+                  subtitle: 'QutZem',
+                  icon: Icons.person_outline,
+                  iconColor: SettingsTokens.iconProfile,
+                ),
+                SettingsRow(
+                  title: strings.t('version'),
+                  subtitle: _version == null
+                      ? 'Pre-release'
+                      : 'Pre-release v$_version',
+                  icon: Icons.info_outline,
+                  iconColor: SettingsTokens.iconMedia,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const ChangelogScreen(releases: khsHubReleases),
+                    ),
+                  ),
+                ),
+              ],
+            ),
         ],
-      ),
-    );
-  }
-
-  Widget _sectionHeader(String text) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          letterSpacing: 1.2,
-          color: scheme.onSurfaceVariant,
-        ),
       ),
     );
   }
 
   Widget _themeOf({
     required IconData icon,
+    required Color iconColor,
     required String title,
     required String subtitle,
     required bool selected,
     required VoidCallback onTap,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle),
+    final palette = SettingsPalette.of(context);
+    return SettingsRow(
+      title: title,
+      subtitle: subtitle,
+      icon: icon,
+      iconColor: iconColor,
       trailing: Icon(
-        selected
-            ? Icons.radio_button_checked
-            : Icons.radio_button_unchecked,
-        color: selected ? scheme.primary : null,
+        selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: selected ? palette.accent : palette.muted,
       ),
       onTap: onTap,
-    );
-  }
-}
-
-class _DownloadProgressDialog extends StatelessWidget {
-  final String fileName;
-  final ValueNotifier<double?> progress;
-  const _DownloadProgressDialog({required this.fileName, required this.progress});
-
-  @override
-  Widget build(BuildContext context) {
-    final strings = context.read<AppState>().strings;
-    return AlertDialog(
-      title: Text(strings.t('downloading')),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            fileName,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 18),
-          ValueListenableBuilder<double?>(
-            valueListenable: progress,
-            builder: (context, value, _) {
-              final pct = value == null
-                  ? null
-                  : (value.clamp(0.0, 1.0) * 100).round();
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LinearProgressIndicator(
-                    minHeight: 6,
-                    borderRadius: BorderRadius.circular(3),
-                    value: value,
-                  ),
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      pct == null ? '…' : '$pct%',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
+      showChevron: false,
     );
   }
 }

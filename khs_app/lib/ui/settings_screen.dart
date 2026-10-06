@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,12 +13,16 @@ import '../services/firebase_config.dart';
 import '../services/releases.dart';
 import '../services/update_checker.dart';
 import '../state/app_state.dart';
+
 import 'package:url_launcher/url_launcher.dart';
+
 import 'account_screen.dart';
 import 'widgets/color_picker_dialog.dart';
 import 'widgets/time_wheel_picker.dart';
 import 'widgets/version_folder_list.dart';
 import 'changelog_screen.dart';
+import 'download_progress.dart';
+import 'settings_kit.dart';
 
 class SettingsScreen extends StatefulWidget {
   /// [embedded] — вкладка нижней навигации на телефоне (без собственного
@@ -44,6 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _showPcAddresses = false;
   bool _showToken = false;
   String? _version;
+  String _query = '';
 
   @override
   void initState() {
@@ -258,16 +263,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final info = await state.checkForUpdate();
     if (!mounted) return;
     if (info.status != UpdateCheckStatus.ok || info.info == null) {
-      final msg = info.status == UpdateCheckStatus.noUpdate
-          ? strings.t('updateNotConfigured')
-          : strings.t('updateConnectFail');
+      final msg = switch (info.status) {
+        UpdateCheckStatus.badSignature => strings.t('updateBadSignature'),
+        UpdateCheckStatus.noUpdate => strings.t('updateNotConfigured'),
+        _ => strings.t('updateConnectFail'),
+      };
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          duration: const Duration(seconds: 4),
-        ),
+        SnackBar(content: Text(msg), duration: const Duration(seconds: 4)),
       );
-      await _showChangelog(strings, cachedInfo: info.info, alreadyFetched: true);
+      await _showChangelog(
+        strings,
+        cachedInfo: info.info,
+        alreadyFetched: true,
+      );
       return;
     }
     final meta = info.info!;
@@ -359,13 +367,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
     final dir = await getTemporaryDirectory();
-    final progress = ValueNotifier<double?>(null);
+    // Пользователь мог уйти с экрана, пока искали папку: показывать диалог
+    // уже нельзя, а progress нельзя забыть Dispose-ить.
+    if (!mounted) return;
+    final progress = DownloadProgress();
     unawaited(
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (_) =>
-            _DownloadProgressDialog(fileName: file, progress: progress),
+        builder: (_) => DownloadProgressDialog(
+          fileName: file,
+          progress: progress,
+          title: strings.t('downloading'),
+        ),
       ),
     );
     File saved;
@@ -377,8 +391,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         file,
         dir,
         expectedSha256: expectedSha,
-        onProgress: (received, total) =>
-            progress.value = total > 0 ? received / total : null,
+        onProgress: progress.call,
       );
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
@@ -386,7 +399,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('${strings.t('downloadFailed')}: ${_shortError(e)}'),
+          content: Text(
+            e is TimeoutException
+                ? strings.t('downloadStalled')
+                : '${strings.t('downloadFailed')}: ${_shortError(e)}',
+          ),
         ),
       );
       return;
@@ -588,7 +605,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String _timestampName() {
     final d = DateTime.now();
-    final ts = '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+    final ts =
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-'
         '${d.day.toString().padLeft(2, '0')}'
         '_${d.hour.toString().padLeft(2, '0')}'
         '${d.minute.toString().padLeft(2, '0')}';
@@ -613,7 +631,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final dir = await _backupDir();
     if (dir == null) return;
-    final file = File('${dir.path}${Platform.pathSeparator}${_timestampName()}');
+    final file = File(
+      '${dir.path}${Platform.pathSeparator}${_timestampName()}',
+    );
     try {
       await state.exportBackup(file);
       if (!mounted) return;
@@ -639,6 +659,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     final dir = await _backupDir();
+    // context здесь — чужой, переданный сверху, поэтому проверяем именно его
+    // mounted, а не mounted состояния.
+    if (!context.mounted) return;
     final defaultPath = dir == null
         ? '${Platform.pathSeparator}${_timestampName()}'
         : '${dir.path}${Platform.pathSeparator}${_timestampName()}';
@@ -654,9 +677,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           decoration: InputDecoration(
             hintText: 'C:\\...\\KHS-backup-2026-01-01_1230.json',
             prefixIcon: const Icon(Icons.file_open_outlined),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
           ),
         ),
         actions: [
@@ -703,25 +724,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _backupSection(AppState state, AppStrings strings) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final muted = SettingsTokens.muted(context);
+    return SettingsCard(
+      title: strings.t('backup'),
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            strings.t('backup'),
-            style: Theme.of(context).textTheme.titleSmall,
+          padding: const EdgeInsets.fromLTRB(
+            SettingsTokens.padH,
+            12,
+            SettingsTokens.padH,
+            10,
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
             strings.t('backupHelp'),
-            style: Theme.of(context).textTheme.bodySmall,
+            style: TextStyle(
+              fontSize: SettingsTokens.rowSubtitleSize,
+              color: muted,
+              height: 1.35,
+            ),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          padding: const EdgeInsets.fromLTRB(
+            SettingsTokens.padH,
+            0,
+            SettingsTokens.padH,
+            14,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -792,126 +821,157 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _syncSection(AppState state, AppStrings strings) {
     final isPc = state.isPc;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            strings.t('syncTitle'),
-            style: Theme.of(context).textTheme.titleSmall,
+    final muted = SettingsTokens.muted(context);
+
+    final children = <Widget>[];
+
+    children.add(
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          SettingsTokens.padH,
+          12,
+          SettingsTokens.padH,
+          10,
+        ),
+        child: Text(
+          isPc ? strings.t('pcAccessHelp') : strings.t('syncPhoneHelp'),
+          style: TextStyle(
+            fontSize: SettingsTokens.rowSubtitleSize,
+            color: muted,
+            height: 1.35,
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-          child: Text(
-            isPc ? strings.t('pcAccessHelp') : strings.t('syncPhoneHelp'),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        if (isPc)
-          SwitchListTile(
-            secondary: const Icon(Icons.dns_outlined),
-            title: Text(strings.t('pcAccess')),
+      ),
+    );
+
+    if (isPc) {
+      children.add(
+        SettingsRow(
+          title: strings.t('pcAccess'),
+          icon: Icons.dns_outlined,
+          iconColor: SettingsTokens.iconNetwork,
+          trailing: Switch(
             value: state.syncServerEnabled,
             onChanged: (v) => state.setSyncServerEnabled(v),
           ),
-        if (isPc)
-          FutureBuilder<bool>(
-            future: state.isAutoStartEnabled(),
-            builder: (context, snapshot) {
-              final enabled = snapshot.data ?? false;
-              return SwitchListTile(
-                secondary: const Icon(Icons.rocket_launch_outlined),
-                title: Text(strings.t('autoStart')),
-                subtitle: Text(strings.t('autoStartHelp')),
+          onTap: () => state.setSyncServerEnabled(!state.syncServerEnabled),
+          showChevron: false,
+        ),
+      );
+      children.add(
+        FutureBuilder<bool>(
+          future: state.isAutoStartEnabled(),
+          builder: (context, snapshot) {
+            final enabled = snapshot.data ?? false;
+            return SettingsRow(
+              title: strings.t('autoStart'),
+              subtitle: strings.t('autoStartHelp'),
+              icon: Icons.rocket_launch_outlined,
+              iconColor: SettingsTokens.iconUpdate,
+              trailing: Switch(
                 value: enabled,
                 onChanged: (v) async {
+                  // Messenger берём до await: после паузы к context уже не
+                  // прикасаемся, остаётся только проверка mounted.
+                  final messenger = ScaffoldMessenger.of(context);
                   final ok = await state.setAutoStartEnabled(v);
                   if (!mounted) return;
                   setState(() {});
-                  if (!ok && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (!ok) {
+                    messenger.showSnackBar(
                       SnackBar(content: Text(strings.t('connectionFail'))),
                     );
                   }
                 },
-              );
-            },
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              controller: _updateUrlController,
-              keyboardType: TextInputType.url,
-              decoration: InputDecoration(
-                labelText: strings.t('updateWebUrl'),
-                hintText: kUpdateWebBaseUrl,
-                prefixIcon: const Icon(Icons.cloud_download_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
               ),
-              onChanged: (v) => state.setUpdateWebBaseUrl(v),
-            ),
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final ok = await state.setAutoStartEnabled(!enabled);
+                if (!mounted) return;
+                setState(() {});
+                if (!ok) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(strings.t('connectionFail'))),
+                  );
+                }
+              },
+              showChevron: false,
+            );
+          },
+        ),
+      );
+      children.add(
+        SettingsField(
+          controller: _updateUrlController,
+          keyboardType: TextInputType.url,
+          label: strings.t('updateWebUrl'),
+          hint: kUpdateWebBaseUrl,
+          maxLength: 300,
+          prefixIcon: Icon(
+            Icons.cloud_download_outlined,
+            size: 20,
+            color: SettingsTokens.iconNetwork,
           ),
-          if (isPc && state.syncServerEnabled) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              controller: _portController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: strings.t('syncPort'),
-                prefixIcon: const Icon(Icons.power),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              onChanged: (v) => _savePort(state, v),
+          onChanged: (v) => state.setUpdateWebBaseUrl(v),
+        ),
+      );
+      if (state.syncServerEnabled) {
+        children.add(
+          SettingsField(
+            controller: _portController,
+            keyboardType: TextInputType.number,
+            label: strings.t('syncPort'),
+            prefixIcon: Icon(
+              Icons.power,
+              size: 20,
+              color: SettingsTokens.iconMetadata,
             ),
+            onChanged: (v) => _savePort(state, v),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              controller: _bindHostController,
-              keyboardType: TextInputType.url,
-              decoration: InputDecoration(
-                labelText: strings.t('syncBindHost'),
-                hintText: strings.t('syncBindHostHint'),
-                prefixIcon: const Icon(Icons.podcasts_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              onChanged: (v) => state.setSyncBindHost(v),
+        );
+        children.add(
+          SettingsField(
+            controller: _bindHostController,
+            keyboardType: TextInputType.url,
+            label: strings.t('syncBindHost'),
+            hint: strings.t('syncBindHostHint'),
+            maxLength: 100,
+            prefixIcon: Icon(
+              Icons.podcasts_outlined,
+              size: 20,
+              color: SettingsTokens.iconPlayback,
             ),
+            onChanged: (v) => state.setSyncBindHost(v),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: TextField(
-              controller: _tokenController,
-              obscureText: !_showToken,
-              decoration: InputDecoration(
-                labelText: strings.t('syncToken'),
-                hintText: strings.t('syncTokenHint'),
-                prefixIcon: const Icon(Icons.key_outlined),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _showToken ? Icons.visibility_off : Icons.visibility,
-                  ),
-                  onPressed: () => setState(() => _showToken = !_showToken),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              onChanged: (v) => state.setSyncToken(v),
+        );
+        children.add(
+          SettingsField(
+            controller: _tokenController,
+            obscureText: !_showToken,
+            label: strings.t('syncToken'),
+            hint: strings.t('syncTokenHint'),
+            maxLength: 128,
+            prefixIcon: Icon(
+              Icons.key_outlined,
+              size: 20,
+              color: SettingsTokens.iconSecurity,
             ),
+            suffix: IconButton(
+              icon: Icon(_showToken ? Icons.visibility_off : Icons.visibility),
+              onPressed: () => setState(() => _showToken = !_showToken),
+            ),
+            onChanged: (v) => state.setSyncToken(v),
           ),
-          if (state.localAddresses.isNotEmpty)
+        );
+        if (state.localAddresses.isNotEmpty) {
+          children.add(
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              padding: const EdgeInsets.fromLTRB(
+                SettingsTokens.padH,
+                4,
+                SettingsTokens.padH,
+                0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -920,7 +980,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Expanded(
                         child: Text(
                           strings.t('pcAddresses'),
-                          style: Theme.of(context).textTheme.titleSmall,
+                          style: TextStyle(
+                            fontSize: SettingsTokens.rowTitleSize,
+                            color: SettingsTokens.text(context),
+                          ),
                         ),
                       ),
                       TextButton.icon(
@@ -943,174 +1006,223 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   if (_showPcAddresses) ...[
                     for (final addr in state.localAddresses)
-                      SelectableText('http://$addr:${state.syncPort}'),
+                      SelectableText(
+                        'http://$addr:${state.syncPort}',
+                        style: TextStyle(
+                          fontSize: SettingsTokens.rowSubtitleSize,
+                          color: muted,
+                        ),
+                      ),
                     const SizedBox(height: 4),
                     Text(
                       strings.t('pcAddressesNote'),
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: TextStyle(fontSize: 12, color: muted),
                     ),
                   ],
                   const SizedBox(height: 4),
-                  Text(
-                    state.syncServerRunning
-                        ? '● ${strings.t('syncStatusOk')}'
-                        : '○ ${strings.t('syncStatusError')}',
-                    style: TextStyle(
-                      color: state.syncServerRunning
-                          ? Colors.green
-                          : Colors.red,
-                      fontWeight: FontWeight.w600,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      state.syncServerRunning
+                          ? '● ${strings.t('syncStatusOk')}'
+                          : '○ ${strings.t('syncStatusError')}',
+                      style: TextStyle(
+                        color: state.syncServerRunning
+                            ? SettingsTokens.iconDownload
+                            : SettingsTokens.iconSecurity,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
+                  // Причина сбоя: без неё «сервер не запустился» бесполезно —
+                  // например, опечатку в адресе прослушивания иначе не найти.
+                  if (!state.syncServerRunning &&
+                      state.syncServerError.isNotEmpty) ...[
+                    Text(
+                      state.syncServerError,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: SettingsTokens.iconSecurity,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                 ],
               ),
             ),
+          );
+        }
+        children.add(
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            padding: const EdgeInsets.fromLTRB(
+              SettingsTokens.padH,
+              0,
+              SettingsTokens.padH,
+              12,
+            ),
+            child: OutlinedButton.icon(
+              onPressed: _checkingServer
+                  ? null
+                  : () => _checkServer(context, state),
+              icon: _checkingServer
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.healing_outlined),
+              label: Text(strings.t('checkServer')),
+            ),
+          ),
+        );
+        children.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              SettingsTokens.padH,
+              0,
+              SettingsTokens.padH,
+              14,
+            ),
+            child: OutlinedButton.icon(
+              onPressed: () => _openFirewall(context, state),
+              icon: const Icon(Icons.shield_outlined),
+              label: Text(strings.t('firewallOpen')),
+            ),
+          ),
+        );
+      }
+    } else {
+      children.add(
+        SettingsRow(
+          title: strings.t('syncEnabled'),
+          icon: Icons.cloud_sync_outlined,
+          iconColor: SettingsTokens.iconSync,
+          trailing: Switch(
+            value: state.syncEnabled,
+            onChanged: (v) => state.setSyncEnabled(v),
+          ),
+          onTap: () => state.setSyncEnabled(!state.syncEnabled),
+          showChevron: false,
+        ),
+      );
+      if (state.syncEnabled) {
+        children.add(
+          SettingsField(
+            controller: _addressController,
+            keyboardType: TextInputType.url,
+            label: strings.t('syncAddress'),
+            hint: strings.t('syncAddressHint'),
+            maxLength: 300,
+            prefixIcon: Icon(
+              Icons.router_outlined,
+              size: 20,
+              color: SettingsTokens.iconNetwork,
+            ),
+            onChanged: (v) => state.setSyncAddress(v),
+          ),
+        );
+        children.add(
+          SettingsField(
+            controller: _tokenController,
+            obscureText: !_showToken,
+            label: strings.t('syncToken'),
+            hint: strings.t('syncTokenHint'),
+            maxLength: 128,
+            prefixIcon: Icon(
+              Icons.key_outlined,
+              size: 20,
+              color: SettingsTokens.iconSecurity,
+            ),
+            suffix: IconButton(
+              icon: Icon(_showToken ? Icons.visibility_off : Icons.visibility),
+              onPressed: () => setState(() => _showToken = !_showToken),
+            ),
+            onChanged: (v) => state.setSyncToken(v),
+          ),
+        );
+        children.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              SettingsTokens.padH,
+              12,
+              SettingsTokens.padH,
+              14,
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _checkingServer
+                    onPressed: _checking
                         ? null
-                        : () => _checkServer(context, state),
-                    icon: _checkingServer
+                        : () => _testConnection(context, state),
+                    icon: _checking
                         ? const SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.healing_outlined),
-                    label: Text(strings.t('checkServer')),
+                        : const Icon(Icons.wifi_tethering),
+                    label: Text(strings.t('checkConnection')),
                   ),
                 ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Row(
-              children: [
+                const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _openFirewall(context, state),
-                    icon: const Icon(Icons.shield_outlined),
-                    label: Text(strings.t('firewallOpen')),
+                  child: FilledButton.icon(
+                    onPressed: state.syncing
+                        ? null
+                        : () => _syncWithPc(context, state),
+                    icon: const Icon(Icons.sync),
+                    label: Text(strings.t('syncNow')),
                   ),
                 ),
               ],
             ),
           ),
-        ],
-        if (!isPc) ...[
-          SwitchListTile(
-            secondary: const Icon(Icons.cloud_sync_outlined),
-            title: Text(strings.t('syncEnabled')),
-            value: state.syncEnabled,
-            onChanged: (v) => state.setSyncEnabled(v),
+        );
+      }
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            SettingsTokens.padH,
+            4,
+            SettingsTokens.padH,
+            14,
           ),
-          if (state.syncEnabled) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _addressController,
-                keyboardType: TextInputType.url,
-                decoration: InputDecoration(
-                  labelText: strings.t('syncAddress'),
-                  hintText: strings.t('syncAddressHint'),
-                  prefixIcon: const Icon(Icons.router_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onChanged: (v) => state.setSyncAddress(v),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: TextField(
-                controller: _tokenController,
-                obscureText: !_showToken,
-                decoration: InputDecoration(
-                  labelText: strings.t('syncToken'),
-                  hintText: strings.t('syncTokenHint'),
-                  prefixIcon: const Icon(Icons.key_outlined),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _showToken ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () =>
-                        setState(() => _showToken = !_showToken),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onChanged: (v) => state.setSyncToken(v),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _checking
-                          ? null
-                          : () => _testConnection(context, state),
-                      icon: _checking
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.wifi_tethering),
-                      label: Text(strings.t('checkConnection')),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: state.syncing
-                          ? null
-                          : () => _syncWithPc(context, state),
-                      icon: const Icon(Icons.sync),
-                      label: Text(strings.t('syncNow')),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text(
-              '${strings.t('lastSync')}: ${_syncStatusLabel(state, strings)}',
-              style: Theme.of(context).textTheme.bodySmall,
+          child: Text(
+            '${strings.t('lastSync')}: ${_syncStatusLabel(state, strings)}',
+            style: TextStyle(
+              fontSize: SettingsTokens.rowSubtitleSize,
+              color: muted,
             ),
           ),
-        ],
-      ],
-    );
+        ),
+      );
+    }
+
+    return SettingsCard(title: strings.t('syncTitle'), children: children);
   }
 
   Widget _noteReminderSection(AppState state, AppStrings strings) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SettingsCard(
       children: [
-        SwitchListTile(
-          secondary: const Icon(Icons.edit_note_outlined),
-          title: Text(strings.t('noteReminder')),
-          subtitle: Text(strings.t('noteReminderHelp')),
-          value: state.noteReminderEnabled,
-          onChanged: (v) => state.setNoteReminderEnabled(v),
+        SettingsRow(
+          title: strings.t('noteReminder'),
+          subtitle: strings.t('noteReminderHelp'),
+          icon: Icons.edit_note_outlined,
+          iconColor: SettingsTokens.iconNotes,
+          trailing: Switch(
+            value: state.noteReminderEnabled,
+            onChanged: (v) => state.setNoteReminderEnabled(v),
+          ),
+          onTap: () => state.setNoteReminderEnabled(!state.noteReminderEnabled),
+          showChevron: false,
         ),
         if (state.noteReminderEnabled)
-          ListTile(
-            leading: const Icon(Icons.schedule_outlined),
-            title: Text(strings.t('reminder')),
-            subtitle: Text(_timeLabel(state.noteReminderMinutes)),
-            trailing: const Icon(Icons.chevron_right),
+          SettingsRow(
+            title: strings.t('reminder'),
+            subtitle: _timeLabel(state.noteReminderMinutes),
+            icon: Icons.schedule_outlined,
+            iconColor: SettingsTokens.iconMetadata,
             onTap: () => _pickNoteReminderTime(state),
           ),
       ],
@@ -1119,24 +1231,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// «Работа в фоне», «Точный будильник» и «Проверить уведомление».
   Widget _notificationReliabilitySection(AppState state, AppStrings strings) {
-    final okColor = Colors.green;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SettingsCard(
       children: [
         FutureBuilder<bool>(
           future: state.isIgnoringBatteryOptimizations(),
           builder: (context, snapshot) {
             final ok = snapshot.data ?? true;
-            return ListTile(
-              leading: const Icon(Icons.battery_saver_outlined),
-              title: Text(strings.t('backgroundWork')),
-              subtitle: Text(
-                ok
-                    ? strings.t('backgroundWorkOk')
-                    : strings.t('backgroundWorkWarn'),
-              ),
+            return SettingsRow(
+              title: strings.t('backgroundWork'),
+              subtitle: ok
+                  ? strings.t('backgroundWorkOk')
+                  : strings.t('backgroundWorkWarn'),
+              icon: Icons.battery_saver_outlined,
+              iconColor: SettingsTokens.iconMetadata,
               trailing: ok
-                  ? Icon(Icons.check_circle, color: okColor)
+                  ? Icon(Icons.check_circle, color: SettingsTokens.iconDownload)
                   : const Icon(Icons.chevron_right),
               onTap: ok
                   ? null
@@ -1151,14 +1260,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           future: state.canScheduleExactAlarms(),
           builder: (context, snapshot) {
             final ok = snapshot.data ?? true;
-            return ListTile(
-              leading: const Icon(Icons.alarm),
-              title: Text(strings.t('exactAlarm')),
-              subtitle: Text(
-                ok ? strings.t('exactAlarmOk') : strings.t('exactAlarmWarn'),
-              ),
+            return SettingsRow(
+              title: strings.t('exactAlarm'),
+              subtitle: ok
+                  ? strings.t('exactAlarmOk')
+                  : strings.t('exactAlarmWarn'),
+              icon: Icons.alarm,
+              iconColor: SettingsTokens.iconSupport,
               trailing: ok
-                  ? Icon(Icons.check_circle, color: okColor)
+                  ? Icon(Icons.check_circle, color: SettingsTokens.iconDownload)
                   : const Icon(Icons.chevron_right),
               onTap: ok
                   ? null
@@ -1169,11 +1279,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
-        ListTile(
-          leading: const Icon(Icons.notification_important_outlined),
-          title: Text(strings.t('testNotification')),
-          subtitle: Text(strings.t('testNotificationHelp')),
-          trailing: const Icon(Icons.send_outlined),
+        SettingsRow(
+          title: strings.t('testNotification'),
+          subtitle: strings.t('testNotificationHelp'),
+          icon: Icons.notification_important_outlined,
+          iconColor: SettingsTokens.iconPlayback,
+          trailing: const Icon(
+            Icons.send_outlined,
+            color: SettingsTokens.iconMedia,
+          ),
           onTap: () async {
             final messenger = ScaffoldMessenger.of(context);
             await state.sendTestNotification();
@@ -1182,9 +1296,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SnackBar(content: Text(strings.t('testNotificationSent'))),
             );
           },
+          showChevron: false,
         ),
       ],
     );
+  }
+
+  /// Группа видна, если запрос пуст или совпал с одним из её пунктов.
+  bool _visible(List<String> haystack) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase().replaceAll('ё', 'е');
+    return haystack.any(
+      (raw) => raw.toLowerCase().replaceAll('ё', 'е').contains(q),
+    );
+  }
+
+  /// Добавляет карточку в список только если она прошла поисковый фильтр
+  /// и, при [enabled], доступна на текущей платформе.
+  void _addVisible(
+    List<Widget> children,
+    List<String> keys,
+    Widget child, {
+    bool enabled = true,
+  }) {
+    if (!enabled || !_visible(keys)) return;
+    children.add(child);
   }
 
   @override
@@ -1192,282 +1328,273 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final state = context.watch<AppState>();
     final strings = state.strings;
     final isRu = state.isRussian;
+    final palette = SettingsPalette.of(context);
+    final children = <Widget>[];
 
-    final body = ListView(
-      children: [
-        if (KhsFirebase.accountFeatureEnabled) ...[
+    if (KhsFirebase.accountFeatureEnabled &&
+        _visible(['Аккаунт', 'аккаунт', 'вход', 'войти', 'почте', 'google'])) {
+      children.add(
+        ListenableBuilder(
+          listenable: AuthService.instance,
+          builder: (context, _) {
+            final auth = AuthService.instance;
+            return SettingsProfileCard(
+              icon: auth.signedIn ? Icons.account_circle : Icons.person_outline,
+              iconColor: auth.signedIn
+                  ? palette.accent
+                  : SettingsTokens.iconAccount,
+              title: auth.signedIn
+                  ? (auth.displayName?.isNotEmpty == true
+                        ? auth.displayName!
+                        : (auth.email ?? 'Аккаунт'))
+                  : 'Войти в аккаунт',
+              subtitle: auth.signedIn
+                  ? 'Задачи и читалка синхронизируются через интернет'
+                  : 'Синхронизация между устройствами по почте или через '
+                        'Google',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const AccountScreen()),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    _addVisible(
+      children,
+      [strings.t('language'), strings.t('russian'), strings.t('english')],
+
+      SettingsCard(
+        title: strings.t('language'),
+        children: [
+          SettingsRow(
+            title: strings.t('russian'),
+            icon: Icons.translate,
+            iconColor: SettingsTokens.iconMetadata,
+            trailing: isRu
+                ? Icon(Icons.check, color: SettingsTokens.iconDownload)
+                : null,
+            onTap: () => state.setLocale('ru'),
+            showChevron: false,
+          ),
+          SettingsRow(
+            title: strings.t('english'),
+            icon: Icons.translate,
+            iconColor: SettingsTokens.iconNetwork,
+            trailing: !isRu
+                ? Icon(Icons.check, color: SettingsTokens.iconDownload)
+                : null,
+            onTap: () => state.setLocale('en'),
+            showChevron: false,
+          ),
+        ],
+      ),
+    );
+    _addVisible(
+      children,
+      [
+        strings.t('appearance'),
+        strings.t('themeSystem'),
+        strings.t('themeLight'),
+        strings.t('themeDark'),
+        strings.t('themeCustom'),
+        strings.t('themeColor'),
+        strings.t('themeBgColor'),
+        strings.t('themeTextColor'),
+      ],
+
+      SettingsCard(
+        title: strings.t('appearance'),
+        children: [
+          _themeOf(
+            icon: Icons.brightness_auto,
+            iconColor: SettingsTokens.iconFiles,
+            title: strings.t('themeSystem'),
+            subtitle: strings.t('themeSystemHelp'),
+            selected: state.themeMode == 'system',
+            onTap: () => state.setThemeMode('system'),
+          ),
+          _themeOf(
+            icon: Icons.light_mode,
+            iconColor: SettingsTokens.iconMetadata,
+            title: strings.t('themeLight'),
+            subtitle: strings.t('themeLightHelp'),
+            selected: state.themeMode == 'light',
+            onTap: () => state.setThemeMode('light'),
+          ),
+          _themeOf(
+            icon: Icons.dark_mode,
+            iconColor: SettingsTokens.iconPlayback,
+            title: strings.t('themeDark'),
+            subtitle: strings.t('themeDarkHelp'),
+            selected: state.themeMode == 'dark',
+            onTap: () => state.setThemeMode('dark'),
+          ),
+          _themeOf(
+            icon: Icons.palette,
+            iconColor: SettingsTokens.iconAppearance,
+            title: strings.t('themeCustom'),
+            subtitle: strings.t('themeCustomHelp'),
+            selected: state.themeMode == 'custom',
+            onTap: () => state.setThemeMode('custom'),
+          ),
+          if (state.themeMode == 'custom') ...[
+            _swatchOf(
+              color: state.accentColor,
+              title: strings.t('themeBgColor'),
+              subtitle: strings.t('themeBgColorTap'),
+              onTap: () async {
+                final picked = await showColorPickerDialog(
+                  context,
+                  initial: state.accentColor,
+                  title: strings.t('themeBgColor'),
+                  cancelLabel: strings.t('cancel'),
+                  okLabel: strings.t('ok'),
+                );
+                if (picked != null && mounted) {
+                  await state.setAccentColor(picked);
+                }
+              },
+            ),
+            _swatchOf(
+              color: state.customTextColor,
+              title: strings.t('themeTextColor'),
+              subtitle: strings.t('themeTextColorTap'),
+              onTap: () async {
+                final picked = await showColorPickerDialog(
+                  context,
+                  initial: state.customTextColor,
+                  title: strings.t('themeTextColor'),
+                  cancelLabel: strings.t('cancel'),
+                  okLabel: strings.t('ok'),
+                );
+                if (picked != null && mounted) {
+                  await state.setCustomTextColor(picked);
+                }
+              },
+            ),
+          ] else
+            SettingsRow(
+              title: strings.t('themeColor'),
+              subtitle: strings.t('themeColorSubtitle'),
+              icon: Icons.palette_outlined,
+              iconColor: SettingsTokens.iconAppearance,
+              trailing: _swatch(state.accentColor),
+              onTap: () async {
+                final picked = await showColorPickerDialog(
+                  context,
+                  initial: state.accentColor,
+                  title: strings.t('themeColor'),
+                  cancelLabel: strings.t('cancel'),
+                  okLabel: strings.t('ok'),
+                );
+                if (picked != null && mounted) {
+                  await state.setAccentColor(picked);
+                }
+              },
+            ),
+        ],
+      ),
+    );
+    _addVisible(
+      children,
+      [
+        strings.t('notifications'),
+        strings.t('notificationsEnabled'),
+        strings.t('noteReminder'),
+        strings.t('backgroundWork'),
+        strings.t('exactAlarm'),
+        strings.t('testNotification'),
+      ],
+
+      SettingsCard(
+        title: strings.t('notifications'),
+        children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(
+              SettingsTokens.padH,
+              12,
+              SettingsTokens.padH,
+              4,
+            ),
             child: Text(
-              'Аккаунт',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-          ),
-          ListenableBuilder(
-            listenable: AuthService.instance,
-            builder: (context, _) {
-              final auth = AuthService.instance;
-              return ListTile(
-                leading: Icon(
-                  auth.signedIn
-                      ? Icons.account_circle
-                      : Icons.person_outline,
-                  color: auth.signedIn
-                      ? Theme.of(context).colorScheme.primary
-                      : null,
-                ),
-                title: Text(
-                  auth.signedIn
-                      ? (auth.displayName?.isNotEmpty == true
-                          ? auth.displayName!
-                          : (auth.email ?? 'Аккаунт'))
-                      : 'Войти в аккаунт',
-                ),
-                subtitle: Text(
-                  auth.signedIn
-                      ? 'Задачи и читалка синхронизируются через интернет'
-                      : 'Синхронизация между устройствами по почте или через '
-                          'Google',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const AccountScreen(),
-                  ),
-                ),
-              );
-            },
-          ),
-          const Divider(),
-        ],
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            strings.t('language'),
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.language),
-          title: Text(strings.t('russian')),
-          trailing: isRu ? const Icon(Icons.check, color: Colors.green) : null,
-          onTap: () => state.setLocale('ru'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.language),
-          title: Text(strings.t('english')),
-          trailing: !isRu ? const Icon(Icons.check, color: Colors.green) : null,
-          onTap: () => state.setLocale('en'),
-        ),
-        const Divider(),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            strings.t('appearance'),
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.brightness_auto),
-          title: Text(strings.t('themeSystem')),
-          subtitle: Text(strings.t('themeSystemHelp')),
-          trailing: Icon(
-            state.themeMode == 'system' ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-            color: state.themeMode == 'system' ? Theme.of(context).colorScheme.primary : null,
-          ),
-          onTap: () => state.setThemeMode('system'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.light_mode),
-          title: Text(strings.t('themeLight')),
-          subtitle: Text(strings.t('themeLightHelp')),
-          trailing: Icon(
-            state.themeMode == 'light' ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-            color: state.themeMode == 'light' ? Theme.of(context).colorScheme.primary : null,
-          ),
-          onTap: () => state.setThemeMode('light'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.dark_mode),
-          title: Text(strings.t('themeDark')),
-          subtitle: Text(strings.t('themeDarkHelp')),
-          trailing: Icon(
-            state.themeMode == 'dark' ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-            color: state.themeMode == 'dark' ? Theme.of(context).colorScheme.primary : null,
-          ),
-          onTap: () => state.setThemeMode('dark'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.palette),
-          title: Text(strings.t('themeCustom')),
-          subtitle: Text(strings.t('themeCustomHelp')),
-          trailing: Icon(
-            state.themeMode == 'custom' ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-            color: state.themeMode == 'custom' ? Theme.of(context).colorScheme.primary : null,
-          ),
-          onTap: () => state.setThemeMode('custom'),
-        ),
-        if (state.themeMode == 'custom') ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () async {
-                        final picked = await showColorPickerDialog(
-                          context,
-                          initial: state.accentColor,
-                          title: strings.t('themeBgColor'),
-                          cancelLabel: strings.t('cancel'),
-                          okLabel: strings.t('ok'),
-                        );
-                        if (picked != null && mounted) {
-                          await state.setAccentColor(picked);
-                        }
-                      },
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: state.accentColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Theme.of(context).dividerColor,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        strings.t('themeBgColorTap'),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () async {
-                        final picked = await showColorPickerDialog(
-                          context,
-                          initial: state.customTextColor,
-                          title: strings.t('themeTextColor'),
-                          cancelLabel: strings.t('cancel'),
-                          okLabel: strings.t('ok'),
-                        );
-                        if (picked != null && mounted) {
-                          await state.setCustomTextColor(picked);
-                        }
-                      },
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: state.customTextColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Theme.of(context).dividerColor,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        strings.t('themeTextColorTap'),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-        const Divider(),
-        if (state.themeMode != 'custom')
-          ListTile(
-            leading: const Icon(Icons.palette_outlined),
-            title: Text(strings.t('themeColor')),
-            subtitle: Text(strings.t('themeColorSubtitle')),
-            trailing: Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: state.accentColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: Theme.of(context).dividerColor),
+              strings.t('notificationsHelp'),
+              style: TextStyle(
+                fontSize: SettingsTokens.rowSubtitleSize,
+                color: SettingsTokens.muted(context),
+                height: 1.35,
               ),
             ),
-            onTap: () async {
-              final picked = await showColorPickerDialog(
-                context,
-                initial: state.accentColor,
-                title: strings.t('themeColor'),
-                cancelLabel: strings.t('cancel'),
-                okLabel: strings.t('ok'),
-              );
-              if (picked != null && mounted) {
-                await state.setAccentColor(picked);
-              }
-            },
           ),
-        const Divider(),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            strings.t('notifications'),
-            style: Theme.of(context).textTheme.titleSmall,
+          SettingsRow(
+            title: strings.t('notificationsEnabled'),
+            icon: Icons.notifications_active_outlined,
+            iconColor: SettingsTokens.iconSupport,
+            trailing: Switch(
+              value: state.notificationsEnabled,
+              onChanged: (v) => state.setNotificationsEnabled(v),
+            ),
+            onTap: () =>
+                state.setNotificationsEnabled(!state.notificationsEnabled),
+            showChevron: false,
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-          child: Text(
-            strings.t('notificationsHelp'),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        SwitchListTile(
-          secondary: const Icon(Icons.notifications_active_outlined),
-          title: Text(strings.t('notificationsEnabled')),
-          value: state.notificationsEnabled,
-          onChanged: (v) => state.setNotificationsEnabled(v),
-        ),
-        if (!state.isPc) ...[
-          const Divider(),
-          _noteReminderSection(state, strings),
         ],
-        if (!state.isPc) ...[
-          const Divider(),
-          _notificationReliabilitySection(state, strings),
-        ],
-        const Divider(),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            strings.t('obsidian'),
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Text(
-            strings.t('obsidianHelp'),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        if (state.savedVaultPaths.isNotEmpty)
+      ),
+    );
+    _addVisible(
+      children,
+      [
+        strings.t('noteReminder'),
+        strings.t('reminder'),
+        strings.t('backgroundWork'),
+        strings.t('exactAlarm'),
+        strings.t('testNotification'),
+      ],
+      _noteReminderSection(state, strings),
+      enabled: !state.isPc,
+    );
+    _addVisible(
+      children,
+      [
+        strings.t('backgroundWork'),
+        strings.t('exactAlarm'),
+        strings.t('testNotification'),
+      ],
+      _notificationReliabilitySection(state, strings),
+      enabled: !state.isPc,
+    );
+    _addVisible(
+      children,
+      [
+        strings.t('obsidian'),
+        strings.t('vaultPath'),
+        strings.t('vaultQuickSwitch'),
+        strings.t('saveVaultPath'),
+        strings.t('syncNow'),
+      ],
+
+      SettingsCard(
+        title: strings.t('obsidian'),
+        children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: DropdownButtonFormField<String>(
+            padding: const EdgeInsets.fromLTRB(
+              SettingsTokens.padH,
+              12,
+              SettingsTokens.padH,
+              10,
+            ),
+            child: Text(
+              strings.t('obsidianHelp'),
+              style: TextStyle(
+                fontSize: SettingsTokens.rowSubtitleSize,
+                color: SettingsTokens.muted(context),
+                height: 1.35,
+              ),
+            ),
+          ),
+          if (state.savedVaultPaths.isNotEmpty)
+            DropdownButtonFormField<String>(
               key: ValueKey('vault_switch_${state.obsidian.vaultPath}'),
               initialValue: state.obsidian.vaultPath.isEmpty
                   ? null
@@ -1475,13 +1602,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ? state.obsidian.vaultPath
                         : null),
               isExpanded: true,
-              decoration: InputDecoration(
-                labelText: strings.t('vaultQuickSwitch'),
-                prefixIcon: const Icon(Icons.swap_horiz),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+              decoration: settingsInputDecoration(
+                context,
+                label: strings.t('vaultQuickSwitch'),
+                prefixIcon: Icon(
+                  Icons.swap_horiz,
+                  size: 20,
+                  color: SettingsTokens.iconFiles,
                 ),
               ),
+              dropdownColor: palette.card,
+              borderRadius: BorderRadius.circular(SettingsTokens.radiusCard),
               items: [
                 for (final path in state.savedVaultPaths)
                   DropdownMenuItem(
@@ -1495,109 +1626,202 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _savePath(context, state);
               },
             ),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: TextField(
+          SettingsField(
             controller: _vaultController,
-            decoration: InputDecoration(
-              labelText: strings.t('vaultPath'),
-              hintText: strings.t('vaultPathHint'),
-              prefixIcon: const Icon(Icons.folder),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+            label: strings.t('vaultPath'),
+            hint: strings.t('vaultPathHint'),
+            maxLength: 500,
+            prefixIcon: Icon(
+              Icons.folder,
+              size: 20,
+              color: SettingsTokens.iconFiles,
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _savePath(context, state),
-                  icon: const Icon(Icons.save_outlined),
-                  label: Text(strings.t('saveVaultPath')),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              SettingsTokens.padH,
+              12,
+              SettingsTokens.padH,
+              14,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _savePath(context, state),
+                    icon: const Icon(Icons.save_outlined),
+                    label: Text(strings.t('saveVaultPath')),
+                  ),
                 ),
-              ),
-              if (!state.isPc) ...[
-                const SizedBox(width: 8),
+                if (!state.isPc) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickVaultFolder(state),
+                      icon: const Icon(Icons.folder_open),
+                      label: Text(strings.t('chooseFolder')),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              SettingsTokens.padH,
+              0,
+              SettingsTokens.padH,
+              14,
+            ),
+            child: Row(
+              children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _pickVaultFolder(state),
-                    icon: const Icon(Icons.folder_open),
-                    label: Text(strings.t('chooseFolder')),
+                    onPressed: () => _sync(context, state),
+                    icon: const Icon(Icons.sync),
+                    label: Text(strings.t('syncNow')),
                   ),
                 ),
               ],
-            ],
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _sync(context, state),
-                  icon: const Icon(Icons.sync),
-                  label: Text(strings.t('syncNow')),
-                ),
-              ),
-            ],
+        ],
+      ),
+    );
+    _addVisible(children, [
+      strings.t('syncTitle'),
+      strings.t('syncNow'),
+    ], _syncSection(state, strings));
+    _addVisible(children, [
+      strings.t('backup'),
+      strings.t('exportBackup'),
+    ], _backupSection(state, strings));
+    _addVisible(
+      children,
+      [
+        strings.t('about'),
+        strings.t('checkUpdates'),
+        strings.t('whatsNew'),
+        strings.t('site'),
+      ],
+
+      SettingsCard(
+        children: [
+          SettingsRow(
+            title: strings.t('about'),
+            subtitle: _version == null ? 'KHS' : 'KHS v$_version',
+            icon: Icons.info_outline,
+            iconColor: SettingsTokens.iconMedia,
+            onTap: () => showAboutDialog(
+              context: context,
+              applicationName: 'KHS',
+              applicationVersion: _version == null ? null : 'v$_version',
+              applicationLegalese: '${strings.t('developer')}: QutZem',
+            ),
           ),
-        ),
-        const Divider(),
-        _syncSection(state, strings),
-        const Divider(),
-        _backupSection(state, strings),
-        const Divider(),
-        ListTile(
-          leading: const Icon(Icons.info_outline),
-          title: Text(strings.t('about')),
-          subtitle: Text(_version == null ? 'KHS' : 'KHS v$_version'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => showAboutDialog(
-            context: context,
-            applicationName: 'KHS',
-            applicationVersion: _version == null ? null : 'v$_version',
-            applicationLegalese: '${strings.t('developer')}: QutZem',
-          ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.system_update_alt),
-          title: Text(strings.t('checkUpdates')),
-          subtitle: Text(
-            _version == null
+          SettingsRow(
+            title: strings.t('checkUpdates'),
+            subtitle: _version == null
                 ? strings.t('currentVersion')
                 : '${strings.t('currentVersion')}: v$_version',
+            icon: Icons.system_update_alt,
+            iconColor: SettingsTokens.iconUpdate,
+            onTap: () => _checkUpdates(context, strings),
           ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => _checkUpdates(context, strings),
-        ),
-        ListTile(
-          leading: const Icon(Icons.new_releases_outlined),
-          title: Text(strings.t('whatsNew')),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ChangelogScreen()),
+          SettingsRow(
+            title: strings.t('whatsNew'),
+            icon: Icons.new_releases_outlined,
+            iconColor: SettingsTokens.iconMetadata,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChangelogScreen()),
+            ),
           ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.public),
-          title: Text(strings.t('site')),
-          subtitle: Text(strings.t('siteSubtitle')),
-          trailing: const Icon(Icons.open_in_new),
-          onTap: () => _openSite(state),
-        ),
-      ],
+          SettingsRow(
+            title: strings.t('site'),
+            subtitle: strings.t('siteSubtitle'),
+            icon: Icons.public,
+            iconColor: SettingsTokens.iconNetwork,
+            trailing: const Icon(Icons.open_in_new),
+            onTap: () => _openSite(state),
+            showChevron: false,
+          ),
+        ],
+      ),
     );
-    if (widget.embedded) return body;
+
+    final view = SettingsView(
+      // Во вкладке Tasks экран уже подписан в нижней навигации, поэтому
+      // крупный заголовок был вторым словом «Настройки» на одном экране.
+      title: widget.embedded ? '' : strings.t('settings'),
+      // Во вкладке хаба своя шапка со стрелкой «назад» есть, а окно на ПК само
+      // себе шапку не рисует — там стрелка нужна.
+      onBack: widget.embedded ? null : () => Navigator.maybePop(context),
+      search: SettingsSearch(
+        hint: strings.t('settingsSearchHint'),
+        onChanged: (v) => setState(() => _query = v.trim()),
+      ),
+      children: children,
+    );
+    if (widget.embedded) return view;
     return Scaffold(
-      appBar: AppBar(title: Text(strings.t('settings'))),
-      body: body,
+      backgroundColor: SettingsTokens.background(context),
+      body: view,
+    );
+  }
+
+  /// Пункт выбора темы с переключателем-кружком.
+  SettingsRow _themeOf({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final palette = SettingsPalette.of(context);
+    return SettingsRow(
+      title: title,
+      subtitle: subtitle,
+      icon: icon,
+      iconColor: iconColor,
+      trailing: Icon(
+        selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: selected ? palette.accent : palette.muted,
+      ),
+      onTap: onTap,
+      showChevron: false,
+    );
+  }
+
+  /// Кружок с выбранным цветом.
+  Widget _swatch(Color color) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: SettingsTokens.divider(context)),
+      ),
+    );
+  }
+
+  /// Отдельный пункт «выбрать цвет» с кружком слева от текста.
+  SettingsRow _swatchOf({
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return SettingsRow(
+      title: title,
+      subtitle: subtitle,
+      icon: Icons.circle,
+      iconColor: color,
+      trailing: const SizedBox.shrink(),
+      onTap: onTap,
+      showChevron: false,
     );
   }
 
@@ -1628,68 +1852,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         mode: LaunchMode.externalApplication,
       );
       if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(url)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(url)));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(url)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(url)));
       }
     }
-  }
-}
-
-class _DownloadProgressDialog extends StatelessWidget {
-  final String fileName;
-  final ValueNotifier<double?> progress;
-  const _DownloadProgressDialog({required this.fileName, required this.progress});
-
-  @override
-  Widget build(BuildContext context) {
-    final strings = context.read<AppState>().strings;
-    return AlertDialog(
-      title: Text(strings.t('downloading')),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            fileName,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 18),
-          ValueListenableBuilder<double?>(
-            valueListenable: progress,
-            builder: (context, value, _) {
-              final pct = value == null
-                  ? null
-                  : (value.clamp(0.0, 1.0) * 100).round();
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LinearProgressIndicator(
-                    minHeight: 6,
-                    borderRadius: BorderRadius.circular(3),
-                    value: value,
-                  ),
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      pct == null ? '…' : '$pct%',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
   }
 }
