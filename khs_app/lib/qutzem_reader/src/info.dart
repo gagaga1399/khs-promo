@@ -65,8 +65,7 @@ class InfoExtractor {
       } catch (_) {}
       if (cover != null) {
         final pngBytes = Uint8List.fromList(img.encodePng(cover));
-        return BookInfo(
-            title: title, author: author, coverBytes: pngBytes);
+        return BookInfo(title: title, author: author, coverBytes: pngBytes);
       }
     } catch (_) {}
     return BookInfo(title: title, author: author, coverBytes: null);
@@ -102,23 +101,24 @@ class InfoExtractor {
       final cover = doc.findAllElements('coverpage').firstOrNull;
       if (cover != null) {
         final image = cover.findAllElements('image').firstOrNull;
-        final href = image?.getAttribute('l:href') ??
+        final href =
+            image?.getAttribute('l:href') ??
             image?.getAttribute('href') ??
             image?.getAttribute('{http://www.w3.org/1999/xlink}href');
         if (href != null && href.isNotEmpty) {
           final id = href.startsWith('#') ? href.substring(1) : href;
-          final binary = doc.findAllElements('binary').firstWhere(
+          final binary = doc
+              .findAllElements('binary')
+              .firstWhere(
                 (e) =>
-                    e.getAttribute('id') == id ||
-                    e.getAttribute('l:id') == id,
+                    e.getAttribute('id') == id || e.getAttribute('l:id') == id,
                 orElse: () => XmlElement(XmlName('none'), [], []),
               );
           final raw = binary.innerText.trim();
           if (raw.isNotEmpty) {
             final data = raw.contains(',') ? raw.split(',').last : raw;
             try {
-              coverBytes =
-                  Uint8List.fromList(base64Decode(data).toList());
+              coverBytes = Uint8List.fromList(base64Decode(data).toList());
             } catch (_) {}
           }
         }

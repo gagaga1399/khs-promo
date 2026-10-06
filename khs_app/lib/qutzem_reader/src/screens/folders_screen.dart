@@ -52,8 +52,9 @@ class _FoldersScreenState extends State<FoldersScreen> {
   }
 
   void _goToHome() {
-    final home =
-        Directory('C:\\Users\\${Platform.environment['USERNAME'] ?? 'user'}');
+    final home = Directory(
+      'C:\\Users\\${Platform.environment['USERNAME'] ?? 'user'}',
+    );
     final dir = Directory(home.path);
     if (dir.existsSync()) {
       setState(() {
@@ -81,8 +82,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Book? _bookForId(String id) {
@@ -162,7 +162,9 @@ class _FoldersScreenState extends State<FoldersScreen> {
     );
     await Library.instance.addBook(book, path);
     if (info.coverBytes != null) {
-      final coverFile = File(p.join(Library.instance.coversDir.path, '$id.bin'));
+      final coverFile = File(
+        p.join(Library.instance.coversDir.path, '$id.bin'),
+      );
       coverFile.writeAsBytesSync(info.coverBytes!);
       book.coverPath = coverFile.path;
       await Library.instance.updateBook(book);
@@ -182,9 +184,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_ready) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final dir = Directory(_currentPath);
     final entries = dir.existsSync()
@@ -226,12 +226,14 @@ class _FoldersScreenState extends State<FoldersScreen> {
                 _quickChip(Icons.menu_book, 'Папка книг', _goToBooksDir),
                 _quickChip(Icons.description, 'Документы', () {
                   final docs = Directory(
-                      'C:\\Users\\${Platform.environment['USERNAME'] ?? 'user'}\\Documents');
+                    'C:\\Users\\${Platform.environment['USERNAME'] ?? 'user'}\\Documents',
+                  );
                   _goToPath(docs.path);
                 }),
                 _quickChip(Icons.monitor, 'Рабочий стол', () {
                   final desk = Directory(
-                      'C:\\Users\\${Platform.environment['USERNAME'] ?? 'user'}\\Desktop');
+                    'C:\\Users\\${Platform.environment['USERNAME'] ?? 'user'}\\Desktop',
+                  );
                   _goToPath(desk.path);
                 }),
               ],
@@ -269,27 +271,37 @@ class _FoldersScreenState extends State<FoldersScreen> {
                       final e = entries[i];
                       if (e is Directory) {
                         return ListTile(
-                          leading: const Icon(Icons.folder_outlined,
-                              color: Colors.amber),
-                          title: Text(p.basename(e.path),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          leading: const Icon(
+                            Icons.folder_outlined,
+                            color: Colors.amber,
+                          ),
+                          title: Text(
+                            p.basename(e.path),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           onTap: () => _goToPath(e.path),
                         );
                       }
                       final f = e as File;
                       final isBook = BookFormatExt.fromPath(f.path) != null;
-                      final inBook = _bookForId(p.basenameWithoutExtension(f.path)) != null;
+                      final inBook =
+                          _bookForId(p.basenameWithoutExtension(f.path)) !=
+                          null;
                       return ListTile(
                         leading: Icon(
-                          isBook
-                              ? Icons.menu_book
-                              : _extIcon(f.path),
+                          isBook ? Icons.menu_book : _extIcon(f.path),
                           color: isBook ? Colors.teal : Colors.grey,
                         ),
-                        title: Text(p.basename(f.path),
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(_size(f),
-                            style: const TextStyle(fontSize: 12)),
+                        title: Text(
+                          p.basename(f.path),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          _size(f),
+                          style: const TextStyle(fontSize: 12),
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

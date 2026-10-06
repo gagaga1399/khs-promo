@@ -58,13 +58,11 @@ class ReaderSettingsStore {
 
   Future<void> setTheme(ReaderTheme t) => _set('theme', t.name);
 
-  Future<bool> scrollMode() async =>
-      await _get<bool>('scrollMode') ?? true;
+  Future<bool> scrollMode() async => await _get<bool>('scrollMode') ?? true;
 
   Future<void> setScrollMode(bool v) => _set('scrollMode', v);
 
-  Future<bool> twoColumns() async =>
-      await _get<bool>('twoColumns') ?? true;
+  Future<bool> twoColumns() async => await _get<bool>('twoColumns') ?? true;
 
   Future<void> setTwoColumns(bool v) => _set('twoColumns', v);
 }

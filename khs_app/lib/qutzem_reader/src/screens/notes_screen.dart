@@ -61,8 +61,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _exportAll(String? bookId) async {
@@ -162,14 +161,17 @@ class _NotesScreenState extends State<NotesScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(n.highlight.text,
-                  style: const TextStyle(fontStyle: FontStyle.italic)),
+              Text(
+                n.highlight.text,
+                style: const TextStyle(fontStyle: FontStyle.italic),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                    labelText: 'Текст заметки (пусто = удалить)'),
+                  labelText: 'Текст заметки (пусто = удалить)',
+                ),
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -220,15 +222,16 @@ class _NotesScreenState extends State<NotesScreen> {
       await hm.update(n.highlight, note: null);
     } else {
       final colorIndex = color - 100;
-      await hm.update(n.highlight,
-          note: note, colorIndex: colorIndex);
+      await hm.update(n.highlight, note: note, colorIndex: colorIndex);
     }
     if (mounted) setState(() {});
   }
 
   Future<void> _deleteNote(({Book book, Highlight highlight}) n) async {
-    await HighlightManager(library: Library.instance, book: n.book)
-        .remove(n.highlight);
+    await HighlightManager(
+      library: Library.instance,
+      book: n.book,
+    ).remove(n.highlight);
     if (mounted) setState(() {});
   }
 
@@ -241,9 +244,7 @@ class _NotesScreenState extends State<NotesScreen> {
     final s = await SettingsStore.instance.load();
     if (!mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => SettingsScreen(settings: s),
-      ),
+      MaterialPageRoute<void>(builder: (_) => SettingsScreen(settings: s)),
     );
     await _load();
   }
@@ -275,7 +276,9 @@ class _NotesScreenState extends State<NotesScreen> {
               ListTile(
                 leading: const Icon(Icons.menu_book),
                 title: const Text('Что значит термин'),
-                subtitle: const Text('Объяснение выделенной фразы по настройкам ИИ'),
+                subtitle: const Text(
+                  'Объяснение выделенной фразы по настройкам ИИ',
+                ),
                 onTap: () {
                   final chapterTitle = n.highlight.chapterTitle;
                   Navigator.pop(ctx);
@@ -287,8 +290,8 @@ class _NotesScreenState extends State<NotesScreen> {
                     ctx: AnalysisContext(
                       bookTitle: n.book.title,
                       bookAuthor: n.book.author,
-                      chapter: chapterTitle != null &&
-                              chapterTitle.trim().isNotEmpty
+                      chapter:
+                          chapterTitle != null && chapterTitle.trim().isNotEmpty
                           ? chapterTitle.trim()
                           : '',
                     ),
@@ -310,8 +313,8 @@ class _NotesScreenState extends State<NotesScreen> {
                     ctx: AnalysisContext(
                       bookTitle: n.book.title,
                       bookAuthor: n.book.author,
-                      chapter: chapterTitle != null &&
-                              chapterTitle.trim().isNotEmpty
+                      chapter:
+                          chapterTitle != null && chapterTitle.trim().isNotEmpty
                           ? chapterTitle.trim()
                           : '',
                     ),
@@ -337,7 +340,10 @@ class _NotesScreenState extends State<NotesScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                title: const Text(
+                  'Удалить',
+                  style: TextStyle(color: Colors.red),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _deleteNote(n);
@@ -408,8 +414,7 @@ class _NotesScreenState extends State<NotesScreen> {
               ),
             ],
             selected: {_tab},
-            onSelectionChanged: (s) =>
-                setState(() => _tab = s.first),
+            onSelectionChanged: (s) => setState(() => _tab = s.first),
           ),
         ],
       ),
@@ -438,14 +443,11 @@ class _NotesScreenState extends State<NotesScreen> {
           )
         : ListView(
             padding: const EdgeInsets.only(bottom: 24),
-            children: [
-              for (final id in order) _bookmarkSection(grouped[id]!),
-            ],
+            children: [for (final id in order) _bookmarkSection(grouped[id]!)],
           );
   }
 
-  Widget _bookmarkSection(
-      List<({Book book, Bookmark bookmark})> items) {
+  Widget _bookmarkSection(List<({Book book, Bookmark bookmark})> items) {
     final book = items.first.book;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,13 +462,16 @@ class _NotesScreenState extends State<NotesScreen> {
                 child: Text(
                   book.title,
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text('${items.length}',
-                  style:
-                      const TextStyle(color: Colors.grey, fontSize: 13)),
+              Text(
+                '${items.length}',
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
             ],
           ),
         ),
@@ -497,8 +502,7 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
-  Widget _buildQuotes(
-      List<({Book book, Highlight highlight})> notes) {
+  Widget _buildQuotes(List<({Book book, Highlight highlight})> notes) {
     if (notes.isEmpty) {
       return const Center(
         child: Text(
@@ -532,12 +536,16 @@ class _NotesScreenState extends State<NotesScreen> {
                   child: Text(
                     grouped[id]!.first.book.title,
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Text('${grouped[id]!.length}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                Text(
+                  '${grouped[id]!.length}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                ),
               ],
             ),
           ),
@@ -557,17 +565,16 @@ class _NotesScreenState extends State<NotesScreen> {
   /// Копирование цитаты вместе с атрибуцией (книга · глава).
   Future<void> _copyQuotesText(({Book book, Highlight highlight}) n) async {
     final chapterTitle = n.highlight.chapterTitle;
-    final source =
-        chapterTitle != null && chapterTitle.trim().isNotEmpty
-            ? '${n.book.title}, $chapterTitle'
-            : n.book.title;
+    final source = chapterTitle != null && chapterTitle.trim().isNotEmpty
+        ? '${n.book.title}, $chapterTitle'
+        : n.book.title;
     await Clipboard.setData(
-        ClipboardData(text: '"${n.highlight.text.trim()}"\n\n— $source'));
+      ClipboardData(text: '"${n.highlight.text.trim()}"\n\n— $source'),
+    );
     _snack('Цитата скопирована');
   }
 
-  Widget _buildNotes(
-      List<({Book book, Highlight highlight})> notes) {
+  Widget _buildNotes(List<({Book book, Highlight highlight})> notes) {
     final grouped = <String, List<({Book book, Highlight highlight})>>{};
     final order = <String>[];
     for (final n in notes) {
@@ -617,7 +624,11 @@ class _QuoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final highlight = note.highlight;
-    final accent = highlightColors[highlight.colorIndex.clamp(0, highlightColors.length - 1)];
+    final accent =
+        highlightColors[highlight.colorIndex.clamp(
+          0,
+          highlightColors.length - 1,
+        )];
     final chapterTitle = highlight.chapterTitle;
     final parts = [
       if (chapterTitle != null && chapterTitle.trim().isNotEmpty)
@@ -644,7 +655,10 @@ class _QuoteCard extends StatelessWidget {
                   Text(
                     '«${highlight.text.trim()}»',
                     style: const TextStyle(
-                        fontSize: 14, fontStyle: FontStyle.italic, height: 1.35),
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      height: 1.35,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -696,12 +710,16 @@ class _BookSection extends StatelessWidget {
                 child: Text(
                   book.title,
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text('${notes.length}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              Text(
+                '${notes.length}',
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
             ],
           ),
         ),
@@ -720,8 +738,7 @@ class _BookSection extends StatelessWidget {
             ),
             subtitle: Text(
               [
-                if (n.highlight.chapterTitle != null)
-                  n.highlight.chapterTitle!,
+                if (n.highlight.chapterTitle != null) n.highlight.chapterTitle!,
                 formatDate(n.highlight.createdAt),
                 if (n.highlight.note != null &&
                     n.highlight.note!.trim().isNotEmpty)

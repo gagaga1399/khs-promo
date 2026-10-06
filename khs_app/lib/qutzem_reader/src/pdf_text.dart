@@ -12,7 +12,9 @@ class PdfTextExtractor {
   static final Map<String, TextDocument?> _cache = {};
 
   static Future<TextDocument?> tryExtract(
-      String path, {bool useCache = true}) async {
+    String path, {
+    bool useCache = true,
+  }) async {
     if (useCache && _cache.containsKey(path)) return _cache[path];
     try {
       final doc = await _extract(path);
@@ -144,10 +146,12 @@ class _PdfFile {
 
   static final RegExp _objRe = RegExp(r'(\d+)\s+0\s+obj\b');
   static final RegExp _dictEntryRe = RegExp(
-      r'/([A-Za-z_][\w]*)\s*((?:\d+\s+\d+\s+R)|\[[^\]]*\]|<<[^>]*>>|/[A-Za-z_][\w]*|<[0-9A-Fa-f]*>|\((?:[^()\\]|\\.)*\)|true|false|-?[\d.]+)');
+    r'/([A-Za-z_][\w]*)\s*((?:\d+\s+\d+\s+R)|\[[^\]]*\]|<<[^>]*>>|/[A-Za-z_][\w]*|<[0-9A-Fa-f]*>|\((?:[^()\\]|\\.)*\)|true|false|-?[\d.]+)',
+  );
   static final RegExp _refRe = RegExp(r'^(\d+)\s+\d+\s+R$');
   static final RegExp _arrayItemRe = RegExp(
-      r'(?:\d+\s+\d+\s+R)|<[0-9A-Fa-f\s]+>|\((?:[^()\\]|\\.)*\)|(/[A-Za-z_][\w]*)|(-?[\d.]+)');
+    r'(?:\d+\s+\d+\s+R)|<[0-9A-Fa-f\s]+>|\((?:[^()\\]|\\.)*\)|(/[A-Za-z_][\w]*)|(-?[\d.]+)',
+  );
 
   bool parse() {
     if (_parsed) return true;
@@ -167,8 +171,7 @@ class _PdfFile {
       if (si >= 0) {
         final streamAbs = m.start + si;
         var p = streamAbs + 'stream'.codeUnits.length;
-        while (p < _bytes.length &&
-            (_bytes[p] == 0x0D || _bytes[p] == 0x0A)) {
+        while (p < _bytes.length && (_bytes[p] == 0x0D || _bytes[p] == 0x0A)) {
           p++;
         }
         var e = _findBytes(p, 'endstream'.codeUnits);
@@ -275,6 +278,7 @@ class _PdfFile {
         }
       }
     }
+
     walk(_obj(rootRef)?.dict['Kids']);
     return pages;
   }
@@ -328,7 +332,8 @@ class _PdfFile {
     var currentFont = -1;
 
     final re = RegExp(
-        r'\[[^\]]*\]|<[0-9A-Fa-f\s]+>|\((?:\\.|[^()\\])*\)|/[A-Za-z_][\w]*|-?[\d.]+|\S+');
+      r'\[[^\]]*\]|<[0-9A-Fa-f\s]+>|\((?:\\.|[^()\\])*\)|/[A-Za-z_][\w]*|-?[\d.]+|\S+',
+    );
     final toks = <String>[];
     for (final m in re.allMatches(s)) {
       toks.add(m.group(0)!);
@@ -340,7 +345,10 @@ class _PdfFile {
       if (tok == 'Tf' && i >= 2 && toks[i - 2].startsWith('/')) {
         final name = toks[i - 2].substring(1);
         currentFont = fonts[name] ?? currentFont;
-      } else if (tok == 'ET' || tok == 'Td' || tok == 'TD' || tok == 'T*' ||
+      } else if (tok == 'ET' ||
+          tok == 'Td' ||
+          tok == 'TD' ||
+          tok == 'T*' ||
           tok == 'Tm') {
         _flush(pending, linesBuf);
       } else if (tok == 'Tj') {
@@ -395,7 +403,9 @@ class _PdfFile {
         // однобайтовые шрифты (StandartEncoding / WinAnsi)
         for (var k = 0; k + 1 < hex.length; k += 2) {
           final byte = int.parse(hex.substring(k, k + 2), radix: 16);
-          out.write(map.containsKey(byte) ? map[byte]! : String.fromCharCode(byte));
+          out.write(
+            map.containsKey(byte) ? map[byte]! : String.fromCharCode(byte),
+          );
         }
       } else {
         return '';
@@ -412,8 +422,9 @@ class _PdfFile {
   bool _isTwoByte(Map<int, String> map, String hex) {
     if (map.isEmpty) {
       final last = int.parse(
-          hex.substring(hex.length - 4, hex.length),
-          radix: 16);
+        hex.substring(hex.length - 4, hex.length),
+        radix: 16,
+      );
       return last > 255;
     }
     return true;
@@ -471,29 +482,31 @@ class _PdfFile {
 
     // Разбираем CMap по секциям: bfchar и bfrange отдельно,
     // чтобы регулярные выражения не пересекали границы записей.
-    final bfcharBlocks =
-        RegExp(r'beginbfchar\b([\s\S]*?)endbfchar').allMatches(cmap);
+    final bfcharBlocks = RegExp(r'beginbfchar\b([\s\S]*?)endbfchar')
+        .allMatches(cmap);
     for (final block in bfcharBlocks) {
       final body = block.group(1)!;
-      for (final bm in RegExp(r'<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>')
-          .allMatches(body)) {
+      for (final bm in RegExp(
+        r'<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>',
+      ).allMatches(body)) {
         final code = int.parse(bm.group(1)!, radix: 16);
         map[code] = _utf16hex(bm.group(2)!);
       }
     }
-    final bfrangeBlocks =
-        RegExp(r'beginbfrange\b([\s\S]*?)endbfrange').allMatches(cmap);
+    final bfrangeBlocks = RegExp(r'beginbfrange\b([\s\S]*?)endbfrange')
+        .allMatches(cmap);
     for (final block in bfrangeBlocks) {
       final body = block.group(1)!;
       for (final br in RegExp(
-              r'<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>')
-          .allMatches(body)) {
+        r'<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>',
+      ).allMatches(body)) {
         final lo = int.parse(br.group(1)!, radix: 16);
         final hi = int.parse(br.group(2)!, radix: 16);
         final dst = int.parse(br.group(3)!, radix: 16);
         for (var c = lo; c <= hi; c++) {
           map[c] = _utf16hex(
-              (dst + (c - lo)).toRadixString(16).padLeft(4, '0'));
+            (dst + (c - lo)).toRadixString(16).padLeft(4, '0'),
+          );
         }
       }
     }

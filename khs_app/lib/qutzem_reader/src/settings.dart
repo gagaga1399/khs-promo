@@ -23,23 +23,23 @@ class AppSettings {
   }) : ai = ai ?? AiSettings();
 
   Map<String, dynamic> toJson() => {
-        'maxBookSizeBytes': maxBookSizeBytes,
-        'catalogs': catalogs.map((c) => c.toJson()).toList(),
-        'ai': ai.toJson(),
-        'displayName': displayName,
-        'syncServer': syncServer,
-      };
+    'maxBookSizeBytes': maxBookSizeBytes,
+    'catalogs': catalogs.map((c) => c.toJson()).toList(),
+    'ai': ai.toJson(),
+    'displayName': displayName,
+    'syncServer': syncServer,
+  };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
-        maxBookSizeBytes: (json['maxBookSizeBytes'] as num?)?.toDouble() ??
-            2 * 1024 * 1024,
-        catalogs: (json['catalogs'] as List<dynamic>? ?? [])
-            .map((e) => OpdsCatalog.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        ai: AiSettings.fromJson(json['ai'] as Map<String, dynamic>?),
-        displayName: json['displayName'] as String? ?? 'QutZem Reader',
-        syncServer: json['syncServer'] as String? ?? '',
-      );
+    maxBookSizeBytes:
+        (json['maxBookSizeBytes'] as num?)?.toDouble() ?? 2 * 1024 * 1024,
+    catalogs: (json['catalogs'] as List<dynamic>? ?? [])
+        .map((e) => OpdsCatalog.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    ai: AiSettings.fromJson(json['ai'] as Map<String, dynamic>?),
+    displayName: json['displayName'] as String? ?? 'QutZem Reader',
+    syncServer: json['syncServer'] as String? ?? '',
+  );
 }
 
 class SettingsStore {

@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../../ui/settings_kit.dart';
 import '../ai.dart';
 import '../library.dart';
 import '../models.dart';
@@ -48,8 +49,11 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
   Timer? _saveTimer;
   final ScrollController _scroll = ScrollController();
 
-  ReaderService get _service =>
-      ReaderService(library: widget.library, book: widget.book, aiSettings: widget.aiSettings);
+  ReaderService get _service => ReaderService(
+    library: widget.library,
+    book: widget.book,
+    aiSettings: widget.aiSettings,
+  );
 
   @override
   void initState() {
@@ -90,7 +94,8 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
       } else if (widget.format == BookFormat.fb2) {
         doc = TextDocument.fromFb2File(widget.path);
       } else {
-        doc = await TextDocument.fromPdfFile(widget.path) ??
+        doc =
+            await TextDocument.fromPdfFile(widget.path) ??
             TextDocument(chapters: []);
       }
       if (doc.chapters.isEmpty) {
@@ -126,7 +131,8 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
     final current = doc.chapters[_chapter];
     if (current.text.isEmpty) return;
     final frac =
-        (widget.initialOffset.clamp(0, current.text.length)) / current.text.length;
+        (widget.initialOffset.clamp(0, current.text.length)) /
+        current.text.length;
     if (_scroll.hasClients) {
       _scroll.jumpTo(_scroll.position.maxScrollExtent * frac.clamp(0, 1));
     }
@@ -140,8 +146,8 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
       final current = doc.chapters[_chapter];
       int offset = _scroll.hasClients
           ? (current.text.length *
-                  (_scroll.offset / max(1, _scroll.position.maxScrollExtent)))
-              .round()
+                    (_scroll.offset / max(1, _scroll.position.maxScrollExtent)))
+                .round()
           : widget.initialOffset;
       _service.savePosition(_chapter, offset, doc.chapters.length);
     });
@@ -170,8 +176,8 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
         title: Text(
           _doc != null && _doc!.chapters.isNotEmpty
               ? _doc!.chapters[_chapter].title.isNotEmpty
-                  ? _doc!.chapters[_chapter].title
-                  : widget.book.title
+                    ? _doc!.chapters[_chapter].title
+                    : widget.book.title
               : widget.book.title,
           style: const TextStyle(fontSize: 17),
         ),
@@ -239,8 +245,10 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
             children: [
               const Icon(Icons.error_outline, size: 48),
               const SizedBox(height: 12),
-              Text('Не удалось открыть книгу:\n$_error',
-                  textAlign: TextAlign.center),
+              Text(
+                'Не удалось открыть книгу:\n$_error',
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -272,13 +280,18 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
         if (from > pos) {
           spans.add(TextSpan(text: current.text.substring(pos, from)));
         }
-        spans.add(TextSpan(
-          text: current.text.substring(from, end),
-          style: TextStyle(
-            backgroundColor: highlightColors[
-                h.colorIndex.clamp(0, highlightColors.length - 1)],
+        spans.add(
+          TextSpan(
+            text: current.text.substring(from, end),
+            style: TextStyle(
+              backgroundColor:
+                  highlightColors[h.colorIndex.clamp(
+                    0,
+                    highlightColors.length - 1,
+                  )],
+            ),
           ),
-        ));
+        );
         pos = end;
       }
       if (pos < current.text.length) {
@@ -394,8 +407,13 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
           note: note,
         );
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(added ? 'Добавлено в заметки' : 'Уже есть в заметках')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              added ? 'Добавлено в заметки' : 'Уже есть в заметках',
+            ),
+          ),
+        );
         setState(() {
           _lastSelected = '';
           _selStart = 0;
@@ -465,8 +483,8 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
     final current = doc.chapters[_chapter];
     int offset = _scroll.hasClients
         ? (current.text.length *
-                (_scroll.offset / max(1, _scroll.position.maxScrollExtent)))
-            .round()
+                  (_scroll.offset / max(1, _scroll.position.maxScrollExtent)))
+              .round()
         : 0;
     _service.addBookmark(
       chapter: _chapter,
@@ -499,9 +517,13 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                     child: Row(
                       children: [
-                        const Text('Закладки',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'Закладки',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const Spacer(),
                         TextButton.icon(
                           onPressed: () {
@@ -531,8 +553,10 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
                           final b = bookmarks[i];
                           return ListTile(
                             dense: true,
-                            leading: const Icon(Icons.bookmark,
-                                color: Colors.amber),
+                            leading: const Icon(
+                              Icons.bookmark,
+                              color: Colors.amber,
+                            ),
                             title: Text(
                               b.label.isNotEmpty
                                   ? b.label
@@ -594,61 +618,85 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
   void _showFontPicker() {
     showModalBottomSheet<void>(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
+            final palette = SettingsPalette.of(ctx);
             return SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(
+                  SettingsTokens.margin,
+                  SettingsTokens.margin,
+                  SettingsTokens.margin,
+                  SettingsTokens.margin,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Размер шрифта',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    Row(
+                    SettingsHeader(title: 'Размер шрифта', palette: palette),
+                    SettingsCard(
+                      palette: palette,
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.text_decrease),
-                          onPressed: () {
-                            setSheetState(() {
-                              _fontSize =
-                                  (_fontSize - 1).clamp(12.0, 34.0);
-                            });
-                            setState(() {});
-                            _saveFontSetting();
-                          },
+                        Row(
+                          children: [
+                            const SizedBox(width: 6),
+                            IconButton(
+                              icon: const Icon(Icons.text_decrease),
+                              color: palette.accent,
+                              onPressed: () {
+                                setSheetState(() {
+                                  _fontSize = (_fontSize - 1).clamp(12.0, 34.0);
+                                });
+                                setState(() {});
+                                _saveFontSetting();
+                              },
+                            ),
+                            Expanded(
+                              child: Slider(
+                                min: 12,
+                                max: 34,
+                                value: _fontSize,
+                                label: _fontSize.round().toString(),
+                                onChanged: (v) {
+                                  setSheetState(() => _fontSize = v);
+                                  setState(() {});
+                                  _saveFontSetting();
+                                },
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.text_increase),
+                              color: palette.accent,
+                              onPressed: () {
+                                setSheetState(() {
+                                  _fontSize = (_fontSize + 1).clamp(12.0, 34.0);
+                                });
+                                setState(() {});
+                                _saveFontSetting();
+                              },
+                            ),
+                            const SizedBox(width: 6),
+                          ],
                         ),
-                        Expanded(
-                          child: Slider(
-                            min: 12,
-                            max: 34,
-                            value: _fontSize,
-                            label: _fontSize.round().toString(),
-                            onChanged: (v) {
-                              setSheetState(() => _fontSize = v);
-                              setState(() {});
-                              _saveFontSetting();
-                            },
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            '${_fontSize.round()} pt',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: SettingsTokens.rowTitleSize,
+                              color: palette.muted,
+                            ),
                           ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.text_increase),
-                          onPressed: () {
-                            setSheetState(() {
-                              _fontSize =
-                                  (_fontSize + 1).clamp(12.0, 34.0);
-                            });
-                            setState(() {});
-                            _saveFontSetting();
-                          },
                         ),
                       ],
                     ),
-                    Text('${_fontSize.round()} pt'),
-                    const SizedBox(height: 8),
-                    TextButton(
+                    const SizedBox(height: 12),
+                    FilledButton(
                       onPressed: () => Navigator.pop(ctx),
                       child: const Text('Готово'),
                     ),
@@ -663,7 +711,6 @@ class _TextReaderWidgetState extends State<TextReaderWidget> {
   }
 
   void _saveFontSetting() {
-    ReaderSettingsStore.instance
-        .setFontSize(_fontSize, spread: false);
+    ReaderSettingsStore.instance.setFontSize(_fontSize, spread: false);
   }
 }

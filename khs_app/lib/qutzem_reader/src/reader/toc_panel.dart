@@ -31,8 +31,13 @@ List<TocEntry> buildTocEntries(List<ReaderBlock> blocks, TextDocument doc) {
           ? doc.chapters[ch].title
           : 'Глава ${ch + 1}';
       final t = title.trim();
-      entries.add(TocEntry(
-          block: i, title: t.isNotEmpty ? t : 'Глава ${ch + 1}', source: blocks[i]));
+      entries.add(
+        TocEntry(
+          block: i,
+          title: t.isNotEmpty ? t : 'Глава ${ch + 1}',
+          source: blocks[i],
+        ),
+      );
     }
   }
   return entries;
@@ -118,9 +123,13 @@ class _TocSheetState extends State<_TocSheet> {
             const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Text('Оглавление',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: widget.colors.text)),
+            child: Text(
+              'Оглавление',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: widget.colors.text,
+              ),
+            ),
           ),
           Expanded(
             child: ListView.builder(
@@ -130,13 +139,16 @@ class _TocSheetState extends State<_TocSheet> {
                 final selected = e.block == widget.currentBlock;
                 return ListTile(
                   dense: true,
-                  title: Text(e.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: selected
-                              ? widget.colors.accent
-                              : widget.colors.text)),
+                  title: Text(
+                    e.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected
+                          ? widget.colors.accent
+                          : widget.colors.text,
+                    ),
+                  ),
                   selected: selected,
                   onTap: () {
                     Navigator.pop(ctx);

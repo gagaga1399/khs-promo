@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../glass_bottom_bar.dart';
 import '../search.dart';
 import '../settings.dart';
 import 'folders_screen.dart';
@@ -35,29 +36,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Собственной шапки нет: читалка открывается внутри хаба, AppBar остаётся
+    // от хаба — как у KHS Tasks. Снизу тот же GlassBottomBar.
     return Scaffold(
       body: IndexedStack(index: _index, children: _tabs),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.library_books_outlined),
-            selectedIcon: Icon(Icons.library_books),
+      bottomNavigationBar: GlassBottomBar(
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
+        items: const [
+          GlassNavItem(
+            icon: Icons.library_books_outlined,
+            activeIcon: Icons.library_books,
             label: 'Библиотека',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.bookmarks_outlined),
-            selectedIcon: Icon(Icons.bookmarks),
+          GlassNavItem(
+            icon: Icons.bookmarks_outlined,
+            activeIcon: Icons.bookmarks,
             label: 'Заметки',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.search),
+          GlassNavItem(
+            icon: Icons.search_outlined,
+            activeIcon: Icons.search,
             label: 'Поиск',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.folder_outlined),
-            selectedIcon: Icon(Icons.folder),
+          GlassNavItem(
+            icon: Icons.folder_outlined,
+            activeIcon: Icons.folder,
             label: 'Файлы',
           ),
         ],

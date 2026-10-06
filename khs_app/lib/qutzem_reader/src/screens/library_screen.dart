@@ -11,7 +11,8 @@ import '../library.dart';
 import '../models.dart';
 import 'notes_screen.dart';
 import '../reader/reader_screen.dart';
-import '../search.dart';import '../settings.dart';
+import '../search.dart';
+import '../settings.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
 
@@ -44,9 +45,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final lastId = prefs.getString('lastBookId');
     if (lastId != null && !_autoOpenedContinue) {
       _autoOpenedContinue = true;
-      final last = Library.instance.books
-          .where((b) => b.id == lastId)
-          .toList();
+      final last = Library.instance.books.where((b) => b.id == lastId).toList();
       if (last.isNotEmpty) {
         final book = last.first;
         if (File(Library.instance.bookFilePath(book)).existsSync()) {
@@ -63,7 +62,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       type: FileType.custom,
       allowedExtensions: const ['pdf', 'epub', 'fb2', 'zip'],
     );
-    if (result == null || result.isEmpty) return;
+    if (result.isEmpty) return;
     final path = result.single.path;
     if (path == null) return;
     await _addBookFromPath(path);
@@ -77,8 +76,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
     if (fi.lengthSync() > SettingsStore.instance.oo.maxBookSizeBytes) {
       _snack(
-          'Книга больше лимита (${Config.formatSize(fi.lengthSync())}). '
-          'Измените лимит в настройках.');
+        'Книга больше лимита (${Config.formatSize(fi.lengthSync())}). '
+        'Измените лимит в настройках.',
+      );
       return;
     }
     final format = BookFormatExt.fromPath(path);
@@ -88,8 +88,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
     final filePath =
         format == BookFormat.fb2 && path.toLowerCase().endsWith('.zip')
-            ? await _extractFb2Zip(path)
-            : path;
+        ? await _extractFb2Zip(path)
+        : path;
     if (filePath == null) return;
     final info = await InfoExtractor.of(filePath, format);
     if (!mounted) return;
@@ -126,9 +126,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Future<String?> _extractFb2Zip(String zipPath) async {
     try {
-      final tempDir =
-          Directory.systemTemp.createTempSync('qutzem_fb2_');
-      final dest = p.join(tempDir.path, '${DateTime.now().microsecondsSinceEpoch}.fb2');
+      final tempDir = Directory.systemTemp.createTempSync('qutzem_fb2_');
+      final dest = p.join(
+        tempDir.path,
+        '${DateTime.now().microsecondsSinceEpoch}.fb2',
+      );
       final root = await ArchiveService.extractFb2FromZip(zipPath, dest);
       return root ?? dest;
     } catch (_) {
@@ -138,8 +140,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _openBook(Book book) async {
@@ -168,9 +169,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_init) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final books = Library.instance.books;
     return Scaffold(
@@ -193,7 +192,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
             onPressed: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                    builder: (_) => SettingsScreen(settings: SettingsStore.instance.oo)),
+                  builder: (_) =>
+                      SettingsScreen(settings: SettingsStore.instance.oo),
+                ),
               );
               if (mounted) {
                 final s = await SettingsStore.instance.load();
@@ -261,14 +262,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.menu_book, size: 72,
-              color: Theme.of(context).colorScheme.primary),
+          Icon(
+            Icons.menu_book,
+            size: 72,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(height: 16),
-          const Text('Библиотека пуста',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'Библиотека пуста',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
-          const Text('Добавьте PDF, EPUB или FB2',
-              style: TextStyle(color: Colors.grey)),
+          const Text(
+            'Добавьте PDF, EPUB или FB2',
+            style: TextStyle(color: Colors.grey),
+          ),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: _importBook,
@@ -278,11 +286,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute<void>(
-                builder: (_) => SearchScreen(catalogs: _catalogs),
-              )).then((_) {
-                if (mounted) setState(() {});
-              });
+              Navigator.of(context)
+                  .push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SearchScreen(catalogs: _catalogs),
+                    ),
+                  )
+                  .then((_) {
+                    if (mounted) setState(() {});
+                  });
             },
             icon: const Icon(Icons.search),
             label: const Text('Найти книги онлайн'),
@@ -343,77 +355,83 @@ class _BookCard extends StatelessWidget {
           onTap: onTap,
           onLongPress: onDelete,
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _cover(context),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Material(
-                      color: Colors.black38,
-                      shape: const CircleBorder(),
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        visualDensity: VisualDensity.compact,
-                        iconSize: 18,
-                        icon: const Icon(Icons.delete_outline,
-                            color: Colors.white),
-                        tooltip: 'Удалить книгу',
-                        onPressed: onDelete,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    book.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  if (book.author.isNotEmpty)
-                    Text(
-                      book.author,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600),
-                    ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(3),
-                          child: LinearProgressIndicator(
-                            value: progress.clamp(0.0, 1.0),
-                            minHeight: 4,
-                            backgroundColor: Colors.grey.shade300,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _cover(context),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Material(
+                        color: Colors.black38,
+                        shape: const CircleBorder(),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                          iconSize: 18,
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.white,
                           ),
+                          tooltip: 'Удалить книгу',
+                          onPressed: onDelete,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${(progress * 100).round()}%',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      book.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    if (book.author.isNotEmpty)
+                      Text(
+                        book.author,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: progress.clamp(0.0, 1.0),
+                              minHeight: 4,
+                              backgroundColor: Colors.grey.shade300,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${(progress * 100).round()}%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -496,14 +514,16 @@ List<_ZipEntry> _simpleZipExtract(List<int> data) {
         final sig = data[i + 2] | (data[i + 3] << 8);
         if (sig == 0x0403) {
           final compMethod = data[i + 8] | (data[i + 9] << 8);
-          final compSize = data[i + 18] |
+          final compSize =
+              data[i + 18] |
               (data[i + 19] << 8) |
               (data[i + 20] << 16) |
               (data[i + 21] << 24);
           final nameLen = data[i + 26] | (data[i + 27] << 8);
           final extraLen = data[i + 28] | (data[i + 29] << 8);
           final name = String.fromCharCodes(
-              data.sublist(i + 30, i + 30 + nameLen));
+            data.sublist(i + 30, i + 30 + nameLen),
+          );
           if (compMethod == 0) {
             final start = i + 30 + nameLen + extraLen;
             final content = data.sublist(start, start + compSize);

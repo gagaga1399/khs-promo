@@ -82,8 +82,9 @@ const Map<ReaderTheme, ReaderColors> readerThemeColors = {
 ReaderColors? resolveThemeColors(BuildContext context, ReaderTheme theme) {
   if (theme == ReaderTheme.auto) {
     final brightness = Theme.of(context).brightness;
-    return readerThemeColors[
-        brightness == Brightness.dark ? ReaderTheme.dark : ReaderTheme.light];
+    return readerThemeColors[brightness == Brightness.dark
+        ? ReaderTheme.dark
+        : ReaderTheme.light];
   }
   return readerThemeColors[theme];
 }

@@ -17,8 +17,7 @@ class TextDocument {
 
   TextDocument({required this.chapters});
 
-  int get totalChars =>
-      chapters.fold(0, (sum, c) => sum + c.text.length);
+  int get totalChars => chapters.fold(0, (sum, c) => sum + c.text.length);
 
   static Future<TextDocument> fromEpubFile(String path) async {
     final bytes = File(path).readAsBytesSync();
@@ -27,18 +26,19 @@ class TextDocument {
     if (book.Chapters != null) {
       for (final ch in book.Chapters!) {
         final html = ch.HtmlContent ?? '';
-        chapters.add(TextChapter(
-          title: _cleanChapterTitle(ch.Title ?? ''),
-          text: _htmlToText(html),
-        ));
+        chapters.add(
+          TextChapter(
+            title: _cleanChapterTitle(ch.Title ?? ''),
+            text: _htmlToText(html),
+          ),
+        );
       }
     }
     if (chapters.isEmpty) {
       final content = book.Content;
       if (content?.Html != null) {
         final htmls = content!.Html!.values.toList()
-          ..sort((a, b) => (a.FileName ?? '')
-              .compareTo(b.FileName ?? ''));
+          ..sort((a, b) => (a.FileName ?? '').compareTo(b.FileName ?? ''));
         for (final h in htmls) {
           chapters.add(TextChapter(text: _htmlToText(h.Content ?? '')));
         }
@@ -85,14 +85,14 @@ class TextDocument {
           final name = n.name.local.toLowerCase();
           return name == 'p' || name == 'title' || name == 'subtitle';
         });
-        final text = nodes.map((n) => n.innerText.trim()).where((t) {
-          return t.isNotEmpty;
-        }).join('\n\n');
+        final text = nodes
+            .map((n) => n.innerText.trim())
+            .where((t) {
+              return t.isNotEmpty;
+            })
+            .join('\n\n');
         if (text.isNotEmpty) {
-          chapters.add(TextChapter(
-            title: 'Глава ${e.key + 1}',
-            text: text,
-          ));
+          chapters.add(TextChapter(title: 'Глава ${e.key + 1}', text: text));
         }
       }
     }
@@ -113,8 +113,14 @@ String _htmlToText(String html) {
   text = text.replaceAll(RegExp(r'<style\b[^>]*>[\s\S]*?</style>'), '');
   text = text.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
   text = text.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
-  text = text.replaceAll(RegExp(r'</(p|div|h[1-6]|li|tr)>', caseSensitive: false), '\n');
-  text = text.replaceAll(RegExp(r'<(p|div|h[1-6]|li|td)\b[^>]*>', caseSensitive: false), '\n');
+  text = text.replaceAll(
+    RegExp(r'</(p|div|h[1-6]|li|tr)>', caseSensitive: false),
+    '\n',
+  );
+  text = text.replaceAll(
+    RegExp(r'<(p|div|h[1-6]|li|td)\b[^>]*>', caseSensitive: false),
+    '\n',
+  );
   text = text.replaceAll(RegExp(r'<\s*/?\s*[a-zA-Z][^>]*>'), '');
   text = text.replaceAll('&nbsp;', ' ');
   text = text.replaceAll('&amp;', '&');

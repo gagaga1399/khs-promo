@@ -41,16 +41,18 @@ List<SearchMatch> searchBlocks(
       final end = (idx + q.length + 60).clamp(0, b.text.length);
       final title = (b.sourceChapter >= 0 && b.sourceChapter < titles.length)
           ? (titles[b.sourceChapter].trim().isNotEmpty
-              ? titles[b.sourceChapter].trim()
-              : 'Глава ${b.sourceChapter + 1}')
+                ? titles[b.sourceChapter].trim()
+                : 'Глава ${b.sourceChapter + 1}')
           : 'Стр. ${b.sourceChapter + 1}';
-      results.add(SearchMatch(
-        blockIndex: i,
-        chapterTitle: title,
-        context: b.text.substring(start, end),
-        matchStart: idx - start,
-        matchEnd: idx - start + q.length,
-      ));
+      results.add(
+        SearchMatch(
+          blockIndex: i,
+          chapterTitle: title,
+          context: b.text.substring(start, end),
+          matchStart: idx - start,
+          matchEnd: idx - start + q.length,
+        ),
+      );
       from = idx + q.length;
       if (results.length >= 500) return results;
     }
@@ -157,8 +159,8 @@ class _BookSearchSheetState extends State<_BookSearchSheet> {
                 _results.isEmpty && _searched
                     ? 'Ничего не найдено'
                     : (_searched
-                        ? 'Найдено: ${_results.length}'
-                        : 'Введите текст для поиска'),
+                          ? 'Найдено: ${_results.length}'
+                          : 'Введите текст для поиска'),
                 style: TextStyle(color: colors.muted, fontSize: 13),
               ),
             ),
@@ -172,7 +174,9 @@ class _BookSearchSheetState extends State<_BookSearchSheet> {
                     title: Text(
                       m.chapterTitle,
                       style: TextStyle(
-                          color: colors.accent, fontWeight: FontWeight.w600),
+                        color: colors.accent,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     subtitle: _HighlightedContext(
                       text: m.context,
@@ -215,13 +219,15 @@ class _HighlightedContext extends StatelessWidget {
     final end = matchEnd.clamp(start, text.length);
     if (start > 0) spans.add(TextSpan(text: '…${text.substring(0, start)}'));
     if (end > start) {
-      spans.add(TextSpan(
-        text: text.substring(start, end),
-        style: TextStyle(
-          backgroundColor: highlightColors.first,
-          color: Colors.black,
+      spans.add(
+        TextSpan(
+          text: text.substring(start, end),
+          style: TextStyle(
+            backgroundColor: highlightColors.first,
+            color: Colors.black,
+          ),
         ),
-      ));
+      );
     }
     if (end < text.length) spans.add(TextSpan(text: '${text.substring(end)}…'));
     return Text.rich(

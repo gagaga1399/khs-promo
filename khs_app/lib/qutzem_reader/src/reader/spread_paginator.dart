@@ -103,8 +103,8 @@ class SpreadPaginator {
     required double columnWidth,
     this.columns = 1,
     this.textScaler = TextScaler.noScaling,
-  })  : _pageHeight = pageHeight,
-        _columnWidth = columnWidth;
+  }) : _pageHeight = pageHeight,
+       _columnWidth = columnWidth;
 
   TextPainter _measure(String text) {
     return TextPainter(
@@ -124,9 +124,8 @@ class SpreadPaginator {
   }
 
   /// Совет: сколько блоков уже измерено (для прогресса).
-  double get progress => _heights.isEmpty
-      ? 0
-      : (_measured / blocks.length).clamp(0.0, 1.0);
+  double get progress =>
+      _heights.isEmpty ? 0 : (_measured / blocks.length).clamp(0.0, 1.0);
 
   /// Асинхронное измерение высот + построение страниц.
   ///
@@ -160,7 +159,9 @@ class SpreadPaginator {
     _measured = 0;
     try {
       final lineH = fontSize * lineHeight * textScaler.scale(1);
-      final exact = blocks.length <= measureLimit ? blocks.length : measureLimit;
+      final exact = blocks.length <= measureLimit
+          ? blocks.length
+          : measureLimit;
       for (var i = 0; i < exact; i++) {
         if (isCancelled?.call() ?? false) {
           onProgress?.call(1.0);
@@ -184,8 +185,7 @@ class SpreadPaginator {
         chars += b.text.length;
         lines += math.max(1.0, _heights[i] / lineH);
       }
-      final cpl =
-          lines > 0 ? chars / lines : (columnWidth / (fontSize * 0.5));
+      final cpl = lines > 0 ? chars / lines : (columnWidth / (fontSize * 0.5));
       for (var i = exact; i < blocks.length; i++) {
         if ((i % 500) == 0 && (isCancelled?.call() ?? false)) {
           onProgress?.call(1.0);
@@ -219,7 +219,9 @@ class SpreadPaginator {
       while (i < blocks.length) {
         final h = _heights[i];
         // Не отрываем заголовок в конец страницы.
-        if (used > 0 && blocks[i].isHeading && used + h > columnPageHeight * 0.9) {
+        if (used > 0 &&
+            blocks[i].isHeading &&
+            used + h > columnPageHeight * 0.9) {
           break;
         }
         if (used + h > columnPageHeight) {
@@ -235,8 +237,7 @@ class SpreadPaginator {
     return result;
   }
 
-  List<PageLayout> get pages =>
-      _built ? (_pages ?? const []) : const [];
+  List<PageLayout> get pages => _built ? (_pages ?? const []) : const [];
 
   int get pageCount => pages.length;
 
@@ -271,4 +272,3 @@ class SpreadPaginator {
   double heightsForTest(int i) => _heights[i];
   double exactHeightForTest(ReaderBlock b) => _styleHeight(b);
 }
-

@@ -27,8 +27,9 @@ class HighlightManager {
     final d = _data;
     if (d == null) return false;
     // Защита от дублей: одинаковая фраза в одной главе добавляется один раз.
-    final exists = d.highlights
-        .any((e) => e.chapter == chapter && e.text == text);
+    final exists = d.highlights.any(
+      (e) => e.chapter == chapter && e.text == text,
+    );
     if (exists) return false;
     final h = Highlight(
       id: 'h${DateTime.now().microsecondsSinceEpoch}',

@@ -17,6 +17,62 @@ class Config {
   }
 }
 
+/// Переносит библиотеку из папки прежней отдельной читалки в папку хаба.
+///
+/// Копирует `books`, `covers`, `data` и переписывает индекс, попутно
+/// переставляя префикс в абсолютном `coverPath`. Существующие файлы не
+/// перезаписываются: перенос ничего не теряет даже если запустить его
+/// повторно. Возвращает `true`, если индекс был перезаписан.
+///
+/// Ошибки внутри проглатываются — перенос не должен ломать запуск
+/// приложения, а исходная папка остаётся нетронутой в любом случае.
+bool migrateLegacyLibrary(String fromRoot, String toRoot, File toIndex) {
+  final legacyIndex = File(p.join(fromRoot, 'index.json'));
+  if (!legacyIndex.existsSync()) return false;
+  if (!Directory(p.join(fromRoot, 'books')).existsSync()) return false;
+
+  try {
+    for (final dir in ['books', 'covers', 'data']) {
+      final from = Directory(p.join(fromRoot, dir));
+      if (!from.existsSync()) continue;
+      final to = Directory(p.join(toRoot, dir));
+      if (!to.existsSync()) to.createSync(recursive: true);
+      for (final f in from.listSync()) {
+        if (f is! File) continue;
+        final dest = File(p.join(to.path, p.basename(f.path)));
+        if (dest.existsSync()) continue;
+        f.copySync(dest.path);
+      }
+    }
+
+    // coverPath в индексе абсолютный и указывает на старую папку, поэтому
+    // префикс пути переписываем на новый. Иначе книги откроются, а
+    // обложки пропадут.
+    // Разделитель добавляем вручную: p.join(path, '') его отбрасывает, и
+    // отрезанный остаток пути начинался бы с разделителя, из-за чего
+    // p.join вернул бы путь от корня диска вместо папки назначения.
+    final legacyPrefix = fromRoot.endsWith(p.separator)
+        ? fromRoot
+        : '$fromRoot${p.separator}';
+    final decoded = jsonDecode(legacyIndex.readAsStringSync());
+    final list = decoded is List ? decoded : const <dynamic>[];
+    final out = <Map<String, dynamic>>[];
+    for (final entry in list) {
+      if (entry is! Map<String, dynamic>) continue;
+      final e = Map<String, dynamic>.from(entry);
+      final cover = e['coverPath'];
+      if (cover is String && cover.startsWith(legacyPrefix)) {
+        e['coverPath'] = p.join(toRoot, cover.substring(legacyPrefix.length));
+      }
+      out.add(e);
+    }
+    toIndex.writeAsStringSync(jsonEncode(out));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 class Library {
   Library._();
   static final Library instance = Library._();
@@ -48,15 +104,14 @@ class Library {
     if (!coversDir.existsSync()) coversDir.createSync(recursive: true);
     _ensureDataDir();
     final index = File(p.join(_root!.path, 'index.json'));
+    if (!index.existsSync()) {
+      // Папка пустая — значит, это первый запуск встроенной читалки. Если
+      // библиотека прежней отдельной читалки ещё лежит рядом, переносим её,
+      // иначе у пользователя книги исчезают после переезда в хаб.
+      await _importLegacyLibrary(index);
+    }
     if (index.existsSync()) {
-      try {
-        final list = jsonDecode(index.readAsStringSync()) as List<dynamic>;
-        books = list
-            .map((e) => Book.fromJson(e as Map<String, dynamic>))
-            .toList();
-      } catch (_) {
-        books = [];
-      }
+      books = _readIndex(index);
     }
     _data.clear();
     for (final book in books) {
@@ -66,6 +121,48 @@ class Library {
   }
 
   BookData? dataOf(String id) => _data[id];
+
+  /// Читает индекс, пропуская битые записи.
+  ///
+  /// Раньше здесь стоял `catch (_) { books = []; }`: одна нечитаемая запись
+  /// скрывала всю библиотеку, а следующий же `save()` затирал индекс пустым
+  /// списком — книги пропадали навсегда.
+  List<Book> _readIndex(File index) {
+    try {
+      final decoded = jsonDecode(index.readAsStringSync());
+      if (decoded is! List) return <Book>[];
+      final result = <Book>[];
+      for (final entry in decoded) {
+        if (entry is! Map<String, dynamic>) continue;
+        try {
+          result.add(Book.fromJson(entry));
+        } catch (_) {
+          continue;
+        }
+      }
+      return result;
+    } catch (_) {
+      return <Book>[];
+    }
+  }
+
+  /// Одноразовый перенос библиотеки из прежней отдельной читалки.
+  ///
+  /// `getApplicationSupportDirectory()` на Windows/Android выводится из
+  /// CompanyName/ProductName и applicationId, поэтому у хаба и у прежней
+  /// отдельной «QutZem Reader» это разные папки. Переноса при встраивании
+  /// читалки в хаб не было — из-за чего библиотека выглядела пустой.
+  /// Запускается только когда в новой папке нет index.json, то есть ровно
+  /// один раз.
+  Future<void> _importLegacyLibrary(File index) async {
+    if (Platform.isAndroid) return; // чужой приватный каталог недоступен
+    final appData = Platform.environment['APPDATA'];
+    if (appData == null || appData.isEmpty) return;
+    final legacyRoot = Directory(
+      p.join(appData, 'QutZem', 'QutZem Reader', 'library'),
+    );
+    migrateLegacyLibrary(legacyRoot.path, _root!.path, index);
+  }
 
   /// Все заметки всех книг, отсортированные по дате (новые сверху).
   List<({Book book, Highlight highlight})> allNotes() {
@@ -78,7 +175,8 @@ class Library {
       }
     }
     result.sort(
-        (a, b) => b.highlight.createdAt.compareTo(a.highlight.createdAt));
+      (a, b) => b.highlight.createdAt.compareTo(a.highlight.createdAt),
+    );
     return result;
   }
 
@@ -92,8 +190,7 @@ class Library {
         result.add((book: b, bookmark: bm));
       }
     }
-    result.sort(
-        (a, b) => b.bookmark.createdAt.compareTo(a.bookmark.createdAt));
+    result.sort((a, b) => b.bookmark.createdAt.compareTo(a.bookmark.createdAt));
     return result;
   }
 
@@ -107,8 +204,7 @@ class Library {
     final f = _bookDataFile(book.id);
     if (f.existsSync()) {
       try {
-        final json =
-            jsonDecode(f.readAsStringSync()) as Map<String, dynamic>;
+        final json = jsonDecode(f.readAsStringSync()) as Map<String, dynamic>;
         return _dedupeHighlights(BookData.fromJson(json, book));
       } catch (_) {
         return BookData(book: book, reading: ReadingState(), highlights: []);
@@ -132,16 +228,18 @@ class Library {
     return data;
   }
 
-  Future<void> addBook(Book book, String sourcePath,
-      {String? coverFromPath}) async {
+  Future<void> addBook(
+    Book book,
+    String sourcePath, {
+    String? coverFromPath,
+  }) async {
     final dest = File(bookFilePath(book));
     final src = File(sourcePath);
     if (!dest.existsSync()) {
       src.copySync(dest.path);
     }
     if (coverFromPath != null) {
-      final coverDest =
-          File(p.join(coversDir.path, '${book.id}.bin'));
+      final coverDest = File(p.join(coversDir.path, '${book.id}.bin'));
       if (!coverDest.existsSync()) {
         File(coverFromPath).copySync(coverDest.path);
       }
@@ -149,7 +247,10 @@ class Library {
     }
     books.add(book);
     _data[book.id] = BookData(
-        book: book, reading: ReadingState(), highlights: []);
+      book: book,
+      reading: ReadingState(),
+      highlights: [],
+    );
     await save();
   }
 
@@ -206,8 +307,7 @@ class Library {
 
   Future<void> save() async {
     final index = File(p.join(_root!.path, 'index.json'));
-    index.writeAsStringSync(
-        jsonEncode(books.map((b) => b.toJson()).toList()));
+    index.writeAsStringSync(jsonEncode(books.map((b) => b.toJson()).toList()));
   }
 
   Future<String> exportJson() async {
@@ -215,9 +315,7 @@ class Library {
       'app': 'QutZem Reader',
       'exportedAt': DateTime.now().toIso8601String(),
       'books': books.map((b) => b.toJson()).toList(),
-      'data': {
-        for (final e in _data.entries) e.key: e.value.toJson(),
-      },
+      'data': {for (final e in _data.entries) e.key: e.value.toJson()},
     };
     return jsonEncode(payload);
   }

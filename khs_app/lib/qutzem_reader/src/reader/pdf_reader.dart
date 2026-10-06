@@ -7,8 +7,11 @@ import 'package:pdfx/pdfx.dart';
 import '../ai.dart';
 import '../library.dart';
 import '../models.dart';
+import '../screens/settings_screen.dart';
+import '../settings.dart';
 import 'glass_panel.dart';
 import 'reader_screen.dart';
+import 'scan_recognize.dart';
 
 class PdfReaderWidget extends StatefulWidget {
   final String path;
@@ -60,9 +63,10 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
   }
 
   ReaderService get _service => ReaderService(
-      library: widget.library,
-      book: widget.book,
-      aiSettings: widget.aiSettings);
+    library: widget.library,
+    book: widget.book,
+    aiSettings: widget.aiSettings,
+  );
 
   @override
   void dispose() {
@@ -99,9 +103,19 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.document_scanner_outlined),
+            tooltip: 'Распознать текст',
+            onPressed: _openScan,
+          ),
+          IconButton(
             icon: const Icon(Icons.bookmarks_outlined),
             tooltip: 'Закладки',
             onPressed: _showBookmarks,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Настройки читалки',
+            onPressed: _openReaderSettings,
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -115,6 +129,31 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
         ],
       ),
       body: _buildBody(),
+    );
+  }
+
+  /// Скан PDF чаще всего и открывается сюда: текстового слоя нет, поэтому
+  /// страницу распознают по картинке.
+  Future<void> _openScan() async {
+    final s = await SettingsStore.instance.load();
+    if (!mounted) return;
+    await showScanRecognize(
+      context,
+      aiSettings: s.ai,
+      ctx: AnalysisContext(
+        bookTitle: widget.book.title,
+        bookAuthor: widget.book.author,
+        chapter: 'Страница $_page',
+      ),
+      onOpenSettings: _openReaderSettings,
+    );
+  }
+
+  Future<void> _openReaderSettings() async {
+    final s = await SettingsStore.instance.load();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => SettingsScreen(settings: s)),
     );
   }
 
@@ -144,9 +183,13 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                     child: Row(
                       children: [
-                        const Text('Закладки',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'Закладки',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const Spacer(),
                         TextButton.icon(
                           onPressed: () {
@@ -176,10 +219,14 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
                           final b = bookmarks[i];
                           return ListTile(
                             dense: true,
-                            leading:
-                                const Icon(Icons.bookmark, color: Colors.amber),
+                            leading: const Icon(
+                              Icons.bookmark,
+                              color: Colors.amber,
+                            ),
                             title: Text(
-                              b.label.isNotEmpty ? b.label : 'Стр. ${b.chapter}',
+                              b.label.isNotEmpty
+                                  ? b.label
+                                  : 'Стр. ${b.chapter}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -255,8 +302,8 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
         onDocumentError: (e) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Ошибка PDF: $e')));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('Ошибка PDF: $e')));
           });
         },
       );
@@ -275,8 +322,8 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
             onDocumentError: (e) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Ошибка PDF: $e')));
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text('Ошибка PDF: $e')));
               });
             },
           ),
@@ -298,7 +345,6 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
         top: false,
         child: GlassPanel(
           tint: Colors.black,
-          blur: 24,
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -320,13 +366,11 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
                 children: [
                   Text(
                     '$_page / ${max(1, _pages)}',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 12),
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                   Text(
                     '${(zoom * 100).round()}%',
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 11),
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
                   ),
                 ],
               ),
@@ -340,9 +384,7 @@ class _PdfReaderWidgetState extends State<PdfReaderWidget> {
                 icon: const Icon(Icons.fit_screen),
                 color: Colors.white,
                 tooltip: 'Страница по ширине',
-                onPressed: _canZoom
-                    ? () => _goToPageClamped(_page)
-                    : null,
+                onPressed: _canZoom ? () => _goToPageClamped(_page) : null,
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right),

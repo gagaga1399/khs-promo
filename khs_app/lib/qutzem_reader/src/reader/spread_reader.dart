@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../ui/settings_kit.dart';
 import '../ai.dart';
 import '../library.dart';
 import '../models.dart';
@@ -20,6 +21,7 @@ import 'glass_panel.dart';
 import 'highlight_manager.dart';
 import 'reader_screen.dart';
 import 'reader_settings.dart';
+import 'scan_recognize.dart';
 import 'selection_utils.dart';
 import 'spread_paginator.dart';
 import 'text_scale.dart';
@@ -59,6 +61,9 @@ class _SpreadReaderState extends State<SpreadReader> {
   ReaderTheme _theme = ReaderTheme.sepia;
   bool _scrollMode = false;
   bool _twoColumns = false;
+
+  /// Показывать ли нижнюю панель с кнопкой «Готово» в панели «Текст».
+  bool _textActionsVisible = false;
   bool _spread = false;
   bool _selectMode = true;
 
@@ -75,13 +80,16 @@ class _SpreadReaderState extends State<SpreadReader> {
   bool _restored = false;
   String _lastSelected = '';
   Highlight? _highlightTarget;
+
   /// Диапазоны, восстановленные для старых заметок (ключ — id заметки).
   final Map<String, List<int>> _repairedParts = {};
 
   int? _searchBlockIndex;
 
-  late final HighlightManager _hmanager =
-      HighlightManager(library: widget.library, book: widget.book);
+  late final HighlightManager _hmanager = HighlightManager(
+    library: widget.library,
+    book: widget.book,
+  );
 
   Timer? _selPanelTimer;
 
@@ -130,90 +138,87 @@ class _SpreadReaderState extends State<SpreadReader> {
       child: Center(
         child: GlassPanel(
           radius: 24,
-          blur: 24,
-          shadow: true,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-                Text(
-                  clip(_lastSelected, 22),
-                  style: TextStyle(color: colors.muted, fontSize: 12),
-                ),
-                const SizedBox(width: 2),
-                IconButton(
-                  icon: const Icon(Icons.copy, size: 18),
-                  color: colors.text,
-                  tooltip: 'Копировать',
-                  onPressed: () {
-                    _copySelection();
+              Text(
+                clip(_lastSelected, 22),
+                style: TextStyle(color: colors.muted, fontSize: 12),
+              ),
+              const SizedBox(width: 2),
+              IconButton(
+                icon: const Icon(Icons.copy, size: 18),
+                color: colors.text,
+                tooltip: 'Копировать',
+                onPressed: () {
+                  _copySelection();
+                  _dismissSelection();
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.format_quote, size: 18),
+                color: colors.text,
+                tooltip: 'Копировать как цитату',
+                onPressed: () {
+                  _copySelectionAsQuote();
+                  _dismissSelection();
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.menu_book, size: 18),
+                color: colors.text,
+                tooltip: 'Что значит термин',
+                onPressed: () => _askTerm(),
+              ),
+              IconButton(
+                icon: const Icon(Icons.psychology, size: 18),
+                color: colors.accent,
+                tooltip: 'Анализ нейросети',
+                onPressed: () => _analyzeSelection(),
+              ),
+              IconButton(
+                icon: const Icon(Icons.sticky_note_2, size: 18),
+                color: colors.accent,
+                tooltip: 'В заметки',
+                onPressed: () {
+                  _addHighlightFromSelection(0);
+                  _dismissSelection();
+                },
+              ),
+              for (var i = 0; i < highlightColors.length; i++)
+                InkWell(
+                  onTap: () {
+                    _addHighlightFromSelection(i);
                     _dismissSelection();
                   },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.format_quote, size: 18),
-                  color: colors.text,
-                  tooltip: 'Копировать как цитату',
-                  onPressed: () {
-                    _copySelectionAsQuote();
-                    _dismissSelection();
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.menu_book, size: 18),
-                  color: colors.text,
-                  tooltip: 'Что значит термин',
-                  onPressed: () => _askTerm(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.psychology, size: 18),
-                  color: colors.accent,
-                  tooltip: 'Анализ нейросети',
-                  onPressed: () => _analyzeSelection(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.sticky_note_2, size: 18),
-                  color: colors.accent,
-                  tooltip: 'В заметки',
-                  onPressed: () {
-                    _addHighlightFromSelection(0);
-                    _dismissSelection();
-                  },
-                ),
-                for (var i = 0; i < highlightColors.length; i++)
-                  InkWell(
-                    onTap: () {
-                      _addHighlightFromSelection(i);
-                      _dismissSelection();
-                    },
-                    child: Container(
-                      width: 20,
-                      height: 20,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        color: highlightColors[i],
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: colors.muted.withValues(alpha: 0.5),
-                        ),
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: highlightColors[i],
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: colors.muted.withValues(alpha: 0.5),
                       ),
                     ),
                   ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 18),
-                  color: colors.muted,
-                  tooltip: 'Закрыть',
-                  onPressed: _dismissSelection,
                 ),
-              ],
-            ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                color: colors.muted,
+                tooltip: 'Закрыть',
+                onPressed: _dismissSelection,
+              ),
+            ],
           ),
+        ),
       ),
     );
   }
 
-  Widget _buildSelectionMenu(
-      BuildContext c, SelectableRegionState state) {
+  Widget _buildSelectionMenu(BuildContext c, SelectableRegionState state) {
     final text = _lastSelected.trim();
     final items = <ContextMenuButtonItem>[
       ContextMenuButtonItem(
@@ -247,20 +252,22 @@ class _SpreadReaderState extends State<SpreadReader> {
   Future<void> _copyText(String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Скопировано в буфер')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Скопировано в буфер')));
   }
 
   Future<void> _copyTextAsQuote(String text) async {
     if (text.isEmpty) return;
     final chapter = _topChapter;
     final chapterTitle = _chapterTitleOf(chapter);
-    final quote = '"${text.trim()}"\n\n— ${widget.book.title}'
+    final quote =
+        '"${text.trim()}"\n\n— ${widget.book.title}'
         '${chapterTitle.isNotEmpty ? ', $chapterTitle' : ''}';
     await Clipboard.setData(ClipboardData(text: quote));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Цитата скопирована (${widget.book.title})')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Цитата скопирована (${widget.book.title})')),
+    );
   }
 
   /// Диапазоны блоков, по которым ищем текст выделения: в постраничном
@@ -290,8 +297,12 @@ class _SpreadReaderState extends State<SpreadReader> {
       selection: text,
       blocks: [
         for (final b in _blocks.sublist(from, to))
-          (chapter: b.sourceChapter, start: b.startChar, end: b.endChar,
-              text: b.text)
+          (
+            chapter: b.sourceChapter,
+            start: b.startChar,
+            end: b.endChar,
+            text: b.text,
+          ),
       ],
     );
   }
@@ -324,8 +335,11 @@ class _SpreadReaderState extends State<SpreadReader> {
     );
     _lastSelected = '';
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(added ? 'Добавлено в заметки' : 'Уже есть в заметках')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(added ? 'Добавлено в заметки' : 'Уже есть в заметках'),
+      ),
+    );
     setState(() {});
   }
 
@@ -342,8 +356,8 @@ class _SpreadReaderState extends State<SpreadReader> {
     if (text.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Скопировано в буфер')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Скопировано в буфер')));
   }
 
   /// Скопировать выделение как цитату: текст + книга + глава (как в плагине).
@@ -352,12 +366,14 @@ class _SpreadReaderState extends State<SpreadReader> {
     if (text.isEmpty) return;
     final chapter = _topChapter;
     final chapterTitle = _chapterTitleOf(chapter);
-    final quote = '"$text"\n\n— ${widget.book.title}'
+    final quote =
+        '"$text"\n\n— ${widget.book.title}'
         '${chapterTitle.isNotEmpty ? ', $chapterTitle' : ''}';
     await Clipboard.setData(ClipboardData(text: quote));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Цитата скопирована (${widget.book.title})')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Цитата скопирована (${widget.book.title})')),
+    );
   }
 
   /// Анализ выделенного фрагмента нейросетью (настройки — в приложении).
@@ -372,6 +388,23 @@ class _SpreadReaderState extends State<SpreadReader> {
     final text = _lastSelected.trim();
     if (text.isEmpty) return;
     await _askAi(text, AiPromptKind.explainTerm);
+  }
+
+  /// Распознавание текста со снимка или скана с поиском книги и разбором.
+  Future<void> _openScan() async {
+    final s = await SettingsStore.instance.load();
+    if (!mounted) return;
+    final chapterTitle = _chapterTitleOf(_topChapter);
+    await showScanRecognize(
+      context,
+      aiSettings: s.ai,
+      ctx: AnalysisContext(
+        bookTitle: widget.book.title,
+        bookAuthor: widget.book.author,
+        chapter: chapterTitle.isNotEmpty ? chapterTitle : '',
+      ),
+      onOpenSettings: _openReaderSettings,
+    );
   }
 
   Future<void> _askAi(String text, AiPromptKind kind) async {
@@ -391,17 +424,18 @@ class _SpreadReaderState extends State<SpreadReader> {
             ? chapterTitle
             : 'Глава ${chapter + 1}',
       ),
-      onOpenSettings: _openAiSettings,
+      onOpenSettings: _openReaderSettings,
     );
   }
 
-  Future<void> _openAiSettings() async {
+  /// Настройки читалки. Отдельный экран, а не «Настройки хаба»: читалка
+  /// открывается внутри хаба, и без своей кнопки её настройки были не
+  /// достать — из читалки вёлся только хабовский хаб-шестерёнка.
+  Future<void> _openReaderSettings() async {
     final s = await SettingsStore.instance.load();
     if (!mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => SettingsScreen(settings: s),
-      ),
+      MaterialPageRoute<void>(builder: (_) => SettingsScreen(settings: s)),
     );
   }
 
@@ -410,28 +444,34 @@ class _SpreadReaderState extends State<SpreadReader> {
     if (text.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Скопировано в буфер')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Скопировано в буфер')));
   }
 
   Future<void> _copyBlockAsQuote(ReaderBlock block) async {
     final text = block.text.trim();
     if (text.isEmpty) return;
     final chapterTitle = _chapterTitleOf(block.sourceChapter);
-    final quote = '"$text"\n\n— ${widget.book.title}'
+    final quote =
+        '"$text"\n\n— ${widget.book.title}'
         '${chapterTitle.isNotEmpty ? ', $chapterTitle' : ''}';
     await Clipboard.setData(ClipboardData(text: quote));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Цитата скопирована (${widget.book.title})')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Цитата скопирована (${widget.book.title})')),
+    );
   }
 
   /// Меню абзаца по правому клику: копировать / как цитату.
   void _showBlockMenu(ReaderBlock block, Offset globalPos) {
     showMenu<_BlockAction>(
       context: context,
-      position: RelativeRect.fromLTRB(globalPos.dx, globalPos.dy,
-          globalPos.dx, globalPos.dy),
+      position: RelativeRect.fromLTRB(
+        globalPos.dx,
+        globalPos.dy,
+        globalPos.dx,
+        globalPos.dy,
+      ),
       items: const [
         PopupMenuItem(
           value: _BlockAction.copy,
@@ -452,7 +492,6 @@ class _SpreadReaderState extends State<SpreadReader> {
     });
   }
 
-
   void _showTopCopy(BuildContext anchorCtx, ReaderColors colors) {
     final box = anchorCtx.findRenderObject() as RenderBox?;
     final overlay =
@@ -463,7 +502,9 @@ class _SpreadReaderState extends State<SpreadReader> {
             Rect.fromPoints(
               box.localToGlobal(Offset.zero, ancestor: overlay),
               box.localToGlobal(
-                  box.size.bottomRight(Offset.zero), ancestor: overlay),
+                box.size.bottomRight(Offset.zero),
+                ancestor: overlay,
+              ),
             ),
             Offset.zero & overlay.size,
           );
@@ -572,13 +613,15 @@ class _SpreadReaderState extends State<SpreadReader> {
         final start = m.start + (raw.length - raw.trimLeft().length);
         final isHeading = firstOfChapter && t.length < 90 && t == _titleOf(ch);
         firstOfChapter = false;
-        blocks.add(ReaderBlock(
-          text: t,
-          sourceChapter: c,
-          isHeading: isHeading,
-          startChar: start,
-          endChar: start + t.length,
-        ));
+        blocks.add(
+          ReaderBlock(
+            text: t,
+            sourceChapter: c,
+            isHeading: isHeading,
+            startChar: start,
+            endChar: start + t.length,
+          ),
+        );
       }
     }
     _blocks = blocks;
@@ -588,8 +631,8 @@ class _SpreadReaderState extends State<SpreadReader> {
 
   String _chapterTitleOf(int chapter) =>
       (chapter >= 0 && chapter < widget.doc.chapters.length)
-          ? _titleOf(widget.doc.chapters[chapter])
-          : 'Стр. ${chapter + 1}';
+      ? _titleOf(widget.doc.chapters[chapter])
+      : 'Стр. ${chapter + 1}';
 
   @override
   void didChangeDependencies() {
@@ -624,9 +667,7 @@ class _SpreadReaderState extends State<SpreadReader> {
       final s = h.parts.first;
       for (var i = 0; i < _blocks.length; i++) {
         final b = _blocks[i];
-        if (b.sourceChapter == h.chapter &&
-            s >= b.startChar &&
-            s < b.endChar) {
+        if (b.sourceChapter == h.chapter && s >= b.startChar && s < b.endChar) {
           return i;
         }
       }
@@ -676,9 +717,7 @@ class _SpreadReaderState extends State<SpreadReader> {
     setState(() {
       _buildProgress = 1;
       _spread = useSpread;
-      _screenCount = useSpread
-          ? (pager.pageCount + 1) ~/ 2
-          : pager.pageCount;
+      _screenCount = useSpread ? (pager.pageCount + 1) ~/ 2 : pager.pageCount;
       _currentPage = _screenForBlock(_global);
     });
     if (!_scrollMode) {
@@ -721,11 +760,9 @@ class _SpreadReaderState extends State<SpreadReader> {
     if (pager == null) return;
     if (_scrollMode) {
       if (_scrollController.hasClients) {
-        final idx = _blocks.isEmpty
-            ? 0
-            : block.clamp(0, _blocks.length - 1);
-        final target = (idx / _blocks.length) *
-            _scrollController.position.maxScrollExtent;
+        final idx = _blocks.isEmpty ? 0 : block.clamp(0, _blocks.length - 1);
+        final target =
+            (idx / _blocks.length) * _scrollController.position.maxScrollExtent;
         if (animate) {
           _scrollController.animateTo(
             target,
@@ -755,18 +792,22 @@ class _SpreadReaderState extends State<SpreadReader> {
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 700), () {
       final service = ReaderService(
-          library: widget.library, book: widget.book, aiSettings: widget.aiSettings);
+        library: widget.library,
+        book: widget.book,
+        aiSettings: widget.aiSettings,
+      );
       service.savePosition(_global, 0, _blocks.length);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = resolveThemeColors(context, _theme) ??
+    final colors =
+        resolveThemeColors(context, _theme) ??
         readerThemeColors[ReaderTheme.light]!;
     final pager = _paginator;
-    final notReady = _loading ||
-        (!_scrollMode && (pager == null || !pager.isReady));
+    final notReady =
+        _loading || (!_scrollMode && (pager == null || !pager.isReady));
     return Scaffold(
       backgroundColor: colors.background,
       body: Stack(
@@ -778,8 +819,7 @@ class _SpreadReaderState extends State<SpreadReader> {
           _buildTopBar(colors),
           _buildBottomBar(colors),
           if (_lastSelected.trim().isNotEmpty) _buildSelectionPanel(colors),
-          if (notReady)
-            _buildProgressOverlay(colors),
+          if (notReady) _buildProgressOverlay(colors),
         ],
       ),
     );
@@ -820,14 +860,13 @@ class _SpreadReaderState extends State<SpreadReader> {
     if (pager == null || !pager.isReady || pager.pageCount == 0) {
       return const SizedBox.shrink();
     }
-    final screen =
-        _currentPage.clamp(0, max(0, _screenCount - 1)).toInt();
+    final screen = _currentPage.clamp(0, max(0, _screenCount - 1)).toInt();
     final page = _spread ? screen * 2 : screen;
     final rightPage = page + 1;
-    final leftLayout =
-        pager.pages[page.clamp(0, pager.pageCount - 1).toInt()];
-    final rightLayout =
-        rightPage < pager.pageCount ? pager.pages[rightPage] : null;
+    final leftLayout = pager.pages[page.clamp(0, pager.pageCount - 1).toInt()];
+    final rightLayout = rightPage < pager.pageCount
+        ? pager.pages[rightPage]
+        : null;
 
     final content = _spread
         ? Row(
@@ -835,21 +874,29 @@ class _SpreadReaderState extends State<SpreadReader> {
             children: [
               Expanded(
                 child: _renderPageContents(
-                    pager, leftLayout, colors, isSpread: true),
+                  pager,
+                  leftLayout,
+                  colors,
+                  isSpread: true,
+                ),
               ),
               Container(width: 24, color: colors.background),
               Expanded(
                 child: rightLayout != null
                     ? _renderPageContents(
-                        pager, rightLayout, colors, isSpread: true)
+                        pager,
+                        rightLayout,
+                        colors,
+                        isSpread: true,
+                      )
                     : ColoredBox(
                         color: colors.background,
-                        child: const SizedBox.expand()),
+                        child: const SizedBox.expand(),
+                      ),
               ),
             ],
           )
-        : _renderPageContents(
-            pager, leftLayout, colors, isSpread: false);
+        : _renderPageContents(pager, leftLayout, colors, isSpread: false);
 
     final body = _selectMode
         ? content
@@ -881,7 +928,8 @@ class _SpreadReaderState extends State<SpreadReader> {
             if (text.isNotEmpty) {
               Clipboard.setData(ClipboardData(text: text));
               ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Скопировано в буфер (Ctrl+C)')));
+                const SnackBar(content: Text('Скопировано в буфер (Ctrl+C)')),
+              );
             }
             return KeyEventResult.handled;
           }
@@ -892,9 +940,12 @@ class _SpreadReaderState extends State<SpreadReader> {
     );
   }
 
-  Widget _renderPageContents(SpreadPaginator pager, PageLayout layout,
-      ReaderColors colors,
-      {required bool isSpread}) {
+  Widget _renderPageContents(
+    SpreadPaginator pager,
+    PageLayout layout,
+    ReaderColors colors, {
+    required bool isSpread,
+  }) {
     final col = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -908,7 +959,11 @@ class _SpreadReaderState extends State<SpreadReader> {
       color: colors.background,
       alignment: Alignment.topLeft,
       padding: EdgeInsets.fromLTRB(
-          isSpread ? 8 : 20, topInset + 12, isSpread ? 8 : 20, 12),
+        isSpread ? 8 : 20,
+        topInset + 12,
+        isSpread ? 8 : 20,
+        12,
+      ),
       child: content,
     );
   }
@@ -917,10 +972,12 @@ class _SpreadReaderState extends State<SpreadReader> {
     if (block.isPageBreak) return const SizedBox(height: 24);
     final spans = _blockSpans(block, colors);
     final t = _highlightTarget;
-    final isTarget = t != null &&
+    final isTarget =
+        t != null &&
         t.chapter == block.sourceChapter &&
         (t.text.isEmpty || block.text.contains(t.text.trim()));
-    final isSearchBlock = _searchBlockIndex != null &&
+    final isSearchBlock =
+        _searchBlockIndex != null &&
         _searchBlockIndex! >= 0 &&
         _searchBlockIndex! < _blocks.length &&
         identical(_blocks[_searchBlockIndex!], block);
@@ -952,10 +1009,7 @@ class _SpreadReaderState extends State<SpreadReader> {
     Widget rich() => blockContent();
 
     if (!isTarget && !isSearchBlock) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: rich(),
-      );
+      return Padding(padding: const EdgeInsets.only(bottom: 10), child: rich());
     }
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -991,8 +1045,12 @@ class _SpreadReaderState extends State<SpreadReader> {
     final chapterBlocks = <SelectionBlock>[
       for (final b in _blocks)
         if (b.sourceChapter == h.chapter)
-          (chapter: b.sourceChapter, start: b.startChar, end: b.endChar,
-              text: b.text)
+          (
+            chapter: b.sourceChapter,
+            start: b.startChar,
+            end: b.endChar,
+            text: b.text,
+          ),
     ];
     if (chapterBlocks.isEmpty) return const [];
     // Старт с блока, где заметка начиналась, — иначе фраза ищется с начала
@@ -1030,7 +1088,7 @@ class _SpreadReaderState extends State<SpreadReader> {
       final all = _partsOf(h);
       final spans = all.length >= 2
           ? <(int, int)>[
-              for (var i = 0; i + 1 < all.length; i += 2) (all[i], all[i + 1])
+              for (var i = 0; i + 1 < all.length; i += 2) (all[i], all[i + 1]),
             ]
           : <(int, int)>[(h.start, h.end)];
       for (final sp in spans) {
@@ -1053,13 +1111,15 @@ class _SpreadReaderState extends State<SpreadReader> {
       if (re <= pos) continue; // полностью перекрыт — не дублируем закраску
       final start = max(rs, pos);
       if (start > pos) spans.add(TextSpan(text: text.substring(pos, start)));
-      spans.add(TextSpan(
-        text: text.substring(start, re),
-        style: TextStyle(
-          backgroundColor:
-              highlightColors[r.$3.clamp(0, highlightColors.length - 1)],
+      spans.add(
+        TextSpan(
+          text: text.substring(start, re),
+          style: TextStyle(
+            backgroundColor:
+                highlightColors[r.$3.clamp(0, highlightColors.length - 1)],
+          ),
         ),
-      ));
+      );
       pos = re;
     }
     if (pos < text.length) spans.add(TextSpan(text: text.substring(pos)));
@@ -1067,13 +1127,16 @@ class _SpreadReaderState extends State<SpreadReader> {
   }
 
   Widget _buildScrollBody(ReaderColors colors) {
-    final twoCol = _twoColumns &&
-        (MediaQuery.of(context).size.width >= 700);
+    final twoCol = _twoColumns && (MediaQuery.of(context).size.width >= 700);
     final colCount = twoCol ? 2 : 1;
     final list = ListView.builder(
       controller: _scrollController,
       padding: EdgeInsets.fromLTRB(
-          20, MediaQuery.of(context).padding.top + 64, 20, 120),
+        20,
+        MediaQuery.of(context).padding.top + 64,
+        20,
+        120,
+      ),
       itemCount: colCount == 1 ? _blocks.length : ((_blocks.length + 1) ~/ 2),
       itemBuilder: (context, r) {
         if (colCount == 1) {
@@ -1084,9 +1147,7 @@ class _SpreadReaderState extends State<SpreadReader> {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _renderBlock(_blocks[left], colors, index: left),
-            ),
+            Expanded(child: _renderBlock(_blocks[left], colors, index: left)),
             if (right < _blocks.length)
               Expanded(
                 child: _renderBlock(_blocks[right], colors, index: right),
@@ -1140,6 +1201,18 @@ class _SpreadReaderState extends State<SpreadReader> {
                     onPressed: () => _showSearch(),
                   ),
                   IconButton(
+                    icon: const Icon(Icons.document_scanner_outlined),
+                    color: colors.text,
+                    tooltip: 'Распознать текст',
+                    onPressed: _openScan,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.settings_outlined),
+                    color: colors.text,
+                    tooltip: 'Настройки читалки',
+                    onPressed: _openReaderSettings,
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.sticky_note_2_outlined),
                     color: colors.text,
                     tooltip: 'Заметки',
@@ -1157,14 +1230,16 @@ class _SpreadReaderState extends State<SpreadReader> {
                     tooltip: 'Экспорт цитат в Markdown',
                     onPressed: () => _exportQuotes(),
                   ),
-                  Builder(builder: (btnCtx) {
-                    return IconButton(
-                      icon: const Icon(Icons.content_copy),
-                      color: colors.text,
-                      tooltip: 'Копировать текущий абзац / как цитату',
-                      onPressed: () => _showTopCopy(btnCtx, colors),
-                    );
-                  }),
+                  Builder(
+                    builder: (btnCtx) {
+                      return IconButton(
+                        icon: const Icon(Icons.content_copy),
+                        color: colors.text,
+                        tooltip: 'Копировать текущий абзац / как цитату',
+                        onPressed: () => _showTopCopy(btnCtx, colors),
+                      );
+                    },
+                  ),
                   IconButton(
                     icon: const Icon(Icons.format_size),
                     color: colors.text,
@@ -1182,8 +1257,9 @@ class _SpreadReaderState extends State<SpreadReader> {
 
   Widget _buildBottomBar(ReaderColors colors) {
     final pager = _paginator;
-    final totalPages =
-        pager != null && pager.isReady ? max(1, _screenCount) : 1;
+    final totalPages = pager != null && pager.isReady
+        ? max(1, _screenCount)
+        : 1;
     final canPrev = _currentPage > 0;
     final canNext = _scrollMode
         ? _global < _blocks.length - 1
@@ -1213,8 +1289,8 @@ class _SpreadReaderState extends State<SpreadReader> {
               tooltip: 'Назад',
               onPressed: canPrev
                   ? () => _scrollMode
-                      ? _jumpToBlock(max(0, _global - 8))
-                      : _flipPage(-1)
+                        ? _jumpToBlock(max(0, _global - 8))
+                        : _flipPage(-1)
                   : null,
             ),
             Expanded(
@@ -1244,12 +1320,11 @@ class _SpreadReaderState extends State<SpreadReader> {
             ),
             IconButton(
               icon: Icon(
-                _selectMode
-                    ? Icons.text_fields
-                    : Icons.text_fields_outlined,
+                _selectMode ? Icons.text_fields : Icons.text_fields_outlined,
               ),
               color: _selectMode ? colors.accent : colors.text,
-              tooltip: 'Режим выделения: '
+              tooltip:
+                  'Режим выделения: '
                   '${_selectMode ? 'вкл — выделяйте текст мышью' : 'выкл — листайте'}',
               onPressed: () => setState(() {
                 _selectMode = !_selectMode;
@@ -1261,8 +1336,8 @@ class _SpreadReaderState extends State<SpreadReader> {
               tooltip: 'Вперёд',
               onPressed: canNext
                   ? () => _scrollMode
-                      ? _jumpToBlock(min(_blocks.length - 1, _global + 8))
-                      : _flipPage(1)
+                        ? _jumpToBlock(min(_blocks.length - 1, _global + 8))
+                        : _flipPage(1)
                   : null,
             ),
           ],
@@ -1279,9 +1354,11 @@ class _SpreadReaderState extends State<SpreadReader> {
     if (total <= 0) return 0;
     final progress = _scrollMode
         ? (_blocks.isEmpty ? 0.0 : ((_global + 1) / _blocks.length))
-        : (_paginator != null && _paginator!.isReady && _paginator!.pageCount > 0
-            ? _currentPage / _paginator!.pageCount
-            : 0.0);
+        : (_paginator != null &&
+                  _paginator!.isReady &&
+                  _paginator!.pageCount > 0
+              ? _currentPage / _paginator!.pageCount
+              : 0.0);
     final remainingChars = total * (1 - progress.clamp(0.0, 1.0));
     return remainingChars / 50.0;
   }
@@ -1296,18 +1373,16 @@ class _SpreadReaderState extends State<SpreadReader> {
   }
 
   void _openNotesManager() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const NotesScreen(),
-      ),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const NotesScreen()));
   }
 
   Future<void> _exportQuotes() async {
     final highlights = _hmanager.highlights;
     if (highlights.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('В этой книге пока нет выделений.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('В этой книге пока нет выделений.')),
+      );
       return;
     }
     final sb = StringBuffer();
@@ -1316,8 +1391,10 @@ class _SpreadReaderState extends State<SpreadReader> {
       sb.writeln('*${widget.book.author}*');
     }
     sb.writeln();
-    sb.writeln('_Экспорт цитат из QutZem Reader — '
-        '${DateTime.now().toIso8601String()}_');
+    sb.writeln(
+      '_Экспорт цитат из QutZem Reader — '
+      '${DateTime.now().toIso8601String()}_',
+    );
     sb.writeln();
     String? lastChapter;
     for (final h in highlights) {
@@ -1344,13 +1421,17 @@ class _SpreadReaderState extends State<SpreadReader> {
     final file = File(p.join(targetDir.path, '$safe-цитаты.md'));
     file.writeAsStringSync(sb.toString());
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
         content: Text('Экспортировано: ${file.path}'),
-        duration: const Duration(seconds: 4)));
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   void _showToc() {
-    final colors = resolveThemeColors(context, _theme) ??
+    final colors =
+        resolveThemeColors(context, _theme) ??
         readerThemeColors[ReaderTheme.light]!;
     showTocSheet(
       context,
@@ -1363,7 +1444,8 @@ class _SpreadReaderState extends State<SpreadReader> {
   }
 
   void _showSearch() {
-    final colors = resolveThemeColors(context, _theme) ??
+    final colors =
+        resolveThemeColors(context, _theme) ??
         readerThemeColors[ReaderTheme.light]!;
     showBookSearchSheet(
       context,
@@ -1383,9 +1465,10 @@ class _SpreadReaderState extends State<SpreadReader> {
   }
 
   ReaderService get _service => ReaderService(
-      library: widget.library,
-      book: widget.book,
-      aiSettings: widget.aiSettings);
+    library: widget.library,
+    book: widget.book,
+    aiSettings: widget.aiSettings,
+  );
 
   String _fmtTs(DateTime t) {
     final now = DateTime.now();
@@ -1412,7 +1495,8 @@ class _SpreadReaderState extends State<SpreadReader> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            final colors = resolveThemeColors(context, _theme) ??
+            final colors =
+                resolveThemeColors(context, _theme) ??
                 readerThemeColors[ReaderTheme.light]!;
             final service = _service;
             final bookmarks = service.bookmarks.reversed.toList();
@@ -1425,11 +1509,14 @@ class _SpreadReaderState extends State<SpreadReader> {
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                     child: Row(
                       children: [
-                        Text('Закладки',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: colors.text)),
+                        Text(
+                          'Закладки',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: colors.text,
+                          ),
+                        ),
                         const Spacer(),
                         TextButton.icon(
                           onPressed: () {
@@ -1460,8 +1547,7 @@ class _SpreadReaderState extends State<SpreadReader> {
                           final b = bookmarks[i];
                           return ListTile(
                             dense: true,
-                            leading:
-                                Icon(Icons.bookmark, color: colors.accent),
+                            leading: Icon(Icons.bookmark, color: colors.accent),
                             title: Text(
                               b.label.isEmpty
                                   ? 'Раздел ${b.chapter + 1}'
@@ -1473,7 +1559,9 @@ class _SpreadReaderState extends State<SpreadReader> {
                             subtitle: Text(
                               _fmtTs(b.createdAt),
                               style: TextStyle(
-                                  color: colors.muted, fontSize: 12),
+                                color: colors.muted,
+                                fontSize: 12,
+                              ),
                             ),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete_outline),
@@ -1486,7 +1574,8 @@ class _SpreadReaderState extends State<SpreadReader> {
                             onTap: () {
                               Navigator.pop(ctx);
                               _jumpToBlock(
-                                  b.offset.clamp(0, _blocks.length - 1));
+                                b.offset.clamp(0, _blocks.length - 1),
+                              );
                               _scheduleSave();
                             },
                           );
@@ -1503,135 +1592,243 @@ class _SpreadReaderState extends State<SpreadReader> {
   }
 
   void _showTextSettings() {
+    // Карточки из общего набора, но в цветах темы самой книги: панель лежит
+    // поверх страницы, чёрный фон из настроек здесь смотрелся бы чужеродно.
+    final colors =
+        resolveThemeColors(context, _theme) ??
+        readerThemeColors[ReaderTheme.dark]!;
+    final palette = SettingsPalette(
+      background: colors.ui,
+      card: colors.ui,
+      text: colors.text,
+      muted: colors.muted,
+      divider: colors.border,
+      accent: colors.accent,
+    );
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: resolveThemeColors(context, _theme)?.ui,
+      backgroundColor: colors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  if (n is ScrollUpdateNotification) {
+                    final show =
+                        n.metrics.pixels > SettingsTokens.actionBarRevealOffset;
+                    if (show != _textActionsVisible) {
+                      setSheetState(() => _textActionsVisible = show);
+                    }
+                  }
+                  return false;
+                },
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Текст',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: resolveThemeColors(context, _theme)?.text)),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.text_decrease),
-                          onPressed: () {
-                            setSheetState(() {
-                              _fontSize =
-                                  (_fontSize - 1).clamp(readerMinFont, readerMaxFont);
-                            });
-                            setState(() {});
-                            _reflow();
-                          },
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(
+                          SettingsTokens.margin,
+                          SettingsTokens.margin,
+                          SettingsTokens.margin,
+                          SettingsTokens.margin,
                         ),
-                        Expanded(
-                          child: Slider(
-                            min: readerMinFont,
-                            max: readerMaxFont,
-                            value: _fontSize,
-                            onChanged: (v) {
-                              setSheetState(() => _fontSize = v);
-                              setState(() {});
-                              _reflow();
-                            },
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.text_increase),
-                          onPressed: () {
-                            setSheetState(() {
-                              _fontSize =
-                                  (_fontSize + 1).clamp(readerMinFont, readerMaxFont);
-                            });
-                            setState(() {});
-                            _reflow();
-                          },
-                        ),
-                      ],
-                    ),
-                    Text('${_fontSize.round()} pt',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: resolveThemeColors(context, _theme)?.text)),
-                    const Divider(),
-                    Text('Тема',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: resolveThemeColors(context, _theme)?.text)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final t in ReaderTheme.values)
-                          ChoiceChip(
-                            label: Text(t.label),
-                            selected: t == _theme,
-                            onSelected: (_) {
-                              setSheetState(() {});
-                              setState(() => _theme = t);
-                              _persistSettings();
-                            },
-                          ),
-                      ],
-                    ),
-                    const Divider(),
-                    Row(
-                      children: [
-                        Text('Режим',
-                            style: TextStyle(
-                                color: resolveThemeColors(context, _theme)?.text)),
-                        const Spacer(),
-                        SegmentedButton<bool>(
-                          segments: const [
-                            ButtonSegment(value: false, label: Text('Страницы')),
-                            ButtonSegment(value: true, label: Text('Прокрутка')),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SettingsHeader(
+                              title: 'Текст',
+                              palette: palette.withAccent(colors.accent),
+                            ),
+                            SettingsCard(
+                              palette: palette,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    SettingsTokens.padH,
+                                    12,
+                                    SettingsTokens.padH,
+                                    12,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.text_fields,
+                                        size: SettingsTokens.iconSize,
+                                        color: SettingsTokens.iconText,
+                                      ),
+                                      const SizedBox(
+                                        width: SettingsTokens.iconGap,
+                                      ),
+                                      Text(
+                                        'Размер',
+                                        style: TextStyle(
+                                          fontSize: SettingsTokens.rowTitleSize,
+                                          color: colors.text,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        '${_fontSize.round()} pt',
+                                        style: TextStyle(
+                                          fontSize: SettingsTokens.rowTitleSize,
+                                          color: colors.muted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    const SizedBox(width: 6),
+                                    IconButton(
+                                      icon: const Icon(Icons.text_decrease),
+                                      color: colors.accent,
+                                      onPressed: () {
+                                        setSheetState(() {
+                                          _fontSize = (_fontSize - 1).clamp(
+                                            readerMinFont,
+                                            readerMaxFont,
+                                          );
+                                        });
+                                        setState(() {});
+                                        _reflow();
+                                      },
+                                    ),
+                                    Expanded(
+                                      child: Slider(
+                                        min: readerMinFont,
+                                        max: readerMaxFont,
+                                        value: _fontSize,
+                                        onChanged: (v) {
+                                          setSheetState(() => _fontSize = v);
+                                          setState(() {});
+                                          _reflow();
+                                        },
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.text_increase),
+                                      color: colors.accent,
+                                      onPressed: () {
+                                        setSheetState(() {
+                                          _fontSize = (_fontSize + 1).clamp(
+                                            readerMinFont,
+                                            readerMaxFont,
+                                          );
+                                        });
+                                        setState(() {});
+                                        _reflow();
+                                      },
+                                    ),
+                                    const SizedBox(width: 6),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            SettingsCard(
+                              title: 'Тема страницы',
+                              palette: palette,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(
+                                    SettingsTokens.padH,
+                                  ),
+                                  child: Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      for (final t in ReaderTheme.values)
+                                        ChoiceChip(
+                                          label: Text(t.label),
+                                          selected: t == _theme,
+                                          onSelected: (_) {
+                                            setSheetState(() {});
+                                            setState(() => _theme = t);
+                                            _persistSettings();
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SettingsCard(
+                              palette: palette,
+                              children: [
+                                SettingsRow(
+                                  title: 'Режим',
+                                  icon: Icons.menu_book_outlined,
+                                  iconColor: SettingsTokens.iconText,
+                                  palette: palette,
+                                  trailing: SegmentedButton<bool>(
+                                    style: ButtonStyle(
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    segments: const [
+                                      ButtonSegment(
+                                        value: false,
+                                        label: Text('Страницы'),
+                                      ),
+                                      ButtonSegment(
+                                        value: true,
+                                        label: Text('Прокрутка'),
+                                      ),
+                                    ],
+                                    selected: {_scrollMode},
+                                    onSelectionChanged: (s) {
+                                      setSheetState(() {});
+                                      setState(() => _scrollMode = s.first);
+                                      _reflow();
+                                    },
+                                  ),
+                                ),
+                                SettingsRow(
+                                  title: 'Колонки',
+                                  icon: Icons.grid_view_outlined,
+                                  iconColor: SettingsTokens.iconPlayback,
+                                  palette: palette,
+                                  trailing: SegmentedButton<bool>(
+                                    style: ButtonStyle(
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    segments: const [
+                                      ButtonSegment(
+                                        value: false,
+                                        label: Text('1'),
+                                      ),
+                                      ButtonSegment(
+                                        value: true,
+                                        label: Text('2'),
+                                      ),
+                                    ],
+                                    selected: {_twoColumns},
+                                    onSelectionChanged: (s) {
+                                      setSheetState(() {});
+                                      setState(() => _twoColumns = s.first);
+                                      _reflow();
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
                           ],
-                          selected: {_scrollMode},
-                          onSelectionChanged: (s) {
-                            setSheetState(() {});
-                            setState(() => _scrollMode = s.first);
-                            _reflow();
-                          },
                         ),
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Text('Колонки',
-                            style: TextStyle(
-                                color: resolveThemeColors(context, _theme)?.text)),
-                        const Spacer(),
-                        SegmentedButton<bool>(
-                          segments: const [
-                            ButtonSegment(value: false, label: Text('1')),
-                            ButtonSegment(value: true, label: Text('2')),
-                          ],
-                          selected: {_twoColumns},
-                          onSelectionChanged: (s) {
-                            setSheetState(() {});
-                            setState(() => _twoColumns = s.first);
-                            _reflow();
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Готово'),
+                    SettingsActionBar(
+                      visible: _textActionsVisible,
+                      palette: palette.withAccent(colors.accent),
+                      child: SettingsActionBarButton(
+                        label: 'Готово',
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
                     ),
                   ],
                 ),

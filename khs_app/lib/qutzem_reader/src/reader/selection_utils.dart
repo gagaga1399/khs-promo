@@ -14,7 +14,8 @@ List<int>? findFragment(String haystack, String needle) {
 
   final hNorm = <int>[];
   final hBuf = StringBuffer();
-  var prevSpace = true; // исходную строку не обрезаем, но ведущие пробелы схлопываем
+  var prevSpace =
+      true; // исходную строку не обрезаем, но ведущие пробелы схлопываем
   for (var i = 0; i < haystack.length; i++) {
     final c = haystack.codeUnitAt(i);
     final isWs = _isWhitespace(c);
@@ -105,7 +106,7 @@ List<(int, int, int)> locateSelectionParts({
     final f = findFragment(blocks[i].text, needle);
     if (f != null) {
       return [
-        (blocks[i].chapter, blocks[i].start + f[0], blocks[i].start + f[1])
+        (blocks[i].chapter, blocks[i].start + f[0], blocks[i].start + f[1]),
       ];
     }
   }
@@ -134,8 +135,14 @@ List<(int, int, int)> locateSelectionParts({
 ///
 /// [needle] — сырой текст выделения, [n] — он же без пробелов: сравниваем
 /// по [n], а искать хвост нужно по сырому [needle].
-List<(int, int, int)>? _collect(List<SelectionBlock> blocks, int first,
-    int startIn, String needle, String n, int end) {
+List<(int, int, int)>? _collect(
+  List<SelectionBlock> blocks,
+  int first,
+  int startIn,
+  String needle,
+  String n,
+  int end,
+) {
   final picked = <int>[];
   var joined = '';
   var j = first;
@@ -145,7 +152,11 @@ List<(int, int, int)>? _collect(List<SelectionBlock> blocks, int first,
     if (acc.length >= n.length && picked.isNotEmpty) {
       // Выделение закончилось ровно на конце предыдущего абзаца.
       return _emitRanges(
-          blocks, picked, startIn, blocks[picked.last].text.length);
+        blocks,
+        picked,
+        startIn,
+        blocks[picked.last].text.length,
+      );
     }
     // Хвост выделения — внутри текущего абзаца.
     final rest = needle.substring(_skel(needle).map[acc.length]);
@@ -157,7 +168,9 @@ List<(int, int, int)>? _collect(List<SelectionBlock> blocks, int first,
     joined += blocks[j].text.substring(j == first ? startIn : 0);
     j++;
   }
-  return picked.isNotEmpty ? _emitRanges(blocks, picked, startIn, blocks[picked.last].text.length) : null;
+  return picked.isNotEmpty
+      ? _emitRanges(blocks, picked, startIn, blocks[picked.last].text.length)
+      : null;
 }
 
 /// Все вхождения [needle] в [haystack] как пары индексов [start, end).
@@ -176,7 +189,11 @@ List<List<int>> findFragments(String haystack, String needle) {
 
 /// Собрать итоговые диапазоны по накопленным абзацам.
 List<(int, int, int)> _emitRanges(
-    List<SelectionBlock> blocks, List<int> picked, int firstStart, int lastEnd) {
+  List<SelectionBlock> blocks,
+  List<int> picked,
+  int firstStart,
+  int lastEnd,
+) {
   final out = <(int, int, int)>[];
   for (var k = 0; k < picked.length; k++) {
     final b = blocks[picked[k]];

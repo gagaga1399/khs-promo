@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../ui/settings_kit.dart';
 import '../ai.dart';
 import '../search.dart';
 import '../settings.dart';
@@ -15,16 +16,22 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _syncCtrl;
+  late final TextEditingController _aiModelCtrl;
+  late final TextEditingController _aiKeyCtrl;
+  late final TextEditingController _aiUrlCtrl;
   late AppSettings _s;
   List<String> _ollamaModels = const [];
+  String _query = '';
 
   @override
   void initState() {
     super.initState();
     _s = AppSettings.fromJson(widget.settings.toJson());
-    _nameCtrl =
-        TextEditingController(text: _s.displayName);
+    _nameCtrl = TextEditingController(text: _s.displayName);
     _syncCtrl = TextEditingController(text: _s.syncServer);
+    _aiModelCtrl = TextEditingController(text: _s.ai.model);
+    _aiKeyCtrl = TextEditingController(text: _s.ai.apiKey);
+    _aiUrlCtrl = TextEditingController(text: _s.ai.baseUrl);
     if (_s.ai.provider == AiProvider.ollama) {
       _reloadOllamaModels();
     }
@@ -42,6 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _ollamaModels = models;
       if (_ollamaModels.isNotEmpty && !_ollamaModels.contains(_s.ai.model)) {
         _s.ai.model = _ollamaModels.first;
+        _aiModelCtrl.text = _s.ai.model;
       }
     });
   }
@@ -50,6 +58,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _nameCtrl.dispose();
     _syncCtrl.dispose();
+    _aiModelCtrl.dispose();
+    _aiKeyCtrl.dispose();
+    _aiUrlCtrl.dispose();
     super.dispose();
   }
 
@@ -64,199 +75,280 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Группа видна, если запрос пуст или совпал с её названием либо с одним из
+  /// пунктов. Ищет без учёта регистра и «ё».
+  bool _visible(List<String> haystack) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase().replaceAll('ё', 'е');
+    for (final raw in haystack) {
+      final h = raw.toLowerCase().replaceAll('ё', 'е');
+      if (h.contains(q)) return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Настройки'),
-        actions: [
-          TextButton(onPressed: _save, child: const Text('Сохранить')),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _sectionTitle('Профиль'),
-          TextField(
-            controller: _nameCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Имя для синхронизации',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _syncCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Адрес сервера синхронизации (интернет)',
-              hintText: 'оставьте пустым для оффлайн-режима',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _sectionTitle('Лимит размера книги'),
-          Row(
-            children: [
-              Expanded(
-                child: Slider(
-                  min: 1,
-                  max: 100,
-                  divisions: 99,
-                  label: '${(_s.maxBookSizeBytes / (1024 * 1024)).toStringAsFixed(0)} МБ',
-                  value: _s.maxBookSizeBytes / (1024 * 1024),
-                  onChanged: (v) => setState(() {
-                    _s.maxBookSizeBytes = v * 1024 * 1024;
-                  }),
-                ),
+    final muted = SettingsTokens.muted(context);
+    final children = <Widget>[];
+
+    if (_visible(['Профиль', 'Имя для синхронизации', 'Адрес сервера'])) {
+      children.add(
+        SettingsCard(
+          title: 'Профиль',
+          children: [
+            SettingsField(
+              controller: _nameCtrl,
+              maxLength: 64,
+              label: 'Имя для синхронизации',
+              prefixIcon: Icon(
+                Icons.person_outline,
+                size: 20,
+                color: SettingsTokens.iconProfile,
               ),
-              SizedBox(
-                width: 90,
-                child: Text(
-                  '${(_s.maxBookSizeBytes / (1024 * 1024)).toStringAsFixed(1)} МБ',
-                  textAlign: TextAlign.end,
-                ),
+            ),
+            SettingsField(
+              controller: _syncCtrl,
+              maxLength: 200,
+              label: 'Адрес сервера синхронизации',
+              hint: 'оставьте пустым для оффлайн-режима',
+              prefixIcon: Icon(
+                Icons.cloud_outlined,
+                size: 20,
+                color: SettingsTokens.iconSync,
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _sectionTitle('ИИ-разбор фрагмента'),
-          DropdownButtonFormField<AiProvider>(
-            initialValue: _s.ai.provider,
-            decoration: const InputDecoration(
-              labelText: 'Провайдер',
-              border: OutlineInputBorder(),
-            ),
-            items: AiProvider.values
-                .map((p) => DropdownMenuItem(
-                    value: p, child: Text(p.label)))
-                .toList(),
-            onChanged: (v) => setState(() {
-              if (v != null) {
-                _s.ai.provider = v;
-                _s.ai.baseUrl = v.baseUrl;
-                _s.ai.model = v.defaultModel;
-                _ollamaModels = const [];
-                if (v == AiProvider.ollama) _reloadOllamaModels();
-              }
-            }),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Модель',
-              border: OutlineInputBorder(),
-            ),
-            controller: TextEditingController(text: _s.ai.model),
-            onChanged: (v) => _s.ai.model = v,
-          ),
-          const SizedBox(height: 8),
-          if (_s.ai.provider.needsKey) ...[
-            TextField(
-              controller:
-                  TextEditingController(text: _s.ai.apiKey),
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'API-ключ',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (v) => _s.ai.apiKey = v,
-            ),
-          ] else if (_s.ai.provider == AiProvider.free) ...[
-            const SizedBox(height: 4),
-            const Text(
-              'Бесплатный общедоступный ИИ без ключа (Pollinations). '
-              'Работает через интернет — подходит и для телефона. '
-              'Возможны лимиты на частоту запросов.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ] else ...[
-            if (_ollamaModels.isNotEmpty) ...[
-              DropdownButtonFormField<String>(
-                initialValue: _ollamaModels.contains(_s.ai.model)
-                    ? _s.ai.model
-                    : _ollamaModels.first,
-                decoration: InputDecoration(
-                  labelText: 'Модель из Ollama',
-                  helperText:
-                      'Установлено: ${_ollamaModels.join(', ')}',
-                  border: const OutlineInputBorder(),
-                ),
-                items: _ollamaModels
-                    .map((m) => DropdownMenuItem(
-                        value: m, child: Text(m)))
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  if (v != null) _s.ai.model = v;
-                }),
-              ),
-              const SizedBox(height: 8),
-            ],
-            TextField(
-              controller: TextEditingController(text: _s.ai.baseUrl),
-              decoration: const InputDecoration(
-                labelText: 'Адрес Ollama (локально)',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (v) => _s.ai.baseUrl = v,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _ollamaModels.isEmpty
-                  ? 'Ollama не отвечает или не запущена. Установите Ollama '
-                      'и запросите модель, например: ollama pull qwen2.5:3b. '
-                      'Модель работает локально, без интернета и ключей.'
-                  : 'Модель выбрана из установленных. Для других моделей '
-                      'запустите: ollama pull <название>.',
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ],
-          const SizedBox(height: 16),
-          _sectionTitle('Поиск книг (OPDS-каталоги)'),
-          ..._s.catalogs.asMap().entries.map((e) {
-            return Card(
-              child: ListTile(
-                dense: true,
-                title: Text(e.value.name),
-                subtitle: Text(e.value.url,
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+      );
+    }
+
+    if (_visible(['Лимит размера книги', 'МБ'])) {
+      children.add(
+        SettingsCard(
+          title: 'Лимит размера книги',
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    min: 1,
+                    max: 100,
+                    divisions: 99,
+                    label:
+                        '${(_s.maxBookSizeBytes / (1024 * 1024)).toStringAsFixed(0)} МБ',
+                    value: _s.maxBookSizeBytes / (1024 * 1024),
+                    onChanged: (v) => setState(() {
+                      _s.maxBookSizeBytes = v * 1024 * 1024;
+                    }),
+                  ),
+                ),
+                SizedBox(
+                  width: 84,
+                  child: Text(
+                    '${(_s.maxBookSizeBytes / (1024 * 1024)).toStringAsFixed(1)} МБ',
+                    textAlign: TextAlign.end,
+                    style: TextStyle(
+                      fontSize: SettingsTokens.rowTitleSize,
+                      color: SettingsTokens.text(context),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_visible(['ИИ-разбор фрагмента', 'Провайдер', 'Модель', 'API-ключ'])) {
+      children.add(
+        SettingsCard(
+          title: 'ИИ-разбор фрагмента',
+          children: [
+            DropdownButtonFormField<AiProvider>(
+              initialValue: _s.ai.provider,
+              isExpanded: true,
+              decoration: settingsInputDecoration(
+                context,
+                label: 'Провайдер',
+                prefixIcon: Icon(
+                  Icons.auto_awesome,
+                  size: 20,
+                  color: SettingsTokens.iconAi,
+                ),
+              ),
+              dropdownColor: SettingsTokens.card(context),
+              borderRadius: BorderRadius.circular(SettingsTokens.radiusCard),
+              items: AiProvider.values
+                  .map((p) => DropdownMenuItem(value: p, child: Text(p.label)))
+                  .toList(),
+              onChanged: (v) => setState(() {
+                if (v != null) {
+                  _s.ai.provider = v;
+                  _s.ai.baseUrl = v.baseUrl;
+                  _s.ai.model = v.defaultModel;
+                  _aiModelCtrl.text = v.defaultModel;
+                  _aiUrlCtrl.text = v.baseUrl;
+                  _ollamaModels = const [];
+                  if (v == AiProvider.ollama) _reloadOllamaModels();
+                }
+              }),
+            ),
+            if (_s.ai.provider.needsKey)
+              SettingsField(
+                controller: _aiKeyCtrl,
+                maxLength: 200,
+                label: 'API-ключ',
+                obscureText: true,
+                prefixIcon: Icon(
+                  Icons.vpn_key_outlined,
+                  size: 20,
+                  color: SettingsTokens.iconSecurity,
+                ),
+                onChanged: (v) => _s.ai.apiKey = v,
+              )
+            else if (_s.ai.provider == AiProvider.free)
+              const _Note(
+                'Бесплатный общедоступный ИИ без ключа (Pollinations). '
+                'Работает через интернет — подходит и для телефона. '
+                'Возможны лимиты на частоту запросов.',
+              )
+            else ...[
+              if (_ollamaModels.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  initialValue: _ollamaModels.contains(_s.ai.model)
+                      ? _s.ai.model
+                      : _ollamaModels.first,
+                  isExpanded: true,
+                  decoration: settingsInputDecoration(
+                    context,
+                    label: 'Модель из Ollama',
+                    helper: 'Установлено: ${_ollamaModels.join(', ')}',
+                  ),
+                  dropdownColor: SettingsTokens.card(context),
+                  borderRadius: BorderRadius.circular(
+                    SettingsTokens.radiusCard,
+                  ),
+                  items: _ollamaModels
+                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                      .toList(),
+                  onChanged: (v) => setState(() {
+                    if (v != null) {
+                      _s.ai.model = v;
+                      _aiModelCtrl.text = v;
+                    }
+                  }),
+                ),
+              SettingsField(
+                controller: _aiUrlCtrl,
+                maxLength: 300,
+                label: 'Адрес Ollama (локально)',
+                prefixIcon: Icon(
+                  Icons.lan_outlined,
+                  size: 20,
+                  color: SettingsTokens.iconStorage,
+                ),
+                onChanged: (v) => _s.ai.baseUrl = v,
+              ),
+              _Note(
+                _ollamaModels.isEmpty
+                    ? 'Ollama не отвечает или не запущена. Установите Ollama '
+                          'и запросите модель, например: ollama pull qwen2.5:3b. '
+                          'Модель работает локально, без интернета и ключей.'
+                    : 'Модель выбрана из установленных. Для других моделей '
+                          'запустите: ollama pull <название>.',
+              ),
+            ],
+            if (!_s.ai.provider.needsKey && _s.ai.provider != AiProvider.free)
+              SettingsField(
+                controller: _aiModelCtrl,
+                maxLength: 120,
+                label: 'Модель',
+                prefixIcon: Icon(
+                  Icons.memory,
+                  size: 20,
+                  color: SettingsTokens.iconMetadata,
+                ),
+                onChanged: (v) => _s.ai.model = v,
+              ),
+          ],
+        ),
+      );
+    }
+
+    if (_visible(['Поиск книг', 'OPDS', 'каталог', 'Добавить каталог'])) {
+      children.add(
+        SettingsCard(
+          title: 'Поиск книг (OPDS-каталоги)',
+          children: [
+            for (final e in _s.catalogs.asMap().entries)
+              SettingsRow(
+                title: e.value.name,
+                subtitle: e.value.url,
+                icon: Icons.cloud_outlined,
+                iconColor: SettingsTokens.iconMedia,
                 trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  color: SettingsTokens.iconSupport,
                   onPressed: () => setState(() {
                     _s.catalogs.removeAt(e.key);
                   }),
                 ),
               ),
-            );
-          }),
-          ListTile(
-            leading: const Icon(Icons.add),
-            title: const Text('Добавить каталог'),
-            onTap: _addCatalog,
+            SettingsRow(
+              title: 'Добавить каталог',
+              icon: Icons.add,
+              iconColor: SettingsTokens.iconDownload,
+              onTap: _addCatalog,
+            ),
+          ],
+        ),
+      );
+      children.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 12, left: 4, right: 4),
+          child: Text(
+            'Для интернет-поиска приложение уже включает Project Gutenberg '
+            '(бесплатные книги) и редактируемый список OPDS. Скачанные книги '
+            'читаются полностью оффлайн.',
+            style: TextStyle(
+              color: muted,
+              fontSize: SettingsTokens.rowSubtitleSize,
+              height: 1.35,
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Для интернет-поиска приложение уже включает Project '
-            'Gutenberg (бесплатные книги) и редактируемый список OPDS. '
-            'Скачанные книги читаются полностью оффлайн.',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-          ),
-          const Divider(height: 32),
-          Text(
-            'QutZem Reader v$appVersion · автор: QutZem',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-          ),
-        ],
+        ),
+      );
+    }
+
+    children.add(
+      Padding(
+        padding: const EdgeInsets.only(top: 24, bottom: 8),
+        child: Text(
+          'QutZem Reader v$appVersion · автор: QutZem',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: muted, fontSize: 12),
+        ),
       ),
     );
-  }
 
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+    return Scaffold(
+      backgroundColor: SettingsTokens.background(context),
+      body: SettingsView(
+        title: 'Настройки читалки',
+        onBack: () => Navigator.pop(context),
+        search: SettingsSearch(
+          hint: 'Настройки поиска',
+          onChanged: (v) => setState(() => _query = v.trim()),
+        ),
+        trailing: null,
+        actions: SettingsActionBarButton(
+          label: 'Сохранить',
+          icon: Icons.check,
+          onPressed: _save,
+        ),
+        children: children,
       ),
     );
   }
@@ -271,17 +363,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            SettingsField(
               controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'Название'),
+              maxLength: 64,
+              label: 'Название',
             ),
-            const SizedBox(height: 8),
-            TextField(
+            const SizedBox(height: 12),
+            SettingsField(
               controller: urlCtrl,
-              decoration: const InputDecoration(
-                labelText: 'URL (OPDS Atom или JSON)',
-                hintText: 'https://…',
-              ),
+              maxLength: 400,
+              label: 'URL (OPDS Atom или JSON)',
+              hint: 'https://…',
             ),
           ],
         ),
@@ -306,5 +398,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
         });
       }
     }
+  }
+}
+
+/// Пояснение под полем внутри карточки.
+class _Note extends StatelessWidget {
+  const _Note(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: SettingsTokens.muted(context),
+          fontSize: 12,
+          height: 1.35,
+        ),
+      ),
+    );
   }
 }

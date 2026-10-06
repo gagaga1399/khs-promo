@@ -46,19 +46,16 @@ class OpdsCatalog {
   Map<String, dynamic> toJson() => {'name': name, 'url': url};
 
   factory OpdsCatalog.fromJson(Map<String, dynamic> json) => OpdsCatalog(
-        name: json['name'] as String? ?? '',
-        url: json['url'] as String? ?? '',
-      );
+    name: json['name'] as String? ?? '',
+    url: json['url'] as String? ?? '',
+  );
 }
 
 class SearchService {
   /// Каталоги по умолчанию. Надёжные источники (Gutenberg, Archive.org,
   /// Book2You) встраиваются безусловно — см. [search].
   static final defaultCatalogs = <OpdsCatalog>[
-    OpdsCatalog(
-      name: 'Book2You',
-      url: 'https://book2you.net',
-    ),
+    OpdsCatalog(name: 'Book2You', url: 'https://book2you.net'),
   ];
 
   static const _timeout = Duration(seconds: 10);
@@ -68,20 +65,17 @@ class SearchService {
       '(KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
   /// Специальные источники, не работающие по протоколу OPDS.
-  static final catalogBuilders = <String, String>{
-    'Book2You': 'book2you',
-  };
+  static final catalogBuilders = <String, String>{'Book2You': 'book2you'};
 
   final List<OpdsCatalog> catalogs;
 
   SearchService({List<OpdsCatalog>? catalogs})
-      : catalogs = catalogs ?? defaultCatalogs;
+    : catalogs = catalogs ?? defaultCatalogs;
 
   Map<String, String> _headers() => {
-        'User-Agent': _chromeUa,
-        'Accept':
-            'text/html,application/atom+xml,application/xml,application/json;q=0.9,*/*;q=0.8',
-      };
+    'User-Agent': _chromeUa,
+    'Accept': 'text/html,application/atom+xml,application/xml,application/json;q=0.9,*/*;q=0.8',
+  };
 
   OpdsCatalog get _book2youCatalog {
     for (final c in catalogs) {
@@ -90,8 +84,7 @@ class SearchService {
     return defaultCatalogs.first;
   }
 
-  Future<List<SearchResult>> search(String query,
-      {int maxResults = 20}) async {
+  Future<List<SearchResult>> search(String query, {int maxResults = 20}) async {
     final q = query.trim();
     if (q.isEmpty) return [];
 
@@ -107,7 +100,9 @@ class SearchService {
     };
     final failed = <String>[];
     Future<List<SearchResult>> guard(
-        String name, Future<List<SearchResult>> f) async {
+      String name,
+      Future<List<SearchResult>> f,
+    ) async {
       try {
         return await f.timeout(_timeout * 2);
       } catch (_) {
@@ -118,13 +113,16 @@ class SearchService {
 
     List<List<SearchResult>> settled;
     try {
-      settled = await Future.wait(
-          futures.entries.map((e) => guard(e.key, e.value))).timeout(
-              const Duration(seconds: 30),
-              onTimeout: () => <List<SearchResult>>[]);
+      settled =
+          await Future.wait(futures.entries.map((e) => guard(e.key, e.value)))
+              .timeout(
+                const Duration(seconds: 30),
+                onTimeout: () => <List<SearchResult>>[],
+              );
     } on TimeoutException {
       throw Exception(
-          'Поиск не уложился в 30 секунд. Проверьте интернет и повторите.');
+        'Поиск не уложился в 30 секунд. Проверьте интернет и повторите.',
+      );
     }
     final results = <SearchResult>[];
     for (final list in settled) {
@@ -132,8 +130,9 @@ class SearchService {
     }
     if (results.isEmpty && failed.isNotEmpty) {
       throw Exception(
-          'Не удалось найти книги: нет доступа к каталогам '
-          '(${failed.join(', ')}). Проверьте интернет и повторите.');
+        'Не удалось найти книги: нет доступа к каталогам '
+        '(${failed.join(', ')}). Проверьте интернет и повторите.',
+      );
     }
     // Уникальные по ссылке.
     final seen = <String>{};
@@ -146,21 +145,27 @@ class SearchService {
   }
 
   Future<List<SearchResult>> _searchGutenberg(
-      String query, int maxResults) async {
-    final uri = Uri.https('gutendex.com', '/books',
-        {'search': query, 'languages': 'ru,en,fr,de'});
-    final resp =
-        await http.get(uri, headers: _headers()).timeout(_timeout);
+    String query,
+    int maxResults,
+  ) async {
+    final uri = Uri.https('gutendex.com', '/books', {
+      'search': query,
+      'languages': 'ru,en,fr,de',
+    });
+    final resp = await http.get(uri, headers: _headers()).timeout(_timeout);
     if (resp.statusCode != 200) return [];
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
     final results = <SearchResult>[];
     for (final item in data['results'] as List<dynamic>? ?? []) {
       final map = item as Map<String, dynamic>;
       final title = map['title'] as String? ?? '';
-      final authors = ((map['authors'] as List<dynamic>? ?? []).map((a) {
-        final m = a as Map<String, dynamic>;
-        return '${m['name'] ?? ''}'.replaceAll(';', ',');
-      }).toList().join(', '));
+      final authors = ((map['authors'] as List<dynamic>? ?? [])
+          .map((a) {
+            final m = a as Map<String, dynamic>;
+            return '${m['name'] ?? ''}'.replaceAll(';', ',');
+          })
+          .toList()
+          .join(', '));
       final formats = map['formats'] as Map<String, dynamic>? ?? {};
       String? url;
       String? mime;
@@ -190,7 +195,8 @@ class SearchService {
       if (url == null) {
         formats.forEach((k, v) {
           if (k.toLowerCase().contains('plain') &&
-              k.contains('charset') && url == null) {
+              k.contains('charset') &&
+              url == null) {
             url = v as String?;
             mime = 'txt';
           }
@@ -198,18 +204,19 @@ class SearchService {
       }
       if (url == null) continue;
       final size = formats['application/octet-stream'] != null
-          ? (formats['application/octet-stream'] as String? ?? '')
-              .length
+          ? (formats['application/octet-stream'] as String? ?? '').length
           : null;
-      results.add(SearchResult(
-        title: title,
-        author: authors,
-        coverUrl: formats['image/jpeg'] as String?,
-        downloadUrl: url,
-        source: 'Project Gutenberg',
-        sizeBytes: size,
-        format: mime == 'pdf' ? BookFormat.pdf : BookFormat.epub,
-      ));
+      results.add(
+        SearchResult(
+          title: title,
+          author: authors,
+          coverUrl: formats['image/jpeg'] as String?,
+          downloadUrl: url,
+          source: 'Project Gutenberg',
+          sizeBytes: size,
+          format: mime == 'pdf' ? BookFormat.pdf : BookFormat.epub,
+        ),
+      );
       if (results.length >= maxResults) break;
     }
     return results;
@@ -218,7 +225,9 @@ class SearchService {
   /// Поиск по Internet Archive (стабильный, без ключей). Выбираем только
   /// текстовые издания (mediatype:texts) и берём первый epub/pdf/txt-файл.
   Future<List<SearchResult>> _searchArchiveOrg(
-      String query, int maxResults) async {
+    String query,
+    int maxResults,
+  ) async {
     final uri = Uri.https('archive.org', '/advancedsearch.php', {
       'q': '$query AND mediatype:texts',
       'fl[]': 'identifier,title,creator',
@@ -229,20 +238,23 @@ class SearchService {
     final resp = await http.get(uri, headers: _headers()).timeout(_timeout);
     if (resp.statusCode != 200) return [];
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
-    final docs = (data['response'] as Map<String, dynamic>?)?['docs']
+    final docs =
+        (data['response'] as Map<String, dynamic>?)?['docs']
             as List<dynamic>? ??
         [];
     if (docs.isEmpty) return [];
-    final metas = await Future.wait(docs.map((d) async {
-      final m = d as Map<String, dynamic>;
-      final id = (m['identifier'] as String? ?? '').trim();
-      if (id.isEmpty) return <SearchResult>[];
-      try {
-        return await _archiveMetadata(id);
-      } catch (_) {
-        return <SearchResult>[];
-      }
-    }));
+    final metas = await Future.wait(
+      docs.map((d) async {
+        final m = d as Map<String, dynamic>;
+        final id = (m['identifier'] as String? ?? '').trim();
+        if (id.isEmpty) return <SearchResult>[];
+        try {
+          return await _archiveMetadata(id);
+        } catch (_) {
+          return <SearchResult>[];
+        }
+      }),
+    );
     return metas.expand((l) => l).take(maxResults).toList();
   }
 
@@ -296,7 +308,10 @@ class SearchService {
   }
 
   Future<List<SearchResult>> _searchOpds(
-      OpdsCatalog catalog, String query, int maxResults) async {
+    OpdsCatalog catalog,
+    String query,
+    int maxResults,
+  ) async {
     if (maxResults <= 0) return [];
     String url;
     if (catalog.url.endsWith('.json')) {
@@ -309,8 +324,9 @@ class SearchService {
         url = _searchUrl(catalog.url, query);
       }
     }
-    final body =
-        await http.get(Uri.parse(url), headers: _headers()).timeout(_timeout);
+    final body = await http
+        .get(Uri.parse(url), headers: _headers())
+        .timeout(_timeout);
     if (body.statusCode != 200) return [];
     final lower = url.toLowerCase();
     if (lower.endsWith('.json') || lower.contains('.json?')) {
@@ -325,7 +341,10 @@ class SearchService {
   }
 
   List<SearchResult> _parseOpdsXml(
-      String body, OpdsCatalog catalog, int maxResults) {
+    String body,
+    OpdsCatalog catalog,
+    int maxResults,
+  ) {
     final doc = XmlDocument.parse(body);
     final entries = doc.findAllElements('entry');
     final results = <SearchResult>[];
@@ -346,7 +365,10 @@ class SearchService {
       String? coverUrl;
       final cover = entry
           .findAllElements('link')
-          .where((l) => (l.getAttribute('rel') ?? '') == 'http://opds-spec.org/image')
+          .where(
+            (l) =>
+                (l.getAttribute('rel') ?? '') == 'http://opds-spec.org/image',
+          )
           .firstOrNull;
       if (cover != null) coverUrl = cover.getAttribute('href');
       if (coverUrl == null) {
@@ -359,8 +381,11 @@ class SearchService {
       String? downloadUrl;
       final dl = entry
           .findAllElements('link')
-          .where((l) => (l.getAttribute('rel') ?? '')
-              .contains('http://opds-spec.org/acquisition'))
+          .where(
+            (l) => (l.getAttribute('rel') ?? '').contains(
+              'http://opds-spec.org/acquisition',
+            ),
+          )
           .firstOrNull;
       if (dl != null) downloadUrl = dl.getAttribute('href');
       if (downloadUrl == null) {
@@ -372,21 +397,26 @@ class SearchService {
       }
       if (downloadUrl == null) continue;
       final fmt = _formatFromUrl(downloadUrl);
-      results.add(SearchResult(
-        title: title,
-        author: authorName ?? '',
-        coverUrl: coverUrl,
-        downloadUrl: _abs(catalog.url, downloadUrl),
-        source: catalog.name,
-        format: fmt,
-      ));
+      results.add(
+        SearchResult(
+          title: title,
+          author: authorName ?? '',
+          coverUrl: coverUrl,
+          downloadUrl: _abs(catalog.url, downloadUrl),
+          source: catalog.name,
+          format: fmt,
+        ),
+      );
       if (results.length >= maxResults) break;
     }
     return results;
   }
 
   List<SearchResult> _parseOpdsJson(
-      String body, OpdsCatalog catalog, int maxResults) {
+    String body,
+    OpdsCatalog catalog,
+    int maxResults,
+  ) {
     final data = jsonDecode(body);
     List<dynamic> entries = <dynamic>[];
     if (data.containsKey('entries') || data is Map && data['catalog'] != null) {
@@ -399,11 +429,13 @@ class SearchService {
       if (e is! Map) continue;
       final title = (e['title'] as String? ?? '').trim();
       if (title.isEmpty) continue;
-      final authorName = (e['author'] is Map
-              ? (e['author'] as Map)['name'] ??
-                  (e['author'] as Map)['uri'] ??
-                  ''
-              : e['author']) as String? ??
+      final authorName =
+          (e['author'] is Map
+                  ? (e['author'] as Map)['name'] ??
+                        (e['author'] as Map)['uri'] ??
+                        ''
+                  : e['author'])
+              as String? ??
           '';
       String? downloadUrl;
       String? format = 'epub';
@@ -418,27 +450,31 @@ class SearchService {
         }
       }
       if (downloadUrl == null) continue;
-      final cover = e['cover'] is Map
-          ? (e['cover'] as Map)['url']
-          : e['cover'];
-      results.add(SearchResult(
-        title: title,
-        author: authorName.toString().trim(),
-        coverUrl: cover?.toString(),
-        downloadUrl: _abs(catalog.url, downloadUrl),
-        source: catalog.name,
-        format: _formatFromUrl(downloadUrl, fallback: format!),
-      ));
+      final cover = e['cover'] is Map ? (e['cover'] as Map)['url'] : e['cover'];
+      results.add(
+        SearchResult(
+          title: title,
+          author: authorName.toString().trim(),
+          coverUrl: cover?.toString(),
+          downloadUrl: _abs(catalog.url, downloadUrl),
+          source: catalog.name,
+          format: _formatFromUrl(downloadUrl, fallback: format!),
+        ),
+      );
       if (results.length >= maxResults) break;
     }
     return results;
   }
 
   Future<List<SearchResult>> _searchBook2You(
-      OpdsCatalog catalog, String query, int maxResults) async {
+    OpdsCatalog catalog,
+    String query,
+    int maxResults,
+  ) async {
     if (maxResults <= 0) return [];
-    final base =
-        catalog.url.trim().isEmpty ? 'https://book2you.net' : catalog.url;
+    final base = catalog.url.trim().isEmpty
+        ? 'https://book2you.net'
+        : catalog.url;
     final host = Uri.parse(base).host == ''
         ? 'book2you.net'
         : Uri.parse(base).host;
@@ -454,10 +490,8 @@ class SearchService {
     // Собираем ссылки на посты книг (не навигация/категории).
     final postHrefs = <String>{};
     for (final m in RegExp(
-            r'<a[^>]+href="(https?://' +
-                RegExp.escape(host) +
-                r'/[^"]+)"[^>]*>')
-        .allMatches(page)) {
+      r'<a[^>]+href="(https?://' + RegExp.escape(host) + r'/[^"]+)"[^>]*>',
+    ).allMatches(page)) {
       final href = m.group(1)!;
       final lower = href.toLowerCase();
       final seg = Uri.parse(href).pathSegments;
@@ -493,23 +527,28 @@ class SearchService {
           final postHtml = await _getWithReferer(postUrl, host);
           final fileUrl = _findBook2YouFile(postHtml);
           if (fileUrl != null && results.length < maxResults) {
-            final title = _firstRegex(
-                    postHtml,
-                    RegExp(
-                        r'<meta[^>]+property="og:title"[^>]+content="([^"]+)"')) ??
+            final title =
+                _firstRegex(
+                  postHtml,
+                  RegExp(
+                    r'<meta[^>]+property="og:title"[^>]+content="([^"]+)"',
+                  ),
+                ) ??
                 _titleFromUrl(postUrl);
             final cover = _firstRegex(
-                postHtml,
-                RegExp(
-                    r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"'));
-            results.add(SearchResult(
-              title: title.trim(),
-              author: '',
-              coverUrl: cover,
-              downloadUrl: fileUrl,
-              source: 'Book2You',
-              format: _formatFromUrl(fileUrl),
-            ));
+              postHtml,
+              RegExp(r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"'),
+            );
+            results.add(
+              SearchResult(
+                title: title.trim(),
+                author: '',
+                coverUrl: cover,
+                downloadUrl: fileUrl,
+                source: 'Book2You',
+                format: _formatFromUrl(fileUrl),
+              ),
+            );
           }
         } catch (_) {}
       }
@@ -521,8 +560,10 @@ class SearchService {
 
   Future<String> _getWithReferer(String url, String host) async {
     final resp = await http
-        .get(Uri.parse(url),
-            headers: {'Referer': 'https://$host/', ..._headers()})
+        .get(
+          Uri.parse(url),
+          headers: {'Referer': 'https://$host/', ..._headers()},
+        )
         .timeout(_timeout);
     if (resp.statusCode != 200) return '';
     return resp.body;
@@ -532,11 +573,9 @@ class SearchService {
     // Прямые ссылки на файлы в wp-content/uploads.
     final candidates = <String>[];
     for (final m in RegExp(
-        r"""https?://[^"'\s<>]+?\.(pdf|epub|fb2|txt)(?!\.zip)(\?[^"'\s<>]*)?""")
-        .allMatches(html)) {
-      final u = m.group(0)!
-          .replaceAll('&#038;', '&')
-          .replaceAll('&amp;', '&');
+      r"""https?://[^"'\s<>]+?\.(pdf|epub|fb2|txt)(?!\.zip)(\?[^"'\s<>]*)?""",
+    ).allMatches(html)) {
+      final u = m.group(0)!.replaceAll('&#038;', '&').replaceAll('&amp;', '&');
       if (u.toLowerCase().contains('wp-content/uploads')) {
         candidates.add(u);
       }
@@ -583,7 +622,11 @@ class SearchService {
         : BookFormat.epub;
   }
 
-  Future<File> download(SearchResult result, String destPath, {void Function(int, int)? onProgress}) async {
+  Future<File> download(
+    SearchResult result,
+    String destPath, {
+    void Function(int, int)? onProgress,
+  }) async {
     final req = http.Request('GET', Uri.parse(result.downloadUrl!));
     req.headers.addAll(_headers());
     final streamed = await req.send().timeout(const Duration(seconds: 30));

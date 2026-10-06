@@ -48,7 +48,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
     // Запоминаем последнюю открытую книгу сразу, чтобы при следующем
     // запуске продолжалось чтение именно этой книги (а не более ранней).
     SharedPreferences.getInstance().then(
-        (p) => p.setString('lastBookId', widget.book.id));
+      (p) => p.setString('lastBookId', widget.book.id),
+    );
   }
 
   Future<void> _loadTextDoc() async {
@@ -97,18 +98,22 @@ class _ReaderScreenState extends State<ReaderScreen> {
     }
     final bm = widget.initialBookmark;
     final reading = data.reading;
-    final pdfInitialPage = bm != null ? max(1, bm.chapter) : max(1, reading.chapter);
+    final pdfInitialPage = bm != null
+        ? max(1, bm.chapter)
+        : max(1, reading.chapter);
     final spreadInitial = bm != null
         ? bm.offset
         : (widget.book.format == BookFormat.pdf
-            ? reading.charOffset
-            : reading.chapter);
+              ? reading.charOffset
+              : reading.chapter);
     final textInitialChapter = bm != null ? bm.chapter : reading.chapter;
     final textInitialOffset = bm != null ? bm.offset : reading.charOffset;
     switch (widget.book.format) {
       case BookFormat.pdf:
         if (_pdfMode == null) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (_pdfMode == _PdfMode.pages) {
           return PdfReaderWidget(
@@ -141,7 +146,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
       case BookFormat.fb2:
         if (_textLoading) {
           return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (_textError != null) {
           return TextReaderWidget(
@@ -198,7 +204,10 @@ class ReaderService {
   List<Bookmark> get bookmarks => data.bookmarks;
 
   Future<void> savePosition(
-      int chapter, int charOffset, int chapterCount) async {
+    int chapter,
+    int charOffset,
+    int chapterCount,
+  ) async {
     data.reading.chapter = chapter;
     data.reading.charOffset = charOffset;
     data.reading.chapterCount = chapterCount;
@@ -213,8 +222,14 @@ class ReaderService {
     int colorIndex = 0,
     String? note,
   }) async {
-    final exists = data.highlights
-        .any((e) => e.chapter == chapter && e.text == (text.isEmpty ? data.highlights.map((e) => e.text).toString() : text));
+    final exists = data.highlights.any(
+      (e) =>
+          e.chapter == chapter &&
+          e.text ==
+              (text.isEmpty
+                  ? data.highlights.map((e) => e.text).toString()
+                  : text),
+    );
     if (exists) return false;
     final h = Highlight(
       id: 'h${DateTime.now().microsecondsSinceEpoch}',
@@ -231,8 +246,11 @@ class ReaderService {
     return true;
   }
 
-  Future<void> updateHighlight(Highlight h,
-      {String? note, int? colorIndex}) async {
+  Future<void> updateHighlight(
+    Highlight h, {
+    String? note,
+    int? colorIndex,
+  }) async {
     final idx = data.highlights.indexWhere((e) => e.id == h.id);
     if (idx >= 0) {
       final existing = data.highlights[idx];
@@ -347,8 +365,12 @@ void showSelectionActions(
               OutlinedButton.icon(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  showAiAnalysisDialog(ctx, aiSettings, text,
-                      ctx: analysisContext);
+                  showAiAnalysisDialog(
+                    ctx,
+                    aiSettings,
+                    text,
+                    ctx: analysisContext,
+                  );
                 },
                 icon: const Icon(Icons.auto_awesome),
                 label: const Text('ИИ-разбор'),

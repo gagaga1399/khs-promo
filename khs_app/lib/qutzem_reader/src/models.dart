@@ -56,29 +56,29 @@ class Book {
   });
 
   factory Book.fromJson(Map<String, dynamic> json) => Book(
-        id: json['id'] as String,
-        title: json['title'] as String? ?? 'Без названия',
-        author: json['author'] as String? ?? '',
-        format: BookFormat.values.firstWhere(
-          (e) => e.name == json['format'],
-          orElse: () => BookFormat.epub,
-        ),
-        fileName: json['fileName'] as String,
-        sizeBytes: json['sizeBytes'] as int? ?? 0,
-        coverPath: json['coverPath'] as String?,
-        addedAt: DateTime.fromMillisecondsSinceEpoch(json['addedAt'] as int),
-      );
+    id: json['id'] as String,
+    title: json['title'] as String? ?? 'Без названия',
+    author: json['author'] as String? ?? '',
+    format: BookFormat.values.firstWhere(
+      (e) => e.name == json['format'],
+      orElse: () => BookFormat.epub,
+    ),
+    fileName: json['fileName'] as String,
+    sizeBytes: json['sizeBytes'] as int? ?? 0,
+    coverPath: json['coverPath'] as String?,
+    addedAt: DateTime.fromMillisecondsSinceEpoch(json['addedAt'] as int),
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'author': author,
-        'format': format.name,
-        'fileName': fileName,
-        'sizeBytes': sizeBytes,
-        'coverPath': coverPath,
-        'addedAt': addedAt.millisecondsSinceEpoch,
-      };
+    'id': id,
+    'title': title,
+    'author': author,
+    'format': format.name,
+    'fileName': fileName,
+    'sizeBytes': sizeBytes,
+    'coverPath': coverPath,
+    'addedAt': addedAt.millisecondsSinceEpoch,
+  };
 }
 
 class Highlight {
@@ -112,34 +112,32 @@ class Highlight {
   });
 
   factory Highlight.fromJson(Map<String, dynamic> json) => Highlight(
-        id: json['id'] as String,
-        chapter: json['chapter'] as int? ?? 0,
-        start: json['start'] as int,
-        end: json['end'] as int,
-        text: json['text'] as String? ?? '',
-        colorIndex: json['colorIndex'] as int? ?? 0,
-        note: json['note'] as String?,
-        chapterTitle: json['chapterTitle'] as String?,
-        parts: (json['parts'] as List?)
-                ?.map((e) => (e as num).toInt())
-                .toList() ??
-            const [],
-        createdAt:
-            DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
-      );
+    id: json['id'] as String,
+    chapter: json['chapter'] as int? ?? 0,
+    start: json['start'] as int,
+    end: json['end'] as int,
+    text: json['text'] as String? ?? '',
+    colorIndex: json['colorIndex'] as int? ?? 0,
+    note: json['note'] as String?,
+    chapterTitle: json['chapterTitle'] as String?,
+    parts:
+        (json['parts'] as List?)?.map((e) => (e as num).toInt()).toList() ??
+        const [],
+    createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'chapter': chapter,
-        'start': start,
-        'end': end,
-        'text': text,
-        'colorIndex': colorIndex,
-        'note': note,
-        'chapterTitle': chapterTitle,
-        'parts': parts,
-        'createdAt': createdAt.millisecondsSinceEpoch,
-      };
+    'id': id,
+    'chapter': chapter,
+    'start': start,
+    'end': end,
+    'text': text,
+    'colorIndex': colorIndex,
+    'note': note,
+    'chapterTitle': chapterTitle,
+    'parts': parts,
+    'createdAt': createdAt.millisecondsSinceEpoch,
+  };
 }
 
 class Bookmark {
@@ -158,21 +156,20 @@ class Bookmark {
   });
 
   factory Bookmark.fromJson(Map<String, dynamic> json) => Bookmark(
-        id: json['id'] as String,
-        chapter: json['chapter'] as int? ?? 0,
-        offset: json['offset'] as int? ?? 0,
-        label: json['label'] as String? ?? '',
-        createdAt:
-            DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
-      );
+    id: json['id'] as String,
+    chapter: json['chapter'] as int? ?? 0,
+    offset: json['offset'] as int? ?? 0,
+    label: json['label'] as String? ?? '',
+    createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'chapter': chapter,
-        'offset': offset,
-        'label': label,
-        'createdAt': createdAt.millisecondsSinceEpoch,
-      };
+    'id': id,
+    'chapter': chapter,
+    'offset': offset,
+    'label': label,
+    'createdAt': createdAt.millisecondsSinceEpoch,
+  };
 }
 
 class ReadingState {
@@ -180,11 +177,7 @@ class ReadingState {
   int charOffset;
   int chapterCount;
 
-  ReadingState({
-    this.chapter = 0,
-    this.charOffset = 0,
-    this.chapterCount = 0,
-  });
+  ReadingState({this.chapter = 0, this.charOffset = 0, this.chapterCount = 0});
 
   double get progress {
     if (chapterCount <= 1) return charOffset > 0 ? 1.0 : 0.0;
@@ -201,10 +194,10 @@ class ReadingState {
         );
 
   Map<String, dynamic> toJson() => {
-        'chapter': chapter,
-        'charOffset': charOffset,
-        'chapterCount': chapterCount,
-      };
+    'chapter': chapter,
+    'charOffset': charOffset,
+    'chapterCount': chapterCount,
+  };
 }
 
 class BookData {
@@ -221,19 +214,19 @@ class BookData {
   });
 
   factory BookData.fromJson(Map<String, dynamic> json, Book book) => BookData(
-        book: book,
-        reading: ReadingState.fromJson(json['reading'] as Map<String, dynamic>?),
-        highlights: (json['highlights'] as List<dynamic>? ?? [])
-            .map((e) => Highlight.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        bookmarks: (json['bookmarks'] as List<dynamic>? ?? [])
-            .map((e) => Bookmark.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    book: book,
+    reading: ReadingState.fromJson(json['reading'] as Map<String, dynamic>?),
+    highlights: (json['highlights'] as List<dynamic>? ?? [])
+        .map((e) => Highlight.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    bookmarks: (json['bookmarks'] as List<dynamic>? ?? [])
+        .map((e) => Bookmark.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'reading': reading.toJson(),
-        'highlights': highlights.map((h) => h.toJson()).toList(),
-        'bookmarks': bookmarks.map((b) => b.toJson()).toList(),
-      };
+    'reading': reading.toJson(),
+    'highlights': highlights.map((h) => h.toJson()).toList(),
+    'bookmarks': bookmarks.map((b) => b.toJson()).toList(),
+  };
 }

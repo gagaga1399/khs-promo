@@ -12,7 +12,12 @@ import '../settings.dart';
 
 class SearchScreen extends StatefulWidget {
   final List<OpdsCatalog> catalogs;
-  const SearchScreen({super.key, required this.catalogs});
+
+  /// Запрос, с которым экран открывается сразу. Используется, когда книгу
+  /// нашли через ИИ: [initialQuery] подставляется в поле и поиск идёт сам.
+  final String? initialQuery;
+
+  const SearchScreen({super.key, required this.catalogs, this.initialQuery});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -26,6 +31,16 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _error;
   String? _downloadingUrl;
   List<OpdsCatalog> get _catalogs => widget.catalogs;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialQuery?.trim();
+    if (initial != null && initial.isNotEmpty) {
+      _searchCtrl.text = initial;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _search());
+    }
+  }
 
   @override
   void dispose() {
@@ -66,7 +81,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final needle = q.toLowerCase();
     return Library.instance.books.where((b) {
       return (b.title.toLowerCase().contains(needle) ||
-              b.author.toLowerCase().contains(needle));
+          b.author.toLowerCase().contains(needle));
     }).toList();
   }
 
@@ -94,8 +109,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _download(SearchResult result, int index) async {
@@ -107,11 +121,15 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _downloadingUrl = result.downloadUrl);
     final service = SearchService(catalogs: _catalogs);
     try {
-      await service.download(result, tmpPath, onProgress: (got, total) {
-        if (total > limit && got > limit) {
-          throw DownloadTooBigException();
-        }
-      });
+      await service.download(
+        result,
+        tmpPath,
+        onProgress: (got, total) {
+          if (total > limit && got > limit) {
+            throw DownloadTooBigException();
+          }
+        },
+      );
       final fstat = File(tmpPath);
       final size = fstat.lengthSync();
       if (size > limit) {
@@ -137,8 +155,9 @@ class _SearchScreenState extends State<SearchScreen> {
       );
       await Library.instance.addBook(book, tmpPath);
       if (info.coverBytes != null) {
-        final coverFile =
-            File(p.join(Library.instance.coversDir.path, '$id.bin'));
+        final coverFile = File(
+          p.join(Library.instance.coversDir.path, '$id.bin'),
+        );
         coverFile.writeAsBytesSync(info.coverBytes!);
         book.coverPath = coverFile.path;
         await Library.instance.updateBook(book);
@@ -146,14 +165,17 @@ class _SearchScreenState extends State<SearchScreen> {
       fileDeleteQuiet(tmpDir.path);
       if (!mounted) return;
       setState(() => _downloadingUrl = null);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text('Скачано: ${book.title}'),
           action: SnackBarAction(
             label: 'Читать',
             onPressed: () {
               Navigator.pop(context);
             },
-          )));
+          ),
+        ),
+      );
     } on DownloadTooBigException {
       fileDeleteQuiet(tmpDir.path);
       if (!mounted) return;
@@ -173,9 +195,10 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   String sanitize(String s) {
-    final cleaned =
-        s.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
-    return cleaned.isEmpty ? 'book' : cleaned.substring(0, cleaned.length > 80 ? 80 : cleaned.length);
+    final cleaned = s.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+    return cleaned.isEmpty
+        ? 'book'
+        : cleaned.substring(0, cleaned.length > 80 ? 80 : cleaned.length);
   }
 
   @override
@@ -217,8 +240,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     'Project Gutenberg, Archive.org, Book2You'
                     '${widget.catalogs.where((c) => c.name != 'Book2You').isNotEmpty ? ' + ${widget.catalogs.where((c) => c.name != 'Book2You').map((c) => c.name).join(', ')}' : ''}. '
                     'Поиск в интернете; скачанные книги читаются офлайн.',
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ),
               ],
@@ -241,14 +263,18 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.menu_book_outlined,
-                size: 64, color: Colors.grey.shade400),
+            Icon(
+              Icons.menu_book_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 12),
             const Text('Введите запрос для поиска'),
             const SizedBox(height: 6),
             const Text(
-                'сначала ищем в вашей библиотеке, затем в интернете',
-                style: TextStyle(color: Colors.grey)),
+              'сначала ищем в вашей библиотеке, затем в интернете',
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       );
@@ -261,7 +287,9 @@ class _SearchScreenState extends State<SearchScreen> {
     }
     if (remote != null && remote.isNotEmpty) {
       tiles.add(_listHeader('На сайтах', Icons.cloud_done_outlined));
-      tiles.addAll(remote.asMap().entries.map((e) => _remoteTile(e.key, e.value)));
+      tiles.addAll(
+        remote.asMap().entries.map((e) => _remoteTile(e.key, e.value)),
+      );
     }
     if (tiles.isEmpty) {
       return Center(
@@ -285,7 +313,9 @@ class _SearchScreenState extends State<SearchScreen> {
             child: Text(
               _error!,
               style: TextStyle(
-                  color: Theme.of(context).colorScheme.error, fontSize: 13),
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 13,
+              ),
             ),
           ),
         ...tiles,
@@ -300,9 +330,10 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           Icon(icon, size: 18, color: Colors.grey.shade600),
           const SizedBox(width: 8),
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -314,8 +345,7 @@ class _SearchScreenState extends State<SearchScreen> {
       leading: const Icon(Icons.book, color: Colors.blueGrey),
       title: Text(b.title, maxLines: 2, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        [if (b.author.isNotEmpty) b.author, 'в вашей библиотеке']
-            .join(' · '),
+        [if (b.author.isNotEmpty) b.author, 'в вашей библиотеке'].join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -340,21 +370,19 @@ class _SearchScreenState extends State<SearchScreen> {
             : _coverPlaceholder(r.format),
       ),
       title: Text(r.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-      subtitle: Text(r.subtitle,
-          maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: Text(r.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
       trailing: downloading
           ? const SizedBox(
               width: 26,
               height: 26,
-              child: CircularProgressIndicator(strokeWidth: 2))
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
           : IconButton(
               icon: const Icon(Icons.download),
               tooltip: 'Скачать',
               onPressed: () => _download(r, index),
             ),
-      onTap: () => r.downloadUrl != null
-          ? _download(r, index)
-          : null,
+      onTap: () => r.downloadUrl != null ? _download(r, index) : null,
     );
   }
 
@@ -365,9 +393,10 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Text(
         format.label,
         style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 11,
-            color: Colors.grey.shade600),
+          fontWeight: FontWeight.bold,
+          fontSize: 11,
+          color: Colors.grey.shade600,
+        ),
       ),
     );
   }
