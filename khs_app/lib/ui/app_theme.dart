@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// Дизайн-токены приложения KHS.
@@ -108,19 +110,19 @@ class AppTheme {
         ? Brightness.light
         : Brightness.dark;
 
-    final onSurfaceMuted = HSLColor.fromColor(textColor)
-        .withLightness(0.65)
-        .withSaturation(0.3)
-        .toColor();
+    // Фон, карточка и поле ввода обязаны отличаться. Раньше уровни считались
+    // умножением светлоты на 1.08 и 1.16, то есть для чёрного фона (и для
+    // белого) давали снова чёрный и снова белый: карточки, поля и диалоги
+    // сливались с фоном, и пользоваться темой было невозможно.
+    final levels = _surfaceLevels(hsl.lightness);
+    final surface = hsl.withLightness(levels.$1).toColor();
+    final surfaceHigh = hsl.withLightness(levels.$2).toColor();
+
+    final text = _readableText(textColor, seed);
+    final onSurfaceMuted = _mutedText(text, seed, 4.5);
     final divider = hsl
         .withLightness((hsl.lightness * 0.45).clamp(0.2, 0.45))
         .withSaturation(0.15)
-        .toColor();
-    final surface = hsl
-        .withLightness((hsl.lightness * 1.08).clamp(0.0, 1.0))
-        .toColor();
-    final surfaceHigh = hsl
-        .withLightness((hsl.lightness * 1.16).clamp(0.0, 1.0))
         .toColor();
 
     return _build(
@@ -129,13 +131,90 @@ class AppTheme {
       background: seed,
       surface: surface,
       surfaceHigh: surfaceHigh,
-      onSurface: textColor,
+      onSurface: text,
       onSurfaceMuted: onSurfaceMuted,
       divider: divider,
       error: brightness == Brightness.dark
           ? const Color(0xFFEF5350)
           : const Color(0xFFC62828),
     );
+  }
+
+  /// Три уровня поверхности кастомной темы: фон, карточка, поле ввода.
+  /// Шаг не даёт соседям совпасть; если осветляться некуда (фон почти белый),
+  /// уровни уходят вниз от фона.
+  static (double, double) _surfaceLevels(double backgroundLightness) {
+    const cardStep = 0.11;
+    const fieldStep = 0.18;
+    if (backgroundLightness + fieldStep <= 1) {
+      return (backgroundLightness + cardStep, backgroundLightness + fieldStep);
+    }
+    return (backgroundLightness - cardStep, backgroundLightness - fieldStep);
+  }
+
+  /// Контраст двух цветов по WCAG: 1 — слились, 21 — чёрное на белом.
+  static double contrast(Color a, Color b) {
+    final la = a.computeLuminance();
+    final lb = b.computeLuminance();
+    final hi = math.max(la, lb);
+    final lo = math.min(la, lb);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  /// Отодвигает цвет от фона (вверх или вниз по светлоте), пока контраст не
+  /// станет достаточным. Оттенок и насыщенность сохраняются.
+  static Color _awayFrom(Color color, Color background, double target) {
+    if (contrast(color, background) >= target) return color;
+    final luma = color.computeLuminance();
+    final bgLuma = background.computeLuminance();
+    // При равной светлоте (чёрный по чёрному, белый по белому) уходим в ту
+    // сторону, где фону не удержать тот же тон: тёмный фон осветляем,
+    // светлый — затемняем.
+    final brighter = luma < bgLuma ||
+        (luma == bgLuma && HSLColor.fromColor(background).lightness < 0.5);
+    final step = brighter ? 0.02 : -0.02;
+    final hsl = HSLColor.fromColor(color);
+    var lightness = hsl.lightness;
+    for (var i = 0; i < 60; i++) {
+      lightness = (lightness + step).clamp(0.0, 1.0);
+      if (contrast(hsl.withLightness(lightness).toColor(), background) >=
+          target) {
+        break;
+      }
+    }
+    return hsl.withLightness(lightness).toColor();
+  }
+
+  /// Цвет текста поверх фона: контраст не меньше 4.5 (AA для основного текста).
+  /// Чёрный по чёрному сдвигом светлоты не починить осмысленно — оттенка-то
+  /// нет, поэтому для нейтрального текста берём обычный цвет текста темы.
+  static Color _readableText(Color color, Color background) {
+    if (contrast(color, background) >= 4.5) return color;
+    if (HSLColor.fromColor(color).saturation < 0.08) {
+      return background.computeLuminance() > 0.5
+          ? const Color(0xFF1F1F1F)
+          : const Color(0xFFF5F5F5);
+    }
+    return _awayFrom(color, background, 4.5);
+  }
+
+  /// Второстепенный текст: тот же оттенок, но контраст к фону не выше цели —
+  /// приглушённое не должно читаться ярче основного.
+  static Color _mutedText(Color color, Color background, double target) {
+    if (contrast(color, background) <= target) return color;
+    final hsl = HSLColor.fromColor(color);
+    final step = color.computeLuminance() > background.computeLuminance()
+        ? -0.02
+        : 0.02;
+    var lightness = hsl.lightness;
+    for (var i = 0; i < 60; i++) {
+      lightness = (lightness + step).clamp(0.0, 1.0);
+      if (contrast(hsl.withLightness(lightness).toColor(), background) <=
+          target) {
+        break;
+      }
+    }
+    return hsl.withLightness(lightness).toColor();
   }
 
   static ThemeData _build({
@@ -149,6 +228,17 @@ class AppTheme {
     required Color divider,
     required Color error,
   }) {
+    // Акцент обязан отличаться от фона. Чёрный на угольном (и белый на
+    // светлом) не читается как цвет: кнопки, рамки, выделение и курсоры
+    // сливаются с фоном. Живые оттенка различимы и при слабом контрасте,
+    // поэтому трогаем только нейтральные, а в кастомной теме, где акцент
+    // совпадает с фоном, — любой.
+    if (seed == background ||
+        (HSLColor.fromColor(seed).saturation < 0.15 &&
+            contrast(seed, background) < 3)) {
+      seed = _awayFrom(seed, background, 3);
+    }
+
     final base = ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
     final accentOn = seed.computeLuminance() > 0.5
         ? Colors.black
