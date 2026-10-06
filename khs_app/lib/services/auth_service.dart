@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart' as fa;
 import 'package:firebase_core/firebase_core.dart' show Firebase;
@@ -53,33 +53,37 @@ class AuthService extends ChangeNotifier {
       _auth = fa.FirebaseAuth.instance;
       _available = true;
       _sub = _auth!.authStateChanges().listen(
-            (u) {
-              _user = u;
-              notifyListeners();
-            },
-            onError: (_) {
-              _available = false;
-              notifyListeners();
-            },
-          );
+        (u) {
+          _user = u;
+          notifyListeners();
+        },
+        onError: (_) {
+          _available = false;
+          notifyListeners();
+        },
+      );
     } catch (e) {
       _available = false;
-      debugPrint('Firebase init failed: $e');
+      // Только при отладке: в обычной сборке текст ошибки Firebase уходил в
+      // системный лог на телефоне, где его видно вместе с внутренними деталями.
+      if (kDebugMode) debugPrint('Firebase init failed: $e');
     }
     notifyListeners();
   }
 
-  Future<AuthOutcome> signIn(String email, String password) =>
-      _guard(() => _auth!.signInWithEmailAndPassword(
-            email: email.trim(),
-            password: password,
-          ));
+  Future<AuthOutcome> signIn(String email, String password) => _guard(
+    () => _auth!.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    ),
+  );
 
-  Future<AuthOutcome> register(String email, String password) =>
-      _guard(() => _auth!.createUserWithEmailAndPassword(
-            email: email.trim(),
-            password: password,
-          ));
+  Future<AuthOutcome> register(String email, String password) => _guard(
+    () => _auth!.createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    ),
+  );
 
   Future<AuthOutcome> signInWithGoogle() async {
     if (!googleAvailable) {
@@ -89,11 +93,12 @@ class AuthService extends ChangeNotifier {
     }
     return _guard(() async {
       final signIn = GoogleSignIn.instance;
-      // Один и тот же веб-клиент: на Windows это clientId, на Android —
-      // serverClientId. Поэтому передаём оба.
+      // Клиент окна входа и клиент, чей токен уходит в Firebase, — не одно и
+      // то же: на ПК браузер возвращает токен на localhost, и веб-клиент такой
+      // обмен не разрешает, поэтому окно открывает Desktop-клиент.
       await signIn.initialize(
-        clientId: KhsFirebase.googleClientId,
-        serverClientId: KhsFirebase.googleClientId,
+        clientId: KhsFirebase.googleSignInClientId,
+        serverClientId: KhsFirebase.googleServerClientId,
       );
       final account = await signIn.authenticate();
       final idToken = account.authentication.idToken;
@@ -135,6 +140,27 @@ class AuthService extends ChangeNotifier {
     } on fa.FirebaseAuthException catch (e) {
       _lastError = _message(e);
       return AuthOutcome.fail(_lastError!);
+    } on GoogleSignInException catch (e) {
+      // Текст GoogleSignInException сам по себе бесполезен («platform exception»),
+      // а код в нём объясняет всё: 403 = клиент не тот или не разрешён,
+      // canceled_by_user = окно закрыли, 125 = не установлен браузер.
+      // Коды заданы перечислением библиотеки, а не строками: иначе условие
+      // никогда не срабатывает и показывается общая ошибка.
+      _lastError = switch (e.code) {
+        GoogleSignInExceptionCode.clientConfigurationError =>
+          'Google отклонил вход. Нужен OAuth-клиент типа «Приложение для ПК», '
+              'а не веб-клиент.',
+        GoogleSignInExceptionCode.providerConfigurationError =>
+          'Провайдер Google в Firebase настроен неверно. Проверьте OAuth-клиент '
+              'и redirect URI.',
+        GoogleSignInExceptionCode.canceled ||
+        GoogleSignInExceptionCode.uiUnavailable => 'Окно входа Google закрыто',
+        _ => 'Google: ${e.code.name}',
+      };
+      if (kDebugMode) {
+        debugPrint('Google sign-in failed: ${e.code.name} ${e.description}');
+      }
+      return AuthOutcome.fail(_lastError!);
     } catch (e) {
       _lastError = 'Не удалось войти: $e';
       return AuthOutcome.fail(_lastError!);
@@ -146,15 +172,16 @@ class AuthService extends ChangeNotifier {
 
   /// Коды Firebase переводим на русский: пользователю они ничего не говорят.
   static String _message(fa.FirebaseAuthException e) => switch (e.code) {
-        'invalid-email' => 'Некорректный адрес почты',
-        'user-not-found' || 'wrong-password' || 'invalid-credential' =>
-          'Неверная почта или пароль',
-        'email-already-in-use' => 'Такой аккаунт уже есть — войдите в него',
-        'weak-password' => 'Пароль слишком простой: минимум 6 символов',
-        'too-many-requests' => 'Слишком много попыток. Попробуйте позже',
-        'network-request-failed' => 'Нет связи с интернетом',
-        'operation-not-allowed' =>
-          'Этот способ входа ещё не включён в консоли Firebase',
-        _ => 'Не удалось войти: ${e.message ?? e.code}',
-      };
+    'invalid-email' => 'Некорректный адрес почты',
+    'user-not-found' ||
+    'wrong-password' ||
+    'invalid-credential' => 'Неверная почта или пароль',
+    'email-already-in-use' => 'Такой аккаунт уже есть — войдите в него',
+    'weak-password' => 'Пароль слишком простой: минимум 6 символов',
+    'too-many-requests' => 'Слишком много попыток. Попробуйте позже',
+    'network-request-failed' => 'Нет связи с интернетом',
+    'operation-not-allowed' =>
+      'Этот способ входа ещё не включён в консоли Firebase',
+    _ => 'Не удалось войти: ${e.message ?? e.code}',
+  };
 }

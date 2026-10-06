@@ -60,8 +60,10 @@ class CloudSyncService {
   /// квоту записи при плохом соединении.
   static const int _batchSize = 200;
 
-  CollectionReference<Map<String, dynamic>> _collection(String uid, String name) =>
-      _firestore.collection('users').doc(uid).collection(name);
+  CollectionReference<Map<String, dynamic>> _collection(
+    String uid,
+    String name,
+  ) => _firestore.collection('users').doc(uid).collection(name);
 
   /// Firestore не принимает null в значениях полей, а локальные строки
   /// содержат пустые колонки (например `category`). Поэтому пустые значения
@@ -93,7 +95,10 @@ class CloudSyncService {
 
   Future<List<Map<String, dynamic>>> _pull(String uid, String name) async {
     final snapshot = await _collection(uid, name).get();
-    return [for (final doc in snapshot.docs) _fromDoc({...doc.data(), 'client_key': doc.id})];
+    return [
+      for (final doc in snapshot.docs)
+        _fromDoc({...doc.data(), 'client_key': doc.id}),
+    ];
   }
 
   Future<void> _push(
@@ -108,10 +113,7 @@ class CloudSyncService {
       for (final row in chunk) {
         final key = row['client_key'];
         if (key is! String || key.isEmpty) continue;
-        batch.set(
-          collection.doc(key),
-          _stripNulls(SyncEngine.withoutId(row)),
-        );
+        batch.set(collection.doc(key), _stripNulls(SyncEngine.withoutId(row)));
       }
       if (chunk.isNotEmpty) await batch.commit();
     }
@@ -154,7 +156,8 @@ class CloudSyncService {
       return CloudSyncResult(
         status: 'ok',
         pushed: tasksPushed.length + notesPushed.length,
-        pulled: (mergedTasks.length - localTasks.length).abs() +
+        pulled:
+            (mergedTasks.length - localTasks.length).abs() +
             (mergedNotes.length - localNotes.length).abs(),
         notesBefore: localNotes,
         notesAfter: mergedNotes,

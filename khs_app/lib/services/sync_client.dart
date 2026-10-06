@@ -147,9 +147,8 @@ class SyncClient {
         );
       }
       final body = jsonDecode(
-            await SyncCrypto.decrypt(token, outer['data'] as String),
-          )
-          as Map<String, dynamic>;
+        await SyncCrypto.decrypt(token, outer['data'] as String),
+      ) as Map<String, dynamic>;
 
       // #11: сервер должен быть тем же, с кем уже синкались. Другой
       // (например, другой KHS-ПК) — отказываемся применять его данные,
@@ -189,8 +188,16 @@ class SyncClient {
       final localTasks = await db.getAllTasks();
       final localNotes = await db.getAllNotes();
       final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final mergedTasks = SyncEngine.mergeTasks(localTasks, serverTasks, now: nowMs);
-      final mergedNotes = SyncEngine.mergeNotes(localNotes, serverNotes, now: nowMs);
+      final mergedTasks = SyncEngine.mergeTasks(
+        localTasks,
+        serverTasks,
+        now: nowMs,
+      );
+      final mergedNotes = SyncEngine.mergeNotes(
+        localNotes,
+        serverNotes,
+        now: nowMs,
+      );
 
       await _persistTasks(localTasks, mergedTasks);
       await _persistNotes(localNotes, mergedNotes);

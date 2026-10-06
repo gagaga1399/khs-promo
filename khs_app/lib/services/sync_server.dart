@@ -39,7 +39,10 @@ class SyncServerState {
   static const previousGraceMs = Duration.millisecondsPerDay * 3;
 
   final File _file;
-  Map<String, dynamic> _data;
+
+  /// final здесь корректен: карта меняется на месте (_data[...]=...), но сама
+  /// ссылка нигде не переприсваивается.
+  final Map<String, dynamic> _data;
 
   SyncServerState._(this._file, this._data);
 
@@ -206,14 +209,25 @@ class SyncServer {
   Future<void> start() async {
     if (_running) return;
     _state = await SyncServerState.load(token);
-    InternetAddress address = InternetAddress.anyIPv4;
     final host = bindHost.trim();
-    if (host.isNotEmpty && host != '0.0.0.0') {
-      try {
-        address = InternetAddress(host);
-      } catch (_) {
-        address = InternetAddress.anyIPv4;
+    late final InternetAddress address;
+    if (host.isEmpty || host == '0.0.0.0') {
+      // Либо адрес не настраивали (тогда его подобрали выше по preferredBindHost),
+      // либо пользователь сам попросил слушать на всех интерфейсах.
+      address = InternetAddress.anyIPv4;
+    } else {
+      // Опечатка в адресе не должна расширять доступ: раньше неудачный
+      // InternetAddress() молча уводил сервер на 0.0.0.0, то есть открывал
+      // синхронизацию и обновления всем сетям, включая чужие и публичные.
+      // Теперь это ошибка настройки, а не повод слушать везде.
+      final parsed = InternetAddress.tryParse(host);
+      if (parsed == null || parsed.type != InternetAddressType.IPv4) {
+        throw FormatException(
+          'Неверный адрес прослушивания: "$host". Нужен IPv4-адрес '
+          '(например 192.168.1.5) или пустое поле / 0.0.0.0.',
+        );
       }
+      address = parsed;
     }
     final server = await HttpServer.bind(address, port);
     _server = server;
@@ -254,7 +268,8 @@ class SyncServer {
           final parts = addr.address.split('.');
           final a = int.tryParse(parts[0]) ?? 0;
           final b = int.tryParse(parts[1]) ?? 0;
-          final private = a == 10 ||
+          final private =
+              a == 10 ||
               (a == 172 && b >= 16 && b <= 31) ||
               (a == 192 && b == 168);
           if (private) return addr.address;
@@ -306,7 +321,9 @@ class SyncServer {
     } catch (e) {
       try {
         await _logRequest('-> 500: $e');
-        await _respondJson(req, 500, {'error': 'internal', 'detail': '$e'});
+        // Подробности ошибки — только в журнал. Раньше они уходили клиенту
+        // в detail и раскрывали внутренние пути и имена файлов.
+        await _respondJson(req, 500, {'error': 'internal'});
       } catch (_) {}
     }
   }
@@ -321,7 +338,8 @@ class SyncServer {
   }
 
   /// Журнал запросов для отладки обновлений (рядом с базой данных).
-  static File _logFile() => File(p.join(SyncServerState.dataDir(), 'server.log'));
+  static File _logFile() =>
+      File(p.join(SyncServerState.dataDir(), 'server.log'));
 
   static Future<void> _logRequest(String line) async {
     try {
@@ -382,7 +400,9 @@ class SyncServer {
   /// Разрешённые к отдаче по /files/ имена (#17): файлы обновлений из
   /// update.json + index.html — все строго из каталога этого update.json.
   Set<String> _allowedFileNames(Map<String, dynamic> meta) {
-    final names = <String>{'index.html'};
+    // cover.png нужен промо-странице: логотип рядом с названием, и без
+    // него в шапке сайта было пустое место.
+    final names = <String>{'index.html', 'cover.png'};
     for (final key in ['android', 'windows', 'reader']) {
       final v = meta[key] as String?;
       if (v != null && v.trim().isNotEmpty) {
@@ -549,7 +569,9 @@ class SyncServer {
       await _respondJson(req, 403, {'error': 'not_allowed'});
       return;
     }
-    await _logRequest('-> 200 file: ${p.basename(name)} (${file.lengthSync()} b)');
+    await _logRequest(
+      '-> 200 file: ${p.basename(name)} (${file.lengthSync()} b)',
+    );
     await _streamFile(req, file);
   }
 
@@ -559,7 +581,9 @@ class SyncServer {
     ({File file, Map<String, dynamic> meta}) found,
   ) async {
     final name = p.basename(found.file.path);
-    if (!name.contains('Closure') && !name.contains('Function') && !name.contains('(filename)')) {
+    if (!name.contains('Closure') &&
+        !name.contains('Function') &&
+        !name.contains('(filename)')) {
       return null;
     }
     final fileName = found.meta['android'] as String?;
@@ -584,6 +608,13 @@ class SyncServer {
   /// Защита от перебора токена: после нескольких неудач подряд ответы с 401
   /// прекращаются на 60 секунд для этого источника.
   static const _maxTokenFails = 6;
+
+  /// Потолок для счётчиков неудач по ключам.
+  ///
+  /// Ключ — удалённый адрес, и подобрать много разных адресов изнутри
+  /// домашней сети почти невозможно, но карта всё равно росла без границ.
+  /// При превышении вытесняем самые старые записи.
+  static const _maxTokenFailKeys = 256;
   final _tokenFails = <String, int>{};
   DateTime? _blockedUntil;
 
@@ -598,6 +629,10 @@ class SyncServer {
   }
 
   void _tokenFailure(String key) {
+    // Лишние старые ключи убираем, чтобы память не росла бесконечно.
+    while (_tokenFails.length >= _maxTokenFailKeys) {
+      _tokenFails.remove(_tokenFails.keys.first);
+    }
     _tokenFails[key] = (_tokenFails[key] ?? 0) + 1;
     if (_tokenFails[key]! >= _maxTokenFails) {
       _blockedUntil = DateTime.now().add(const Duration(seconds: 60));
@@ -664,8 +699,7 @@ class SyncServer {
     String? authToken;
     for (final t in acceptedTokens) {
       try {
-        final decoded =
-            jsonDecode(await SyncCrypto.decrypt(t, dataB64));
+        final decoded = jsonDecode(await SyncCrypto.decrypt(t, dataB64));
         if (decoded is Map<String, dynamic>) {
           inner = decoded;
           authToken = t;
@@ -717,8 +751,16 @@ class SyncServer {
     final serverTasks = await db.getAllTasks();
     final serverNotes = await db.getAllNotes();
 
-    final mergedTasks = SyncEngine.mergeTasks(serverTasks, clientTasks, now: nowMs);
-    final mergedNotes = SyncEngine.mergeNotes(serverNotes, clientNotes, now: nowMs);
+    final mergedTasks = SyncEngine.mergeTasks(
+      serverTasks,
+      clientTasks,
+      now: nowMs,
+    );
+    final mergedNotes = SyncEngine.mergeNotes(
+      serverNotes,
+      clientNotes,
+      now: nowMs,
+    );
 
     var addedTasks = 0;
     var updatedTasks = 0;
@@ -831,7 +873,7 @@ class SyncServer {
       'time': nowMs,
       'deviceId': state.deviceId,
       'sctr': sctr,
-      if (newToken != null) 'newToken': newToken,
+      'newToken': ?newToken,
     };
     final data = await SyncCrypto.encrypt(authToken, jsonEncode(reply));
     await _respondJson(req, 200, {'v': 2, 'data': data});

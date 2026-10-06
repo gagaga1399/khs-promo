@@ -63,11 +63,7 @@ class SyncCrypto {
     final ct = blob.sublist(_nonceLen, blob.length - _macLen);
     final mac = blob.sublist(blob.length - _macLen);
     final key = await _deriveKey(token);
-    final box = SecretBox(
-      ct,
-      nonce: nonce,
-      mac: Mac(mac),
-    );
+    final box = SecretBox(ct, nonce: nonce, mac: Mac(mac));
     final clear = await _gcm.decrypt(box, secretKey: key, aad: _aad);
     return utf8.decode(clear);
   }

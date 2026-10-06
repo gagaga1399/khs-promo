@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -30,7 +29,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   static const _installChannel = MethodChannel('khs/install');
   static const _vaultChannel = MethodChannel('khs/vault');
   static const _backgroundChannel = MethodChannel('khs/background');
-
 
   final TaskDatabase db = TaskDatabase();
   final NotificationService notifications = NotificationService();
@@ -213,8 +211,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (c == null) {
       result = tasksForSelectedDate;
     } else {
-      result = _tasks.where((t) => t.category == c).toList()
-        ..sort(_taskSorter);
+      result = _tasks.where((t) => t.category == c).toList()..sort(_taskSorter);
     }
     if (p == null) return result;
     return result.where((t) => t.priority == p).toList();
@@ -251,7 +248,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   int _countCompletedOn(DateTime day) => _tasks
       .where(
-        (t) => t.completed && t.completedAt != null && _sameDay(t.completedAt!, day),
+        (t) =>
+            t.completed &&
+            t.completedAt != null &&
+            _sameDay(t.completedAt!, day),
       )
       .length;
 
@@ -321,25 +321,22 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   int progressPercentDueToday() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    return _progressPercentForRange(
-      today,
-      today.add(const Duration(days: 1)),
-    );
+    return _progressPercentForRange(today, today.add(const Duration(days: 1)));
   }
 
   int progressPercentDueWeek() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    return _progressPercentForRange(
-      today,
-      today.add(const Duration(days: 7)),
-    );
+    return _progressPercentForRange(today, today.add(const Duration(days: 7)));
   }
 
   int _progressPercentForRange(DateTime start, DateTime end) {
     final all = _tasks
         .where(
-          (t) => t.dueAt != null && !t.dueAt!.isBefore(start) && t.dueAt!.isBefore(end),
+          (t) =>
+              t.dueAt != null &&
+              !t.dueAt!.isBefore(start) &&
+              t.dueAt!.isBefore(end),
         )
         .toList();
     if (all.isEmpty) return 0;
@@ -372,6 +369,19 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   int countFor(String category) =>
       _tasks.where((t) => !t.completed && t.category == category).length;
+
+  /// Доля выполненных задач в группе (0..1) — для полоски под её названием.
+  /// null означает все задачи разом. Пустая группа даёт 0, а не деление на ноль.
+  double completionFor(String? category) {
+    var total = 0;
+    var done = 0;
+    for (final t in _tasks) {
+      if (category != null && t.category != category) continue;
+      total++;
+      if (t.completed) done++;
+    }
+    return total == 0 ? 0 : done / total;
+  }
 
   Task? get nextReminder {
     final now = DateTime.now();
@@ -734,6 +744,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  /// Причина, по которой сервер не запустился (пусто — всё в порядке).
+  String get syncServerError => _syncServerError;
+  String _syncServerError = '';
+
   Future<void> _startSyncServer() async {
     try {
       var bind = _syncBindHost;
@@ -751,9 +765,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       );
       await _syncServer!.start();
       _localAddresses = await SyncServer.localAddresses();
-    } catch (_) {
+      _syncServerError = '';
+    } catch (e) {
       _syncServer = null;
       _localAddresses = const [];
+      // Причина нужна пользователю: сервер молча не поднялся — не поймёшь,
+      // что чинить. Раньше ошибка просто терялась в пустом catch.
+      _syncServerError = '$e';
     }
     notifyListeners();
   }
@@ -761,6 +779,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _stopSyncServer() async {
     await _syncServer?.stop();
     _syncServer = null;
+    _syncServerError = '';
     notifyListeners();
   }
 
@@ -904,10 +923,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   UpdateSource? get updateSource => _lastUpdateSource;
 
   UpdateChecker _checker() => UpdateChecker(
-        host: _syncAddress,
-        token: _syncToken,
-        webBaseUrl: updateWebBaseUrl,
-      );
+    host: _syncAddress,
+    token: _syncToken,
+    webBaseUrl: updateWebBaseUrl,
+  );
 
   /// Скачивает файл обновления в [targetDir] оттуда, откуда пришли
   /// метаданные (см. [updateSource]).
@@ -916,14 +935,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     Directory targetDir, {
     String? expectedSha256,
     void Function(int received, int total)? onProgress,
-  }) =>
-      _checker().download(
-        filename,
-        targetDir,
-        expectedSha256: expectedSha256,
-        onProgress: onProgress,
-        source: _lastUpdateSource ?? UpdateSource.pc,
-      );
+  }) => _checker().download(
+    filename,
+    targetDir,
+    expectedSha256: expectedSha256,
+    onProgress: onProgress,
+    source: _lastUpdateSource ?? UpdateSource.pc,
+  );
 
   /// Разрешена ли на Android установка APK «из неизвестных источников».
   Future<bool> canInstallPackages() async {
@@ -952,10 +970,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<bool> installApkSilent(String path, {String package = ''}) async {
     if (isPc) return false;
     try {
-      return await _installChannel.invokeMethod<bool>(
-            'installApkSilent',
-            {'path': path, 'package': package},
-          ) ??
+      return await _installChannel.invokeMethod<bool>('installApkSilent', {
+            'path': path,
+            'package': package,
+          }) ??
           false;
     } catch (_) {
       return false;
@@ -1028,15 +1046,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       if (prev == null) {
         final note = Note.fromMap(r);
         final rowId = r['id'];
-        final id = 900000 +
+        final id =
+            900000 +
             ((rowId is int ? rowId : note.clientKey?.hashCode ?? 0).abs() %
                 100000);
         unawaited(
-          notifications.show(
-            id,
-            strings.t('newNoteArrived'),
-            note.title,
-          ),
+          notifications.show(id, strings.t('newNoteArrived'), note.title),
         );
       }
     }
@@ -1304,17 +1319,25 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     final today = _today();
     final dailyTasks = _tasks.where((t) => t.recurrence == 'daily');
     for (final template in dailyTasks) {
-      final alreadyToday = _tasks.any((t) =>
-          t.id != template.id &&
-          t.title.trim().toLowerCase() == template.title.trim().toLowerCase() &&
-          t.dueAt != null &&
-          _sameDay(t.dueAt!, today));
+      final alreadyToday = _tasks.any(
+        (t) =>
+            t.id != template.id &&
+            t.title.trim().toLowerCase() ==
+                template.title.trim().toLowerCase() &&
+            t.dueAt != null &&
+            _sameDay(t.dueAt!, today),
+      );
       if (!alreadyToday) {
         final next = template.copyWith(
           id: null,
           clientKey: null,
-          dueAt: DateTime(today.year, today.month, today.day,
-              template.dueAt?.hour ?? 9, template.dueAt?.minute ?? 0),
+          dueAt: DateTime(
+            today.year,
+            today.month,
+            today.day,
+            template.dueAt?.hour ?? 9,
+            template.dueAt?.minute ?? 0,
+          ),
           completed: false,
           createdAt: DateTime.now(),
           completedAt: null,
@@ -1362,14 +1385,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       if (task.recurrence != 'daily') {
         final next = task.nextOccurrence();
         final nextDue = next.dueDate;
-        final alreadyExists = _tasks.any((t) =>
-            t.id != task.id &&
-            t.title.trim().toLowerCase() == task.title.trim().toLowerCase() &&
-            t.dueDate != null &&
-            nextDue != null &&
-            t.dueDate!.year == nextDue.year &&
-            t.dueDate!.month == nextDue.month &&
-            t.dueDate!.day == nextDue.day);
+        final alreadyExists = _tasks.any(
+          (t) =>
+              t.id != task.id &&
+              t.title.trim().toLowerCase() == task.title.trim().toLowerCase() &&
+              t.dueDate != null &&
+              nextDue != null &&
+              t.dueDate!.year == nextDue.year &&
+              t.dueDate!.month == nextDue.month &&
+              t.dueDate!.day == nextDue.day,
+        );
         if (!alreadyExists) {
           final nextId = await db.insertTask(next);
           final savedNext = next.copyWith(id: nextId);
@@ -1416,8 +1441,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await db.deleteTask(t.id!);
       await notifications.cancel(t.id!);
     }
-    _tasks.removeWhere((t) =>
-        !t.completed && t.dueAt != null && t.dueAt!.isBefore(now));
+    _tasks.removeWhere(
+      (t) => !t.completed && t.dueAt != null && t.dueAt!.isBefore(now),
+    );
     notifyListeners();
     _maybeSync();
     return overdue.length;
@@ -1441,18 +1467,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<({int tasks, int notes})> importBackup(File file) async {
     final text = await file.readAsString(encoding: utf8);
     final data = jsonDecode(text) as Map<String, dynamic>;
-    final tasksRows =
-        (data['tasks'] as List? ?? []).cast<Map<String, dynamic>>();
-    final notesRows =
-        (data['notes'] as List? ?? []).cast<Map<String, dynamic>>();
+    final tasksRows = (data['tasks'] as List? ?? [])
+        .cast<Map<String, dynamic>>();
+    final notesRows = (data['notes'] as List? ?? [])
+        .cast<Map<String, dynamic>>();
     final tc = await db.restoreTable('tasks', tasksRows);
     final nc = await db.restoreTable('notes', notesRows);
     await reloadFromDb();
     return (tasks: tc, notes: nc);
   }
 
-  static const _runKey =
-      r'HKCU\Software\Microsoft\Windows\CurrentVersion\Run';
+  static const _runKey = r'HKCU\Software\Microsoft\Windows\CurrentVersion\Run';
 
   Future<bool> isAutoStartEnabled() async {
     final exe = isPc ? Platform.resolvedExecutable : '';
@@ -1471,10 +1496,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final ProcessResult r;
       if (enabled) {
-        r = await Process.run(
-          'reg',
-          ['add', _runKey, '/v', 'KHS', '/t', 'REG_SZ', '/d', '"$exe"', '/f'],
-        );
+        r = await Process.run('reg', [
+          'add',
+          _runKey,
+          '/v',
+          'KHS',
+          '/t',
+          'REG_SZ',
+          '/d',
+          '"$exe"',
+          '/f',
+        ]);
       } else {
         r = await Process.run('reg', ['delete', _runKey, '/v', 'KHS', '/f']);
       }

@@ -17,16 +17,11 @@ class SyncEngine {
 
   /// Приводит подозрительно будущие времена записи к [now] (иначе оставляет
   /// ту же карту). Возвращает новую карту только если что-то поправил.
-  static Map<String, dynamic> _clampRow(
-    Map<String, dynamic> row,
-    int now,
-  ) {
+  static Map<String, dynamic> _clampRow(Map<String, dynamic> row, int now) {
     final limit = now + maxFutureSkewMs;
-    var changed = false;
     for (final key in const ['updated_at', 'created_at']) {
       final v = row[key];
       if (v is int && v > limit) {
-        changed = true;
         row = Map<String, dynamic>.from(row)..[key] = now;
       }
     }
@@ -86,7 +81,11 @@ class SyncEngine {
     List<Map<String, dynamic>> mine,
     List<Map<String, dynamic>> theirs, {
     required int? now,
-    required Map<String, dynamic> Function(Map<String, dynamic>, Map<String, dynamic>) newer,
+    required Map<String, dynamic> Function(
+      Map<String, dynamic>,
+      Map<String, dynamic>,
+    )
+    newer,
   }) {
     final cleanMine = _clampAll(mine, now);
     final cleanTheirs = _clampAll(theirs, now);

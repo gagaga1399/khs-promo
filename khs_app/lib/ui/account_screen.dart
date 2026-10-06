@@ -27,6 +27,37 @@ class _AccountScreenState extends State<AccountScreen> {
     super.dispose();
   }
 
+  /// Предупреждение перед синхронизацией с облаком.
+  ///
+  /// Показывается только на ручной кнопке: фоновая синхронизация по таймеру
+  /// и при возврате в приложение идёт молча, и окно там было бы неуместно.
+  Future<void> _confirmCloudSync() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Синхронизация с облаком'),
+        content: const Text(
+          'Ничего не затрётся: всё, что есть на этом устройстве, попадёт на '
+          'другое. Но если одну и ту же заметку или задачу править на двух '
+          'устройствах одновременно, останется та версия, которая сохранена '
+          'позже, а вторая правка пропадёт без предупреждения.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Синхронизировать'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await context.read<AppState>().syncWithCloud();
+  }
+
   Future<void> _submit() async {
     final email = _email.text.trim();
     final password = _password.text;
@@ -64,21 +95,21 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Widget _unavailable() => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.cloud_off, size: 48, color: _disabled),
-            const SizedBox(height: 16),
-            const Text(
-              'Вход сейчас недоступен: нет связи с Firebase.\n'
-              'Приложением можно пользоваться как обычно — задачи и '
-              'синхронизация с ПК не требуют аккаунта.',
-              textAlign: TextAlign.center,
-            ),
-          ],
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.cloud_off, size: 48, color: _disabled),
+        const SizedBox(height: 16),
+        const Text(
+          'Вход сейчас недоступен: нет связи с Firebase.\n'
+          'Приложением можно пользоваться как обычно — задачи и '
+          'синхронизация с ПК не требуют аккаунта.',
+          textAlign: TextAlign.center,
         ),
-      );
+      ],
+    ),
+  );
 
   Color get _disabled =>
       Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38);
@@ -94,8 +125,11 @@ class _AccountScreenState extends State<AccountScreen> {
           CircleAvatar(
             radius: 34,
             backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.18),
-            child: Icon(Icons.person,
-                size: 38, color: theme.colorScheme.primary),
+            child: Icon(
+              Icons.person,
+              size: 38,
+              color: theme.colorScheme.primary,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -111,7 +145,9 @@ class _AccountScreenState extends State<AccountScreen> {
               listenable: Listenable.merge([state, _auth]),
               builder: (context, _) => Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -143,19 +179,18 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
-                      onPressed: state.cloudSyncing
-                          ? null
-                          : () => state.syncWithCloud(),
+                      onPressed: state.cloudSyncing ? null : _confirmCloudSync,
                       icon: state.cloudSyncing
                           ? const SizedBox(
                               height: 16,
                               width: 16,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.sync),
                       label: Text(
-                        state.cloudSyncing ? 'Синхронизация…' : 'Синхронизировать',
+                        state.cloudSyncing
+                            ? 'Синхронизация…'
+                            : 'Синхронизировать',
                       ),
                     ),
                   ],
@@ -259,13 +294,11 @@ class _AccountScreenState extends State<AccountScreen> {
           onPressed: _auth.busy
               ? null
               : () => setState(() {
-                    _register = !_register;
-                    _error = null;
-                  }),
+                  _register = !_register;
+                  _error = null;
+                }),
           child: Text(
-            _register
-                ? 'Уже есть аккаунт? Войти'
-                : 'Нет аккаунта? Создать',
+            _register ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Создать',
           ),
         ),
         const SizedBox(height: 20),
@@ -294,35 +327,32 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Widget _googleButton(bool dark) => SizedBox(
-        height: 48,
-        child: OutlinedButton(
-          onPressed: _auth.busy || !_auth.googleAvailable ? null : _google,
-          style: OutlinedButton.styleFrom(
-            backgroundColor: dark ? const Color(0xFF141416) : Colors.white,
-            foregroundColor: dark ? Colors.white : const Color(0xFF202124),
-            side: BorderSide(
-              color: (dark ? Colors.white : Colors.black)
-                  .withValues(alpha: 0.20),
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'G',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF4285F4),
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Text('Войти через Google'),
-            ],
-          ),
+    height: 48,
+    child: OutlinedButton(
+      onPressed: _auth.busy || !_auth.googleAvailable ? null : _google,
+      style: OutlinedButton.styleFrom(
+        backgroundColor: dark ? const Color(0xFF141416) : Colors.white,
+        foregroundColor: dark ? Colors.white : const Color(0xFF202124),
+        side: BorderSide(
+          color: (dark ? Colors.white : Colors.black).withValues(alpha: 0.20),
         ),
-      );
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            'G',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF4285F4),
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Text('Войти через Google'),
+        ],
+      ),
+    ),
+  );
 }

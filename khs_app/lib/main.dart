@@ -13,6 +13,7 @@ import 'services/launcher_shortcut.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _applyLaunchArgs();
   if (Platform.isAndroid) {
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     final start = await LauncherShortcut.initialStart();
@@ -26,7 +27,17 @@ Future<void> main() async {
   await state.init();
   unawaited(authReady);
 
-  runApp(
-    ChangeNotifierProvider.value(value: state, child: const KhsApp()),
-  );
+  runApp(ChangeNotifierProvider.value(value: state, child: const KhsApp()));
+}
+
+/// Разбор аргументов командной строки для ярлыков рабочего стола.
+/// Windows передаёт их через .lnk, поэтому читать `Platform.executableArguments`.
+void _applyLaunchArgs() {
+  for (final arg in Platform.executableArguments) {
+    if (arg == '--tasks') {
+      LauncherShortcut.startTasks = true;
+    } else if (arg == '--reader') {
+      LauncherShortcut.startReader = true;
+    }
+  }
 }

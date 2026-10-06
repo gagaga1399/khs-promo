@@ -21,7 +21,15 @@ class KhsApp extends StatelessWidget {
     final locale = state.isRussian ? 'ru' : 'en';
     final directTasks =
         Platform.environment['KHS_START_TASKS'] == '1' ||
-            LauncherShortcut.startTasks;
+        LauncherShortcut.startTasks;
+    // Ярлык читалки: не отдельный маршрут, а хаб, открытый сразу на читалке.
+    final directReader =
+        Platform.environment['KHS_START_READER'] == '1' ||
+        LauncherShortcut.startReader;
+    if (directReader) HubScreen.openReaderOnStart = true;
+    final initialScreen = directTasks
+        ? const HomeScreen()
+        : (state.showSplashAnimation ? const SplashGate() : const HubScreen());
     return MaterialApp(
       title: state.strings.t('appTitle'),
       debugShowCheckedModeBanner: false,
@@ -38,11 +46,7 @@ class KhsApp extends StatelessWidget {
       darkTheme: state.themeMode == 'custom'
           ? AppTheme.custom(state.accentColor, state.customTextColor)
           : AppTheme.dark(state.accentColor),
-      home: directTasks
-          ? const HomeScreen()
-          : (state.showSplashAnimation
-              ? const SplashGate()
-              : const HubScreen()),
+      home: initialScreen,
     );
   }
 }
