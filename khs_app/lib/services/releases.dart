@@ -24,113 +24,331 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.34',
+    date: '04.10.2026',
+    changes: [
+      ChangeEntry(
+        'Приложение спрашивает интернет и компьютер одновременно и ставит ту версию, что новее. Раньше побеждал просто тот ответ, который пришёл первым',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Если подпись файла обновления не сходится, приложение прямо пишет об этом и не предлагает ставить такой файл, вместо молчаливого отказа',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Если указать неправильный адрес для локального сервера, приложение честно скажет об ошибке, а не включит сервер на всех интерфейсах подряд',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Локальный сервер больше не отдаёт текст внутренней ошибки наружу и держит список неудачных попыток ввода пароля ограниченным',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'В боковой панели под группами появилась полоска выполнения — видно, сколько задач в группе уже закрыто',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Ошибки входа и разборчивость журналов приведены в порядок: лишний шум из служебных сообщений убран',
+        ChangeType.improvement,
+      ),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.2.33',
+    date: '04.10.2026',
+    changes: [
+      ChangeEntry(
+        'Обновление из интернета не работало: приложение искало файл рядом с описанием на сайте и получало «страница не найдена». Теперь файлы берутся из свежего релиза',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'При скачивании обновления виден реальный прогресс: процент, сколько скачано из скольких и скорость. Раньше крутился безымянный кружок, и на файле в 80 МБ казалось, что загрузка зависла',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Телефон не пропускает половину прокрутки: список идёт на всю длину жеста, как в обычном приложении',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Кнопка-«пилюля» внизу на узком экране больше не вытягивается в вертикальный овал',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Если на компьютере собрана более новая версия, чем лежит в интернете, приложение предлагает её — публиковать сайт заранее больше не нужно',
+        ChangeType.improvement,
+      ),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.2.32',
+    date: '03.10.2026',
+    changes: [
+      ChangeEntry(
+        'Пропала библиотека: книги лежали в старой папке, новая о них не знала. Теперь приложение само переносит библиотеку при первом запуске и больше не теряет книги',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Одна битая запись в библиотеке больше не обнуляет весь список — непонятные файлы пропускаются, остальные книги видны',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Настройки переделаны в карточки: крупный заголовок, иконки, единые отступы. Появилась нижняя панель с кнопками, которая появляется при прокрутке и прячется обратно наверху',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Карточки настроек плавно выезжают при прокрутке, а не появляются рывком',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'В текстовых полях настроек появился счётчик символов и мягкий лимит: URL, токены, имена и пути нельзя ввести слишком длинными',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Ярлык «KHS Tasks» больше не остаётся без иконки, если файл иконки потерялся при пересборке',
+        ChangeType.bugfix,
+      ),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.31',
     date: '21.09.2026',
     changes: [
-      ChangeEntry('PDF с «сломанной» кодировкой шрифта (учебники: мусор вместо текста) теперь открываются как страницы, а не текстом', ChangeType.bugfix),
-      ChangeEntry('QutZem Reader встроен в хаб, как KHS Tasks: одна APK, читалка открывается из плитки внутри, ничего не устанавливается и не докачивается', ChangeType.feature),
-      ChangeEntry('Хаб похудел: бандл читалки больше не зашит в APK (~95 → ~75 МБ)', ChangeType.improvement),
+      ChangeEntry(
+        'PDF с «сломанной» кодировкой шрифта (учебники: мусор вместо текста) теперь открываются как страницы, а не текстом',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'QutZem Reader встроен в хаб, как KHS Tasks: одна APK, читалка открывается из плитки внутри, ничего не устанавливается и не докачивается',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Хаб похудел: бандл читалки больше не зашит в APK (~95 → ~75 МБ)',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.30',
     date: '21.09.2026',
     changes: [
-      ChangeEntry('Хаб: в настройках появилась плитка «Проверить обновления» — обновление хаба по Wi-Fi с ПК, как в KHS Tasks', ChangeType.feature),
-      ChangeEntry('Хаб: история версий в настройках приведена к реальным версиям KHS (вместо отдельных 1.0.x)', ChangeType.improvement),
+      ChangeEntry(
+        'Хаб: в настройках появилась плитка «Проверить обновления» — обновление хаба по Wi-Fi с ПК, как в KHS Tasks',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Хаб: история версий в настройках приведена к реальным версиям KHS (вместо отдельных 1.0.x)',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.29',
     date: '20.09.2026',
     changes: [
-      ChangeEntry('Хаб: читалка устанавливается сама из бандла при первом запуске — никаких диалогов, всё работает сразу после установки хаба', ChangeType.feature),
-      ChangeEntry('Хаб: тихая установка APK через системный PackageInstaller — без окна установщика', ChangeType.improvement),
-      ChangeEntry('QutZem Reader: кнопка «Вернуться на главную» на экране подготовки книги; выход прерывает расчёт', ChangeType.feature),
-      ChangeEntry('QutZem Reader: панель управления PDF-страницами — масштаб, ширина экрана, листание', ChangeType.feature),
-      ChangeEntry('QutZem Reader: книга удаляется правым кликом мыши (контекстное меню)', ChangeType.feature),
+      ChangeEntry(
+        'Хаб: читалка устанавливается сама из бандла при первом запуске — никаких диалогов, всё работает сразу после установки хаба',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Хаб: тихая установка APK через системный PackageInstaller — без окна установщика',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'QutZem Reader: кнопка «Вернуться на главную» на экране подготовки книги; выход прерывает расчёт',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'QutZem Reader: панель управления PDF-страницами — масштаб, ширина экрана, листание',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'QutZem Reader: книга удаляется правым кликом мыши (контекстное меню)',
+        ChangeType.feature,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.28',
     date: '18.09.2026',
     changes: [
-      ChangeEntry('QutZem Reader: листание и прокрутка больше не «рассыпаются» — системный масштаб шрифта ограничен, страницы не серые', ChangeType.bugfix),
-      ChangeEntry('QutZem Reader: текст не прячется под панелями и статус-баром на телефоне', ChangeType.bugfix),
-      ChangeEntry('QutZem Reader: панель кнопок скроллится — поиск и настройки доступны на узком экране', ChangeType.bugfix),
-      ChangeEntry('QutZem Reader: поиск книг чинится — заголовки браузера, надёжный каталог Archive.org, понятные ошибки и таймауты', ChangeType.bugfix),
-      ChangeEntry('Хаб: QutZem Reader упакован внутри KHS — установка без интернета и браузера из бандла (~130 МБ одним APK)', ChangeType.feature),
-      ChangeEntry('Хаб: кнопка «Обновить всё» — обновляет KHS и QutZem Reader по Wi-Fi с ПК в один шаг', ChangeType.feature),
+      ChangeEntry(
+        'QutZem Reader: листание и прокрутка больше не «рассыпаются» — системный масштаб шрифта ограничен, страницы не серые',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'QutZem Reader: текст не прячется под панелями и статус-баром на телефоне',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'QutZem Reader: панель кнопок скроллится — поиск и настройки доступны на узком экране',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'QutZem Reader: поиск книг чинится — заголовки браузера, надёжный каталог Archive.org, понятные ошибки и таймауты',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Хаб: QutZem Reader упакован внутри KHS — установка без интернета и браузера из бандла (~130 МБ одним APK)',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Хаб: кнопка «Обновить всё» — обновляет KHS и QutZem Reader по Wi-Fi с ПК в один шаг',
+        ChangeType.feature,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.27',
     date: '18.09.2026',
     changes: [
-      ChangeEntry('QutZem Reader: «Что значит термин» — нейросеть объясняет слово или фразу в контексте книги (кнопка на панели выделения и в заметках)', ChangeType.feature),
-      ChangeEntry('QutZem Reader: ИИ-разбор без ключей — локальная Ollama или бесплатный облачный ИИ; при ошибке кнопка «Настроить ИИ»', ChangeType.feature),
-      ChangeEntry('QutZem Reader: заметки — вкладка «Цитаты» с копированием', ChangeType.feature),
-      ChangeEntry('QutZem Reader: поиск книг по каталогам параллельно и по своей библиотеке', ChangeType.feature),
-      ChangeEntry('QutZem Reader: настройки ИИ — модель подхватывается из установленных в Ollama автоматически', ChangeType.improvement),
+      ChangeEntry(
+        'QutZem Reader: «Что значит термин» — нейросеть объясняет слово или фразу в контексте книги (кнопка на панели выделения и в заметках)',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'QutZem Reader: ИИ-разбор без ключей — локальная Ollama или бесплатный облачный ИИ; при ошибке кнопка «Настроить ИИ»',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'QutZem Reader: заметки — вкладка «Цитаты» с копированием',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'QutZem Reader: поиск книг по каталогам параллельно и по своей библиотеке',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'QutZem Reader: настройки ИИ — модель подхватывается из установленных в Ollama автоматически',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.26',
     date: '16.09.2026',
     changes: [
-      ChangeEntry('Плитки хаба: высота подстраивается под текст — нет переполнения на телефоне', ChangeType.bugfix),
-      ChangeEntry('Плитки выровнены: ряд плиток, под ним ряд описаний — одинаковой высоты на Windows', ChangeType.bugfix),
-      ChangeEntry('Мини-описания привязаны к своей плитке и не разъезжаются на узких экранах', ChangeType.bugfix),
-      ChangeEntry('Ярлык KHS Tasks теперь можно закрепить на рабочий стол и на Android (кнопка на плитке)', ChangeType.feature),
-      ChangeEntry('В «О приложении» хаба добавлен автор — QutZem', ChangeType.improvement),
-      ChangeEntry('Плитка QutZem Reader на Android: запуск читалки, ярлык на главный экран и установка, если читалки нет', ChangeType.feature),
+      ChangeEntry(
+        'Плитки хаба: высота подстраивается под текст — нет переполнения на телефоне',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Плитки выровнены: ряд плиток, под ним ряд описаний — одинаковой высоты на Windows',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Мини-описания привязаны к своей плитке и не разъезжаются на узких экранах',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Ярлык KHS Tasks теперь можно закрепить на рабочий стол и на Android (кнопка на плитке)',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'В «О приложении» хаба добавлен автор — QutZem',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Плитка QutZem Reader на Android: запуск читалки, ярлык на главный экран и установка, если читалки нет',
+        ChangeType.feature,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.25',
     date: '15.09.2026',
     changes: [
-      ChangeEntry('Главный экран — центр KHS: стартовый хаб с плитками приложений', ChangeType.feature),
-      ChangeEntry('Плитка KHS Tasks — быстрый вход в задачи, заметки, календарь', ChangeType.feature),
-      ChangeEntry('Мини-кнопка на плитке выносит KHS Tasks на рабочий стол отдельным ярлыком', ChangeType.feature),
-      ChangeEntry('Плитка QutZem Reader — запуск читалки и ярлык на рабочий стол', ChangeType.feature),
-      ChangeEntry('Под плитками — мини-описания приложений с иконками', ChangeType.improvement),
-      ChangeEntry('Настройки хаба: управление плитками и смена темы как в KHS Tasks', ChangeType.feature),
-      ChangeEntry('Главный экран: декоративные фигуры на фоне', ChangeType.improvement),
-      ChangeEntry('Настройки хаба вынесены в шестерёнку в шапке: анимация запуска, история версий', ChangeType.improvement),
-      ChangeEntry('Место под будущие разделы — плитки «Скоро»', ChangeType.improvement),
+      ChangeEntry(
+        'Главный экран — центр KHS: стартовый хаб с плитками приложений',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Плитка KHS Tasks — быстрый вход в задачи, заметки, календарь',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Мини-кнопка на плитке выносит KHS Tasks на рабочий стол отдельным ярлыком',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Плитка QutZem Reader — запуск читалки и ярлык на рабочий стол',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Под плитками — мини-описания приложений с иконками',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Настройки хаба: управление плитками и смена темы как в KHS Tasks',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Главный экран: декоративные фигуры на фоне',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Настройки хаба вынесены в шестерёнку в шапке: анимация запуска, история версий',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Место под будущие разделы — плитки «Скоро»',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.24',
     date: '13.09.2026',
     changes: [
-      ChangeEntry('Заметки: редактор стал визуальным — жирный, курсив, зачёркнутый, заголовки, списки, цитаты и код форматируются сразу, как в Word', ChangeType.feature),
-      ChangeEntry('Чек-листы теперь настоящие: галочки отмечаются тапом', ChangeType.feature),
+      ChangeEntry(
+        'Заметки: редактор стал визуальным — жирный, курсив, зачёркнутый, заголовки, списки, цитаты и код форматируются сразу, как в Word',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Чек-листы теперь настоящие: галочки отмечаются тапом',
+        ChangeType.feature,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.23',
     date: '13.09.2026',
     changes: [
-      ChangeEntry('Заметки: убран режим предпросмотра — редактор снова обычный, просто и быстро', ChangeType.bugfix),
+      ChangeEntry(
+        'Заметки: убран режим предпросмотра — редактор снова обычный, просто и быстро',
+        ChangeType.bugfix,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.22',
     date: '13.09.2026',
     changes: [
-      ChangeEntry('Загрузка обновления: окно с процентом и прогресс-баром', ChangeType.feature),
-      ChangeEntry('Загрузку больше не обрывает между чанками файла', ChangeType.bugfix),
-      ChangeEntry('Редактор заметок: панель форматирования и режим предпросмотра — разметка отображается как в Obsidian', ChangeType.feature),
+      ChangeEntry(
+        'Загрузка обновления: окно с процентом и прогресс-баром',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Загрузку больше не обрывает между чанками файла',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Редактор заметок: панель форматирования и режим предпросмотра — разметка отображается как в Obsidian',
+        ChangeType.feature,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.21',
     date: '13.09.2026',
     changes: [
-      ChangeEntry('Проверка обновлений: понятно, когда ПК недоступен, а когда на ПК не настроен файл обновления', ChangeType.improvement),
-      ChangeEntry('Обновление по Wi-Fi снова находит файлы рядом с запущенным KHS', ChangeType.bugfix),
+      ChangeEntry(
+        'Проверка обновлений: понятно, когда ПК недоступен, а когда на ПК не настроен файл обновления',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Обновление по Wi-Fi снова находит файлы рядом с запущенным KHS',
+        ChangeType.bugfix,
+      ),
     ],
   ),
   ReleaseInfo(
@@ -138,58 +356,172 @@ const List<ReleaseInfo> khsReleases = [
     date: '13.09.2026',
     changes: [
       ChangeEntry('Поиск по всем задачам и заметкам', ChangeType.feature),
-      ChangeEntry('Удаление выполненных и просроченных задач одним действием', ChangeType.feature),
-      ChangeEntry('Бэкап в файл: экспорт и импорт задач и заметок', ChangeType.feature),
+      ChangeEntry(
+        'Удаление выполненных и просроченных задач одним действием',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Бэкап в файл: экспорт и импорт задач и заметок',
+        ChangeType.feature,
+      ),
       ChangeEntry('Запуск KHS вместе со стартом Windows', ChangeType.feature),
-      ChangeEntry('Если «в 9 часов» уже прошло — спрашиваем: 9:00 или 21:00', ChangeType.improvement),
-      ChangeEntry('Время без даты теперь всегда ставится на сегодня', ChangeType.bugfix),
-      ChangeEntry('Плавные переходы между экранами и анимация галочек задач', ChangeType.improvement),
+      ChangeEntry(
+        'Если «в 9 часов» уже прошло — спрашиваем: 9:00 или 21:00',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Время без даты теперь всегда ставится на сегодня',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Плавные переходы между экранами и анимация галочек задач',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.19',
     date: '12.09.2026',
     changes: [
-      ChangeEntry('«Что нового» раскрывается по версиям как папки — жми на свою', ChangeType.improvement),
-      ChangeEntry('Защита от повтора перехваченных запросов синка', ChangeType.improvement),
-      ChangeEntry('Ключ доступа автоматически меняется (ротация) — старый действует ещё 3 дня', ChangeType.improvement),
-      ChangeEntry('Телефон привязывается к своему ПК — чужой сервер данные не примет', ChangeType.improvement),
-      ChangeEntry('Слияние не доверяет «будущим» временам накрученных часов', ChangeType.improvement),
-      ChangeEntry('Защита сервера от перегрузки запросами', ChangeType.improvement),
-      ChangeEntry('Раздача файлов обновлений только по белому списку имён', ChangeType.improvement),
-      ChangeEntry('Проверка соединения доступна только обладателю ключа', ChangeType.improvement),
-      ChangeEntry('Obsidian: удаляются только заметки KHS, чужие файлы не трогаются', ChangeType.improvement),
-      ChangeEntry('Сетевой конфиг Android формализован, убрано лишнее разрешение', ChangeType.improvement),
-      ChangeEntry('Обновления проверяются по цифровой подписи — подменить файлы по Wi-Fi нельзя', ChangeType.improvement),
-      ChangeEntry('Синхронизация шифруется: данные и ключ доступа не передаются открытым текстом', ChangeType.improvement),
-      ChangeEntry('Сервер можно ограничить одним IP, чтобы его не видели чужие устройства', ChangeType.improvement),
+      ChangeEntry(
+        '«Что нового» раскрывается по версиям как папки — жми на свою',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Защита от повтора перехваченных запросов синка',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Ключ доступа автоматически меняется (ротация) — старый действует ещё 3 дня',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Телефон привязывается к своему ПК — чужой сервер данные не примет',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Слияние не доверяет «будущим» временам накрученных часов',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Защита сервера от перегрузки запросами',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Раздача файлов обновлений только по белому списку имён',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Проверка соединения доступна только обладателю ключа',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Obsidian: удаляются только заметки KHS, чужие файлы не трогаются',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Сетевой конфиг Android формализован, убрано лишнее разрешение',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Обновления проверяются по цифровой подписи — подменить файлы по Wi-Fi нельзя',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Синхронизация шифруется: данные и ключ доступа не передаются открытым текстом',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Сервер можно ограничить одним IP, чтобы его не видели чужие устройства',
+        ChangeType.improvement,
+      ),
       ChangeEntry('Блокировка перебора ключа доступа', ChangeType.improvement),
-      ChangeEntry('Бэкап на Android отключён — данные не уезжают в облако Google', ChangeType.improvement),
-      ChangeEntry('Исправлено появление лишних копий ежедневных задач', ChangeType.bugfix),
-      ChangeEntry('Синхронизация защищена: без ключа или с неверным ключом доступ закрыт', ChangeType.improvement),
-      ChangeEntry('Пустой ключ доступа создаётся автоматически на ПК', ChangeType.improvement),
-      ChangeEntry('Ключ больше не светится в сетевом адресе и журнале', ChangeType.bugfix),
-      ChangeEntry('В настройках — кнопка «показать/скрыть» ключ доступа', ChangeType.feature),
-      ChangeEntry('Уведомления: старые пуш-уведомления очищаются при запуске', ChangeType.bugfix),
-      ChangeEntry('Уведомления задач и заметок больше не пересекаются', ChangeType.bugfix),
-      ChangeEntry('Заметки в Obsidian не затирают файлы с одинаковыми именами', ChangeType.bugfix),
-      ChangeEntry('Пользовательские чекбоксы в Obsidian больше не удаляются', ChangeType.bugfix),
-      ChangeEntry('Если в задаче указано только время и оно уже прошло — день выбираете сами в редакторе', ChangeType.bugfix),
-      ChangeEntry('Убрана авто-подстановка пути к vault с ПК на телефоне', ChangeType.bugfix),
-      ChangeEntry('Синхронизация не виснет при больших объёмах данных', ChangeType.improvement),
-      ChangeEntry('Исправлен запуск приложения: сплеш-экран больше не перезапускает приложение', ChangeType.bugfix),
-      ChangeEntry('Сплеш-анимация без жёлтого подчёркивания под буквами', ChangeType.bugfix),
+      ChangeEntry(
+        'Бэкап на Android отключён — данные не уезжают в облако Google',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Исправлено появление лишних копий ежедневных задач',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Синхронизация защищена: без ключа или с неверным ключом доступ закрыт',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Пустой ключ доступа создаётся автоматически на ПК',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Ключ больше не светится в сетевом адресе и журнале',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'В настройках — кнопка «показать/скрыть» ключ доступа',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Уведомления: старые пуш-уведомления очищаются при запуске',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Уведомления задач и заметок больше не пересекаются',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Заметки в Obsidian не затирают файлы с одинаковыми именами',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Пользовательские чекбоксы в Obsidian больше не удаляются',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Если в задаче указано только время и оно уже прошло — день выбираете сами в редакторе',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Убрана авто-подстановка пути к vault с ПК на телефоне',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Синхронизация не виснет при больших объёмах данных',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Исправлен запуск приложения: сплеш-экран больше не перезапускает приложение',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Сплеш-анимация без жёлтого подчёркивания под буквами',
+        ChangeType.bugfix,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.18',
     date: '19.08.2026',
     changes: [
-      ChangeEntry('Кастомная тема: свой фон и цвет текста через палитру', ChangeType.feature),
-      ChangeEntry('Четыре режима темы: системная, светлая, тёмная, своя', ChangeType.feature),
-      ChangeEntry('Мини-календарь текущего месяца на правой панели (ПК)', ChangeType.feature),
-      ChangeEntry('Исправлен краш палитры цвета (IntrinsicWidth)', ChangeType.bugfix),
-      ChangeEntry('Задачи без даты теперь видны в любом дне', ChangeType.bugfix),
+      ChangeEntry(
+        'Кастомная тема: свой фон и цвет текста через палитру',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Четыре режима темы: системная, светлая, тёмная, своя',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Мини-календарь текущего месяца на правой панели (ПК)',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Исправлен краш палитры цвета (IntrinsicWidth)',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Задачи без даты теперь видны в любом дне',
+        ChangeType.bugfix,
+      ),
       ChangeEntry('Улучшена сплеш-анимация', ChangeType.improvement),
       ChangeEntry('Полностью убрана статистика', ChangeType.improvement),
     ],
@@ -198,21 +530,42 @@ const List<ReleaseInfo> khsReleases = [
     version: '1.2.17',
     date: '17.08.2026',
     changes: [
-      ChangeEntry('Повторяющиеся задачи появляются автоматически каждый день', ChangeType.feature),
-      ChangeEntry('Для повторяющихся задач не нужна дата — ставится автоматически', ChangeType.feature),
+      ChangeEntry(
+        'Повторяющиеся задачи появляются автоматически каждый день',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Для повторяющихся задач не нужна дата — ставится автоматически',
+        ChangeType.feature,
+      ),
       ChangeEntry('Сравнение месяцев в статистике', ChangeType.feature),
-      ChangeEntry('Улучшено сообщение об ошибке при проверке обновлений', ChangeType.improvement),
+      ChangeEntry(
+        'Улучшено сообщение об ошибке при проверке обновлений',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.16',
     date: '17.08.2026',
     changes: [
-      ChangeEntry('Исправлен баг дублирования повторяющихся задач', ChangeType.bugfix),
+      ChangeEntry(
+        'Исправлен баг дублирования повторяющихся задач',
+        ChangeType.bugfix,
+      ),
       ChangeEntry('Убраны кружочки заметок с календаря', ChangeType.bugfix),
-      ChangeEntry('Быстрый ввод: добавлена кнопка отправки', ChangeType.feature),
-      ChangeEntry('Главная страница: события перемещены вниз', ChangeType.improvement),
-      ChangeEntry('Отключено случайное переключение вкладок свайпом', ChangeType.bugfix),
+      ChangeEntry(
+        'Быстрый ввод: добавлена кнопка отправки',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Главная страница: события перемещены вниз',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Отключено случайное переключение вкладок свайпом',
+        ChangeType.bugfix,
+      ),
       ChangeEntry('Исправлено дублирование заметок дня', ChangeType.bugfix),
     ],
   ),
@@ -220,8 +573,14 @@ const List<ReleaseInfo> khsReleases = [
     version: '1.2.15',
     date: '16.08.2026',
     changes: [
-      ChangeEntry('После синхронизации подставляется путь к vault с ПК', ChangeType.improvement),
-      ChangeEntry('Кнопка «Сайт KHS» спрашивает подтверждение', ChangeType.improvement),
+      ChangeEntry(
+        'После синхронизации подставляется путь к vault с ПК',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Кнопка «Сайт KHS» спрашивает подтверждение',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
@@ -229,7 +588,10 @@ const List<ReleaseInfo> khsReleases = [
     date: '16.08.2026',
     changes: [
       ChangeEntry('Починено обновление по Wi-Fi (404)', ChangeType.bugfix),
-      ChangeEntry('Публичный промо-сайт KHS на GitHub Pages', ChangeType.feature),
+      ChangeEntry(
+        'Публичный промо-сайт KHS на GitHub Pages',
+        ChangeType.feature,
+      ),
       ChangeEntry('В настройках — кнопка «Сайт KHS»', ChangeType.feature),
     ],
   ),
@@ -237,8 +599,14 @@ const List<ReleaseInfo> khsReleases = [
     version: '1.2.13',
     date: '16.08.2026',
     changes: [
-      ChangeEntry('Экран «Статистика»: дневная цель, столбики, графики', ChangeType.feature),
-      ChangeEntry('Кнопки создания задачи и заметки в календаре', ChangeType.feature),
+      ChangeEntry(
+        'Экран «Статистика»: дневная цель, столбики, графики',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Кнопки создания задачи и заметки в календаре',
+        ChangeType.feature,
+      ),
       ChangeEntry('Фильтр задач по приоритету', ChangeType.feature),
       ChangeEntry('Линейные бары прогресса в сайдбаре', ChangeType.feature),
       ChangeEntry('Исправлен курсор в палитре цвета', ChangeType.bugfix),
@@ -250,14 +618,20 @@ const List<ReleaseInfo> khsReleases = [
     changes: [
       ChangeEntry('Светлая и тёмная тема', ChangeType.feature),
       ChangeEntry('Исправлен курсор в палитре выбора цвета', ChangeType.bugfix),
-      ChangeEntry('Убрана надпись «Задач на этот день нет»', ChangeType.improvement),
+      ChangeEntry(
+        'Убрана надпись «Задач на этот день нет»',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.11',
     date: '16.08.2026',
     changes: [
-      ChangeEntry('Исправлена история «Что нового» на телефоне', ChangeType.bugfix),
+      ChangeEntry(
+        'Исправлена история «Что нового» на телефоне',
+        ChangeType.bugfix,
+      ),
       ChangeEntry('Исправлен поиск файла обновления на ПК', ChangeType.bugfix),
       ChangeEntry('Исправлено выделение текста в заметке', ChangeType.bugfix),
       ChangeEntry('Заметки переносятся в Obsidian', ChangeType.feature),
@@ -267,7 +641,10 @@ const List<ReleaseInfo> khsReleases = [
     version: '1.2.10',
     date: '16.08.2026',
     changes: [
-      ChangeEntry('Настройки уведомлений: «Работа в фоне» и «Точный будильник»', ChangeType.feature),
+      ChangeEntry(
+        'Настройки уведомлений: «Работа в фоне» и «Точный будильник»',
+        ChangeType.feature,
+      ),
       ChangeEntry('Тестовое уведомление через 10 секунд', ChangeType.feature),
     ],
   ),
@@ -277,22 +654,29 @@ const List<ReleaseInfo> khsReleases = [
     changes: [
       ChangeEntry('Быстрое переключение между vault', ChangeType.feature),
       ChangeEntry('Выбор папки vault на телефоне', ChangeType.feature),
-      ChangeEntry('Обновление по Wi-Fi с понятными ошибками', ChangeType.improvement),
+      ChangeEntry(
+        'Обновление по Wi-Fi с понятными ошибками',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.8',
     date: '15.08.2026',
-    changes: [
-      ChangeEntry('Переключение вкладок свайпом', ChangeType.feature),
-    ],
+    changes: [ChangeEntry('Переключение вкладок свайпом', ChangeType.feature)],
   ),
   ReleaseInfo(
     version: '1.2.7',
     date: '15.08.2026',
     changes: [
-      ChangeEntry('На телефоне прячется системная панель', ChangeType.improvement),
-      ChangeEntry('Новые задачи напоминают в срок по умолчанию', ChangeType.feature),
+      ChangeEntry(
+        'На телефоне прячется системная панель',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Новые задачи напоминают в срок по умолчанию',
+        ChangeType.feature,
+      ),
     ],
   ),
   ReleaseInfo(
@@ -306,7 +690,10 @@ const List<ReleaseInfo> khsReleases = [
     version: '1.2.5',
     date: '15.08.2026',
     changes: [
-      ChangeEntry('На телефоне кнопки добавления прозрачные', ChangeType.improvement),
+      ChangeEntry(
+        'На телефоне кнопки добавления прозрачные',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
@@ -328,7 +715,10 @@ const List<ReleaseInfo> khsReleases = [
     version: '1.2.2',
     date: '15.08.2026',
     changes: [
-      ChangeEntry('Навигация внизу: Главная, Календарь, Заметки, Настройки', ChangeType.feature),
+      ChangeEntry(
+        'Навигация внизу: Главная, Календарь, Заметки, Настройки',
+        ChangeType.feature,
+      ),
     ],
   ),
   ReleaseInfo(
@@ -412,54 +802,161 @@ ReleaseInfo? get latestRelease =>
 /// История самого хаба KHS (без изменений KHS Tasks).
 const List<ReleaseInfo> khsHubReleases = [
   ReleaseInfo(
+    version: '1.2.34',
+    date: '04.10.2026',
+    changes: [
+      ChangeEntry(
+        'Обновление ищется сразу на сайте и на компьютере, и ставится та версия, что новее',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Не сходится подпись файла обновления — приложение скажет об этом прямо и не поставит такой файл',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Неверный адрес локального сервера теперь показывается как ошибка, а не проходит тихо',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Под группами задач видно полоску выполнения',
+        ChangeType.feature,
+      ),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.2.33',
+    date: '04.10.2026',
+    changes: [
+      ChangeEntry(
+        'Обновление из интернета снова работает: файлы берутся из релиза, а не со страницы сайта',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'При скачивании обновления видно процент, объём и скорость',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'На телефоне прокрутка идёт на всю длину жеста, а нижняя кнопка не вытягивается в овал',
+        ChangeType.bugfix,
+      ),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.2.32',
+    date: '03.10.2026',
+    changes: [
+      ChangeEntry(
+        'Вернулись книги: приложение переносит библиотеку из старой папки при первом запуске',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Настройки хаба, KHS Tasks и читалки переделаны в карточки с нижней панелью действий',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Карточки настроек плавно появляются при прокрутке',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Счётчик символов и лимит длины в текстовых полях настроек',
+        ChangeType.improvement,
+      ),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.31',
     date: '21.09.2026',
     changes: [
-      ChangeEntry('Чтение PDF: учебники с ломаной кодировкой шрифта (мусор вместо текста) больше не уходят в текстовый режим — открываются как страницы', ChangeType.bugfix),
-      ChangeEntry('QutZem Reader встроен в хаб, как KHS Tasks: одна APK, читалка из плитки внутри хаба, без установок и докачек', ChangeType.feature),
+      ChangeEntry(
+        'Чтение PDF: учебники с ломаной кодировкой шрифта (мусор вместо текста) больше не уходят в текстовый режим — открываются как страницы',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'QutZem Reader встроен в хаб, как KHS Tasks: одна APK, читалка из плитки внутри хаба, без установок и докачек',
+        ChangeType.feature,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.30',
     date: '21.09.2026',
     changes: [
-      ChangeEntry('«Проверить обновления» в настройках хаба — обновление по Wi-Fi с ПК, как в KHS Tasks', ChangeType.feature),
-      ChangeEntry('История версий хаба приведена к реальным версиям KHS', ChangeType.improvement),
+      ChangeEntry(
+        '«Проверить обновления» в настройках хаба — обновление по Wi-Fi с ПК, как в KHS Tasks',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'История версий хаба приведена к реальным версиям KHS',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.29',
     date: '20.09.2026',
     changes: [
-      ChangeEntry('Читалка ставится сама из бандла при первом запуске — без диалогов установки, всё работает сразу', ChangeType.feature),
-      ChangeEntry('Тихая установка читалки через системный PackageInstaller — без окна установщика', ChangeType.improvement),
+      ChangeEntry(
+        'Читалка ставится сама из бандла при первом запуске — без диалогов установки, всё работает сразу',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Тихая установка читалки через системный PackageInstaller — без окна установщика',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.28',
     date: '18.09.2026',
     changes: [
-      ChangeEntry('QutZem Reader упакован внутри KHS — установка из бандла без интернета и браузера', ChangeType.feature),
-      ChangeEntry('Кнопка «Обновить всё» — KHS и читалка обновляются по Wi-Fi с ПК одним нажатием', ChangeType.feature),
+      ChangeEntry(
+        'QutZem Reader упакован внутри KHS — установка из бандла без интернета и браузера',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Кнопка «Обновить всё» — KHS и читалка обновляются по Wi-Fi с ПК одним нажатием',
+        ChangeType.feature,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.26',
     date: '16.09.2026',
     changes: [
-      ChangeEntry('Плитки хаба: высота подстраивается под текст, ряды выровнены — ничего не наезжает', ChangeType.bugfix),
-      ChangeEntry('Ярлык KHS Tasks на рабочий стол; плитка читалки на Android: запуск, ярлык и установка', ChangeType.feature),
-      ChangeEntry('В «О приложении» хаба добавлен автор платформы', ChangeType.improvement),
+      ChangeEntry(
+        'Плитки хаба: высота подстраивается под текст, ряды выровнены — ничего не наезжает',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Ярлык KHS Tasks на рабочий стол; плитка читалки на Android: запуск, ярлык и установка',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'В «О приложении» хаба добавлен автор платформы',
+        ChangeType.improvement,
+      ),
     ],
   ),
   ReleaseInfo(
     version: '1.2.25',
     date: '15.09.2026',
     changes: [
-      ChangeEntry('Главный экран — центр KHS: стартовый хаб с плитками приложений', ChangeType.feature),
-      ChangeEntry('Плитки KHS Tasks и QutZem Reader с мини-описаниями и ярлыками', ChangeType.feature),
-      ChangeEntry('Настройки хаба в шестерёнке: плитки, тема, анимация запуска, история версий', ChangeType.improvement),
-      ChangeEntry('Плитки «Скоро» — место под будущие разделы', ChangeType.improvement),
+      ChangeEntry(
+        'Главный экран — центр KHS: стартовый хаб с плитками приложений',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Плитки KHS Tasks и QutZem Reader с мини-описаниями и ярлыками',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Настройки хаба в шестерёнке: плитки, тема, анимация запуска, история версий',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Плитки «Скоро» — место под будущие разделы',
+        ChangeType.improvement,
+      ),
     ],
   ),
 ];

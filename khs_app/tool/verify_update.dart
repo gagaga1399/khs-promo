@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../lib/services/update_signing.dart';
+import 'package:khs/services/update_signing.dart';
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty) {

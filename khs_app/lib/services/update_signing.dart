@@ -9,9 +9,9 @@ const String kUpdatePublicKeyBase64 =
     'kjJ38XL3j/gHPLsN1bz3U6XKuQIfcJ8QNsaqqGUEPBU=';
 
 SimplePublicKey get kUpdatePublicKey => SimplePublicKey(
-      base64Decode(kUpdatePublicKeyBase64),
-      type: KeyPairType.ed25519,
-    );
+  base64Decode(kUpdatePublicKeyBase64),
+  type: KeyPairType.ed25519,
+);
 
 /// Каноническая строка, которая подписывается. ТОЛЬКО ЭТОТ ФОРМАТ
 /// понимает tool/sign_update.dart и приложение. Менять нельзя — сломаются

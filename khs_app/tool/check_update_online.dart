@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:khs/services/update_checker.dart';
 
@@ -27,10 +27,14 @@ Future<void> main(List<String> args) async {
   }
   stdout.writeln('version: ${info.version}');
   stdout.writeln('notes: ${info.notes}');
-  stdout.writeln('android: ${info.androidFile} '
-      '${info.androidSize} ${info.androidSha256}');
-  stdout.writeln('windows: ${info.windowsFile} '
-      '${info.windowsSize} ${info.windowsSha256}');
+  stdout.writeln(
+    'android: ${info.androidFile} '
+    '${info.androidSize} ${info.androidSha256}',
+  );
+  stdout.writeln(
+    'windows: ${info.windowsFile} '
+    '${info.windowsSize} ${info.windowsSha256}',
+  );
 
   final target = info.windowsFile ?? info.androidFile;
   final expected = info.windowsSha256 ?? info.androidSha256;

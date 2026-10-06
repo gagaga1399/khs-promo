@@ -4,13 +4,13 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart';
 
-import '../lib/services/update_signing.dart' show buildUpdateMessage;
+import 'package:khs/services/update_signing.dart' show buildUpdateMessage;
 
 /// Инструмент владельца KHS:
-///   dart run tool/sign_update.dart gen-key <file>
-///     — создаёт Ed25519-ключ, пишет приватный (base64) в <file>,
+///   `dart run tool/sign_update.dart gen-key <file>`
+///     — создаёт Ed25519-ключ, пишет приватный (base64) в `<file>`,
 ///       печатает ПУБЛИЧНЫЙ для встраивания в update_signing.dart.
-///   dart run tool/sign_update.dart sign <update.json> <privKeyFile>
+///   `dart run tool/sign_update.dart sign <update.json> <privKeyFile>`
 ///     — считает SHA-256 и размеры файлов (android/windows), заполняет
 ///       update.json, подписывает и сохраняет (UTF-8, без BOM).
 Future<void> main(List<String> args) async {
@@ -25,7 +25,7 @@ Future<void> main(List<String> args) async {
     final pub = await keyPair.extractPublicKey();
     await out.writeAsString(base64Encode(privBytes), flush: true);
     stdout.writeln('PRIVATE_KEY_WRITTEN=${out.absolute.path}');
-    stdout.writeln('PUBLIC=' + base64Encode(pub.bytes));
+    stdout.writeln('PUBLIC=${base64Encode(pub.bytes)}');
     return;
   }
   if (args[0] == 'sign') {
@@ -81,8 +81,9 @@ Future<void> main(List<String> args) async {
     buf.write('}\n');
     await jsonFile.writeAsString(buf.toString(), flush: true);
     stdout.writeln('SIGNED ${jsonFile.path}');
-    stdout
-        .writeln('SIZE android=${meta['android_size']} windows=${meta['windows_size']} reader=${meta['reader_size']}');
+    stdout.writeln(
+      'SIZE android=${meta['android_size']} windows=${meta['windows_size']} reader=${meta['reader_size']}',
+    );
     stdout.writeln('SHA android=${meta['android_sha256']}');
     stdout.writeln('SHA windows=${meta['windows_sha256']}');
     stdout.writeln('SHA reader=${meta['reader_sha256']}');
