@@ -204,6 +204,7 @@ class DashboardSidebar extends StatelessWidget {
                   count: state.tasks.length,
                   selected: state.categoryFilter == null,
                   onTap: () => state.setCategoryFilter(null),
+                  progress: state.completionFor(null),
                 ),
                 for (final group in state.groups)
                   _GroupTile(
@@ -213,6 +214,7 @@ class DashboardSidebar extends StatelessWidget {
                     selected: state.categoryFilter == group,
                     onTap: () => state.setCategoryFilter(group),
                     onEdit: () => showGroupActions(context, state, group),
+                    progress: state.completionFor(group),
                   ),
                 const SizedBox(height: 8),
                 Padding(
@@ -343,8 +345,9 @@ class _GroupTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight:
-                              selected ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                         ),
                       ),
                     ),

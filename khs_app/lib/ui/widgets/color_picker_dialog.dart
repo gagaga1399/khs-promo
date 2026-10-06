@@ -67,9 +67,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 340),
         child: Padding(
@@ -161,10 +159,7 @@ class _SvBox extends StatelessWidget {
           onPanUpdate: (d) => _pick(d.localPosition, width),
           child: CustomPaint(
             size: Size(width, _height),
-            painter: _SvPainter(
-              hue: hue,
-              pointer: _pointer(hsv, width),
-            ),
+            painter: _SvPainter(hue: hue, pointer: _pointer(hsv, width)),
           ),
         );
       },

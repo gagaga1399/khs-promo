@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../localization/app_strings.dart';
 import '../models/note.dart';
 import '../models/task.dart';
@@ -15,10 +16,10 @@ class SearchScreen extends StatefulWidget {
   static void open(BuildContext context) {
     Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const SearchScreen(),
+        pageBuilder: (_, _, _) => const SearchScreen(),
         transitionDuration: const Duration(milliseconds: 320),
         reverseTransitionDuration: const Duration(milliseconds: 220),
-        transitionsBuilder: (_, animation, __, child) {
+        transitionsBuilder: (_, animation, _, child) {
           final curved = CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
@@ -134,9 +135,7 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
             const Icon(Icons.sticky_note_2_outlined),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(note.title, overflow: TextOverflow.ellipsis),
-            ),
+            Expanded(child: Text(note.title, overflow: TextOverflow.ellipsis)),
           ],
         ),
         content: SingleChildScrollView(
@@ -236,7 +235,9 @@ class _SearchScreenState extends State<SearchScreen> {
                     opacity: animation,
                     child: SizeTransition(
                       sizeFactor: animation,
-                      axisAlignment: -1,
+                      // По умолчанию ось вертикальная, поэтому
+                      // axisAlignment: -1 переносится в Alignment(-1, -1).
+                      alignment: const Alignment(-1.0, -1.0),
                       child: child,
                     ),
                   );
@@ -263,14 +264,12 @@ class _SearchScreenState extends State<SearchScreen> {
                             for (var i = 0; i < matchedTasks.length; i++)
                               _TaskResult(
                                 task: matchedTasks[i],
-                                onToggle: (v) => state.toggleCompleted(
-                                  matchedTasks[i],
-                                ),
+                                onToggle: (v) =>
+                                    state.toggleCompleted(matchedTasks[i]),
                                 onTap: () => Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (_) => TaskEditScreen(
-                                      task: matchedTasks[i],
-                                    ),
+                                    builder: (_) =>
+                                        TaskEditScreen(task: matchedTasks[i]),
                                   ),
                                 ),
                                 onDelete: () => _confirmDeleteTasks(
@@ -285,9 +284,13 @@ class _SearchScreenState extends State<SearchScreen> {
                             for (var i = 0; i < matchedNotes.length; i++)
                               _NoteResult(
                                 note: matchedNotes[i],
-                                onTap: () => _showNote(strings, matchedNotes[i]),
-                                onDelete: () =>
-                                    _confirmDeleteNote(state, strings, matchedNotes[i]),
+                                onTap: () =>
+                                    _showNote(strings, matchedNotes[i]),
+                                onDelete: () => _confirmDeleteNote(
+                                  state,
+                                  strings,
+                                  matchedNotes[i],
+                                ),
                               ),
                           ],
                         ],
@@ -313,10 +316,10 @@ class _SectionHeader extends StatelessWidget {
       child: Text(
         title.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: scheme.primary,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.1,
-            ),
+          color: scheme.primary,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.1,
+        ),
       ),
     );
   }
@@ -357,10 +360,7 @@ class _EmptyResult extends StatelessWidget {
       children: [
         Icon(icon, size: 54, color: scheme.outline),
         const SizedBox(height: 12),
-        Text(
-          text,
-          style: TextStyle(color: scheme.outline, fontSize: 15),
-        ),
+        Text(text, style: TextStyle(color: scheme.outline, fontSize: 15)),
       ],
     );
   }
@@ -386,8 +386,13 @@ class _TaskResult extends StatelessWidget {
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 340),
       curve: Curves.easeOutCubic,
-      builder: (_, v, child) =>
-          Opacity(opacity: v, child: Transform.translate(offset: Offset(0, 10 * (1 - v)), child: child)),
+      builder: (_, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, 10 * (1 - v)),
+          child: child,
+        ),
+      ),
       child: TaskTile(
         task: task,
         strings: strings,
@@ -418,8 +423,13 @@ class _NoteResult extends StatelessWidget {
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 340),
       curve: Curves.easeOutCubic,
-      builder: (_, v, child) =>
-          Opacity(opacity: v, child: Transform.translate(offset: Offset(0, 10 * (1 - v)), child: child)),
+      builder: (_, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, 10 * (1 - v)),
+          child: child,
+        ),
+      ),
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         child: ListTile(

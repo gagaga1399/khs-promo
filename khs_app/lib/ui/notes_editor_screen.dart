@@ -56,8 +56,9 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
     _contentFocus = FocusNode();
     _scrollController = ScrollController();
     _quillController = QuillController(
-      document:
-          markdownToQuillDocument(widget.note?.content ?? widget.initialContent),
+      document: markdownToQuillDocument(
+        widget.note?.content ?? widget.initialContent,
+      ),
       selection: const TextSelection.collapsed(offset: 0),
     );
     _quillController.addListener(_onEdit);
@@ -328,7 +329,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
                   scrollable: true,
                   autoFocus: false,
                   scrollPhysics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.only(top: 4, bottom: 16),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                   placeholder: strings.t('noteContentHint'),
                 ),
               ),

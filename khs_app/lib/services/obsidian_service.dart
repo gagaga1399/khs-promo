@@ -605,6 +605,7 @@ class ObsidianService {
     }
     return result;
   }
+
   static List<String> _userCheckboxLines(List<String> lines) {
     final result = <String>[];
     for (final raw in lines) {

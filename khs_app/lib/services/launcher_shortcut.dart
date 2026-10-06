@@ -10,6 +10,10 @@ class LauncherShortcut {
   /// Запуск приложения через закреплённый ярлык «KHS Tasks».
   static bool startTasks = false;
 
+  /// Запуск сразу в читалку: ярлык рабочего стола на Windows с аргументом
+  /// `--reader`. Сама читалка — встроенный модуль, отдельного приложения нет.
+  static bool startReader = false;
+
   /// Стартовый флаг из intent (Android) — «открыть сразу KHS Tasks».
   static Future<String?> initialStart() async {
     if (!Platform.isAndroid) return null;
@@ -25,10 +29,9 @@ class LauncherShortcut {
   static Future<bool> createTasksShortcut(String label) async {
     if (!Platform.isAndroid) return false;
     try {
-      final ok = await _channel.invokeMethod<bool>(
-        'createTasksShortcut',
-        {'label': label},
-      );
+      final ok = await _channel.invokeMethod<bool>('createTasksShortcut', {
+        'label': label,
+      });
       return ok ?? false;
     } catch (_) {
       return false;
@@ -39,8 +42,9 @@ class LauncherShortcut {
   static Future<bool> isPackageInstalled(String package) async {
     if (!Platform.isAndroid) return false;
     try {
-      final ok = await _channel
-          .invokeMethod<bool>('isPackageInstalled', {'package': package});
+      final ok = await _channel.invokeMethod<bool>('isPackageInstalled', {
+        'package': package,
+      });
       return ok ?? false;
     } catch (_) {
       return false;
@@ -51,8 +55,9 @@ class LauncherShortcut {
   static Future<String?> getPackageVersion(String package) async {
     if (!Platform.isAndroid) return null;
     try {
-      final v = await _channel
-          .invokeMethod<String>('getPackageVersion', {'package': package});
+      final v = await _channel.invokeMethod<String>('getPackageVersion', {
+        'package': package,
+      });
       return v;
     } catch (_) {
       return null;
@@ -66,13 +71,10 @@ class LauncherShortcut {
   }) async {
     if (!Platform.isAndroid) return false;
     try {
-      final ok = await _channel.invokeMethod<bool>(
-        'launchPackage',
-        {
-          'package': package,
-          'fallbackUrl': ?fallbackUrl,
-        },
-      );
+      final ok = await _channel.invokeMethod<bool>('launchPackage', {
+        'package': package,
+        'fallbackUrl': ?fallbackUrl,
+      });
       return ok ?? false;
     } catch (_) {
       return false;
@@ -83,10 +85,10 @@ class LauncherShortcut {
   static Future<bool> createAppShortcut(String package, String label) async {
     if (!Platform.isAndroid) return false;
     try {
-      final ok = await _channel.invokeMethod<bool>(
-        'createAppShortcut',
-        {'package': package, 'label': label},
-      );
+      final ok = await _channel.invokeMethod<bool>('createAppShortcut', {
+        'package': package,
+        'label': label,
+      });
       return ok ?? false;
     } catch (_) {
       return false;

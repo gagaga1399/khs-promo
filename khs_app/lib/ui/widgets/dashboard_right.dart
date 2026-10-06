@@ -219,7 +219,8 @@ class _MiniCalendar extends StatelessWidget {
     for (var d = 1; d <= daysInMonth; d++) {
       final date = DateTime(year, month, d);
       final isToday = date == today;
-      final isSelected = date.year == selected.year &&
+      final isSelected =
+          date.year == selected.year &&
           date.month == selected.month &&
           date.day == selected.day;
       cells.add(
@@ -231,8 +232,8 @@ class _MiniCalendar extends StatelessWidget {
               color: isSelected
                   ? scheme.primary
                   : isToday
-                      ? scheme.primary.withValues(alpha: 0.15)
-                      : null,
+                  ? scheme.primary.withValues(alpha: 0.15)
+                  : null,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
@@ -240,12 +241,14 @@ class _MiniCalendar extends StatelessWidget {
               '$d',
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight: isToday || isSelected
+                    ? FontWeight.bold
+                    : FontWeight.normal,
                 color: isSelected
                     ? scheme.onPrimary
                     : isToday
-                        ? scheme.primary
-                        : scheme.onSurface,
+                    ? scheme.primary
+                    : scheme.onSurface,
               ),
             ),
           ),

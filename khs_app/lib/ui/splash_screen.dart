@@ -94,33 +94,33 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Transform.translate(
-                offset: Offset(-dx, 0),
-                child: Text('K', style: kStyle),
-              ),
-              Text('H', style: kStyle),
-              Transform.translate(
-                offset: Offset(dx, 0),
-                child: Text('S', style: kStyle),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Kill Habitual Structure',
-            style: restStyle,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 26),
-          const Text('Task Manager', style: subStyle),
-        ],
-      );
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Transform.translate(
+              offset: Offset(-dx, 0),
+              child: Text('K', style: kStyle),
+            ),
+            Text('H', style: kStyle),
+            Transform.translate(
+              offset: Offset(dx, 0),
+              child: Text('S', style: kStyle),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Kill Habitual Structure',
+          style: restStyle,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 26),
+        const Text('Task Manager', style: subStyle),
+      ],
+    );
   }
 
   static double _phase(double start, double end, double t) {
@@ -147,8 +147,6 @@ class _SplashGateState extends State<SplashGate> {
 
   @override
   Widget build(BuildContext context) {
-    return _done
-        ? const HubScreen()
-        : SplashScreen(onComplete: _finish);
+    return _done ? const HubScreen() : SplashScreen(onComplete: _finish);
   }
 }

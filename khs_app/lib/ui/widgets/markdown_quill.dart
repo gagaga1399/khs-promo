@@ -139,11 +139,7 @@ List<_Run> _flattenParagraphs(md.Element node) {
   return result;
 }
 
-void _collectRuns(
-  md.Node node,
-  List<md.Element> stack,
-  List<_Run> out,
-) {
+void _collectRuns(md.Node node, List<md.Element> stack, List<_Run> out) {
   if (node is md.Text) {
     out.add(_Run(node.text, _stackAttrs(stack)));
   } else if (node is md.Element) {
@@ -181,7 +177,9 @@ void _ensureTrailingNewline(Delta delta) {
     return;
   }
   final last = delta.last;
-  if (last.isInsert && last.data is String && (last.data as String).endsWith('\n')) {
+  if (last.isInsert &&
+      last.data is String &&
+      (last.data as String).endsWith('\n')) {
     return;
   }
   delta.insert('\n');
@@ -262,7 +260,9 @@ String _render(List<List<_Run>> lines, List<Map<String, dynamic>> blocks) {
         inCode = true;
       }
       var content = _plainText(lines[i]);
-      if (content.endsWith('\n')) content = content.substring(0, content.length - 1);
+      if (content.endsWith('\n')) {
+        content = content.substring(0, content.length - 1);
+      }
       buf.writeln(content);
       prev = 'code';
       continue;
@@ -319,7 +319,13 @@ String _renderLine(List<_Run> runs, Map<String, dynamic> block) {
   final inline = runs.map(_renderRun).join();
   if (block.containsKey('header')) {
     final n = _parseInt(block['header']);
-    final hashes = '#' * (n < 1 ? 1 : n > 6 ? 6 : n);
+    final hashes =
+        '#' *
+        (n < 1
+            ? 1
+            : n > 6
+            ? 6
+            : n);
     return '$hashes $inline';
   }
   if (block.containsKey('blockquote')) return '> $inline';

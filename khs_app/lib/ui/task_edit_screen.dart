@@ -45,16 +45,15 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   void initState() {
     super.initState();
     final task = widget.task;
-    _titleController =
-        TextEditingController(text: task?.title ?? widget.initialTitle ?? '');
+    _titleController = TextEditingController(
+      text: task?.title ?? widget.initialTitle ?? '',
+    );
     _notesController = TextEditingController(text: task?.notes ?? '');
     _dueDate =
         task?.dueDate ?? (widget.defaultDate ?? _dateOnly(DateTime.now()));
     _dueTime = task == null
         ? widget.initialTime
-        : (task.dueAt == null
-              ? null
-              : TimeOfDay.fromDateTime(task.dueAt!));
+        : (task.dueAt == null ? null : TimeOfDay.fromDateTime(task.dueAt!));
     _priority = task?.priority ?? widget.initialPriority ?? 1;
     _recurrence = task?.recurrence ?? widget.initialRecurrence ?? '';
     // Новая задача по умолчанию напоминает в срок (0), чтобы пуш пришёл сам.
@@ -170,8 +169,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             return base;
           })()
         : _dueAt;
+    // При повторе напоминание ставится на дату, посчитанную из повтора, иначе
+    // берётся заданное вручную. Раньше здесь стояло «x == null ? null : x».
     final effectiveReminder = _recurrence.isNotEmpty
-        ? (effectiveDueAt == null ? null : effectiveDueAt)
+        ? effectiveDueAt
         : _reminderAt;
 
     if (_isNew) {
@@ -298,8 +299,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     _recurrence.isNotEmpty
                         ? strings.t('recurringAutoDate')
                         : _dueDate == null
-                            ? strings.t('noDueDate')
-                            : dateFormat.format(_dueDate!),
+                        ? strings.t('noDueDate')
+                        : dateFormat.format(_dueDate!),
                   ),
                   trailing: _recurrence.isNotEmpty
                       ? null

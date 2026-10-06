@@ -21,13 +21,17 @@ class _VersionFolderListState extends State<VersionFolderList> {
   void initState() {
     super.initState();
     // Последняя (текущая) версия открыта сразу — видно, что новое.
-    if (widget.releases.isNotEmpty) _expanded.add(widget.releases.first.version);
+    if (widget.releases.isNotEmpty) {
+      _expanded.add(widget.releases.first.version);
+    }
   }
 
   @override
   void didUpdateWidget(VersionFolderList old) {
     super.didUpdateWidget(old);
-    if (widget.releases.isNotEmpty) _expanded.add(widget.releases.first.version);
+    if (widget.releases.isNotEmpty) {
+      _expanded.add(widget.releases.first.version);
+    }
   }
 
   void _toggle(String version) {
@@ -50,8 +54,9 @@ class _VersionFolderListState extends State<VersionFolderList> {
   }
 
   Widget _buildTile(ColorScheme scheme, ReleaseInfo release) {
-    final hasFeatures =
-        release.changes.any((c) => c.type == ChangeType.feature);
+    final hasFeatures = release.changes.any(
+      (c) => c.type == ChangeType.feature,
+    );
     final hasBugfixes = release.changes.any((c) => c.type == ChangeType.bugfix);
     final open = _expanded.contains(release.version);
 
@@ -83,10 +88,7 @@ class _VersionFolderListState extends State<VersionFolderList> {
             const SizedBox(width: 8),
             Text(
               release.date,
-              style: TextStyle(
-                color: scheme.onSurfaceVariant,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
             ),
             const Spacer(),
             if (hasFeatures)
@@ -110,7 +112,10 @@ class _VersionFolderListState extends State<VersionFolderList> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(entry.text, style: const TextStyle(fontSize: 14)),
+                    child: Text(
+                      entry.text,
+                      style: const TextStyle(fontSize: 14),
+                    ),
                   ),
                 ],
               ),

@@ -16,6 +16,8 @@ class AppStrings {
     'hubSettingsTitle': 'Настройки хаба',
     'hubSettingsSectionAppearance': 'Внешний вид',
     'hubSettingsSectionTiles': 'Плитки хаба',
+    'hubSettingsSearchHint': 'Настройки поиска',
+    'settingsSearchHint': 'Настройки поиска',
     'hubTasksTile': 'KHS Tasks',
     'hubQutzemTile': 'QutZem Reader',
     'hubSoonTiles': 'Плитки «Скоро»',
@@ -88,6 +90,7 @@ class AppStrings {
     'updateNoAddress': 'Сначала укажи адрес ПК в настройках синхронизации',
     'updateConnectFail': 'Не удалось проверить обновление: нет интернета и ПК недоступен. Проверь соединение или адрес ПК.',
     'updateNotConfigured': 'Обновление не найдено: на ПК нет папки updates с update.json, и на сайте проекта его тоже нет.',
+    'updateBadSignature': 'Обновление с этого источника не прошло проверку подписи — файл повреждён или подменён. Обновление не установлено.',
     'updateWebUrl': 'Адрес обновлений в интернете',
     'upToDateRemote': 'Установлена последняя версия',
     'historyOfflineNote': 'ПК недоступен — показываю историю из приложения. Запусти KHS на ПК, чтобы увидеть актуальную.',
@@ -108,16 +111,21 @@ class AppStrings {
     'hubUpdated': 'KHS обновлён',
     'readerUpdated': 'QutZem Reader обновлён',
     'allUpdated': 'KHS и QutZem Reader обновлены',
-    'readerInstallSources': 'Разрешить установку QutZem Reader из этого приложения',
+    'readerInstallSources':
+        'Разрешить установку QutZem Reader из этого приложения',
     'readerInstalling': 'Устанавливаю QutZem Reader…',
-    'readerPermissionHint': 'Разреши установку приложений для KHS — экран откроется один раз',
+    'readerPermissionHint':
+        'Разреши установку приложений для KHS — экран откроется один раз',
     'bundleInstallTitle': 'QutZem Reader внутри KHS',
     'bundleInstallBody': 'Читалка упакована в KHS — интернет и браузер не нужны. Установить из бандла?',
     'readerFromBundle': 'Установить из бандла (без интернета)',
     'readerFromInternet': 'Скачать APK из интернета',
-    'readerOfflineUnavailable': 'Читалка в этом KHS не упакована и интернет недоступен.',
+    'readerOfflineUnavailable':
+        'Читалка в этом KHS не упакована и интернет недоступен.',
     'savedTo': 'Файл сохранён',
     'downloadFailed': 'Не удалось скачать обновление',
+    'downloadStalled':
+        'Загрузка зависла — сервер перестал отвечать. Попробуй позже',
     'allowInstallTitle': 'Разрешить установку обновлений',
     'allowInstallBody': 'Для установки обновлений из этого приложения включи «Установка из неизвестных источников» для KHS в настройках Android.',
     'openSettings': 'Открыть настройки',
@@ -160,7 +168,8 @@ class AppStrings {
     'backupFileNotFound': 'Файл бэкапа не найден',
     'backupBadFile': 'Это не файл бэкапа KHS',
     'autoStart': 'Запуск при старте Windows',
-    'autoStartHelp': 'KHS открывается и раздаёт синк сразу после входа в систему',
+    'autoStartHelp':
+        'KHS открывается и раздаёт синк сразу после входа в систему',
     'changelog':
         '• Трёхпанельный дашборд: задачи, детали, напоминания\n'
         '• Заметки: заметка дня и отдельные заметки\n'
@@ -349,6 +358,8 @@ class AppStrings {
     'hubSettingsTitle': 'Hub settings',
     'hubSettingsSectionAppearance': 'Appearance',
     'hubSettingsSectionTiles': 'Hub tiles',
+    'hubSettingsSearchHint': 'Settings search',
+    'settingsSearchHint': 'Settings search',
     'hubTasksTile': 'KHS Tasks',
     'hubQutzemTile': 'QutZem Reader',
     'hubSoonTiles': '"Soon" tiles',
@@ -421,6 +432,7 @@ class AppStrings {
     'updateNoAddress': 'Set the PC address in sync settings first',
     'updateConnectFail': 'Could not check for updates: no internet and the PC is unreachable. Check your connection or the PC address.',
     'updateNotConfigured': 'No update found: the PC has no updates folder with update.json, and the project site has none either.',
+    'updateBadSignature': 'The update from this source failed its signature check — the file is damaged or was tampered with. Nothing was installed.',
     'updateWebUrl': 'Update address on the internet',
     'upToDateRemote': 'You have the latest version',
     'historyOfflineNote': 'PC is unavailable — showing the built-in history. Start KHS on your PC to see the latest.',
@@ -443,14 +455,18 @@ class AppStrings {
     'allUpdated': 'KHS and QutZem Reader updated',
     'readerInstallSources': 'Allow installing QutZem Reader from this app',
     'readerInstalling': 'Installing QutZem Reader…',
-    'readerPermissionHint': 'Allow app installs for KHS — the screen opens once',
+    'readerPermissionHint':
+        'Allow app installs for KHS — the screen opens once',
     'bundleInstallTitle': 'QutZem Reader ships inside KHS',
     'bundleInstallBody': 'The reader is packed into KHS — no internet or browser needed. Install from the bundle?',
     'readerFromBundle': 'Install from bundle (offline)',
     'readerFromInternet': 'Download APK from the internet',
-    'readerOfflineUnavailable': 'This KHS has no bundled reader and the internet is unavailable.',
+    'readerOfflineUnavailable':
+        'This KHS has no bundled reader and the internet is unavailable.',
     'savedTo': 'File saved',
     'downloadFailed': 'Could not download the update',
+    'downloadStalled':
+        'The download stalled — the server stopped responding. Try later',
     'allowInstallTitle': 'Allow installing updates',
     'allowInstallBody': 'To install updates from this app, enable “Install unknown apps” for KHS in Android settings.',
     'openSettings': 'Open settings',
@@ -470,8 +486,7 @@ class AppStrings {
     'ok': 'OK',
     'whatsNew': "What's new",
     'whatsNewTitle': "What's new in KHS",
-    'versionHistoryHint':
-        'Tap a version to expand what changed in it.',
+    'versionHistoryHint': 'Tap a version to expand what changed in it.',
     'askTimeTitle': 'Clarify the time:',
     'askTimeBody': 'The hour is ambiguous — morning or evening?',
     'askTimeMorning': 'morning',
@@ -633,7 +648,8 @@ class AppStrings {
     'pcAccessHelp': 'Enable so the phone can use the PC storage over Wi-Fi. PC and phone must be on the same network. If the phone cannot find the PC, open the port in Windows Firewall.',
     'syncPort': 'Port',
     'syncBindHost': 'Listen on IP',
-    'syncBindHostHint': '0.0.0.0 = all interfaces; safer to set the PC IP, e.g. 192.168.1.5',
+    'syncBindHostHint':
+        '0.0.0.0 = all interfaces; safer to set the PC IP, e.g. 192.168.1.5',
     'pcAddresses': 'PC addresses',
     'newNoteArrived': 'New note',
     'noteReminder': 'Daily note reminder',

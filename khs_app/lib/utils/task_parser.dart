@@ -292,13 +292,7 @@ class TaskParser {
       );
     } else if (time != null) {
       final now = DateTime.now();
-      dueAt = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        time.hour,
-        time.minute,
-      );
+      dueAt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
       timeHour = time.hour;
       timeMinute = time.minute;
     }

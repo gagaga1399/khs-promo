@@ -366,8 +366,7 @@ class TaskDatabase {
         if (found.isNotEmpty) target = found.first;
       }
       if (target != null) {
-        final copy = Map<String, Object?>.from(raw)
-          ..['id'] = target['id'];
+        final copy = Map<String, Object?>.from(raw)..['id'] = target['id'];
         await db.update(
           table,
           copy,

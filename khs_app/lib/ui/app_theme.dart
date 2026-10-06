@@ -104,7 +104,9 @@ class AppTheme {
   /// Кастомная тема — все цвета выводятся из seed.
   static ThemeData custom(Color seed, Color textColor) {
     final hsl = HSLColor.fromColor(seed);
-    final brightness = hsl.lightness > 0.45 ? Brightness.light : Brightness.dark;
+    final brightness = hsl.lightness > 0.45
+        ? Brightness.light
+        : Brightness.dark;
 
     final onSurfaceMuted = HSLColor.fromColor(textColor)
         .withLightness(0.65)
@@ -114,8 +116,12 @@ class AppTheme {
         .withLightness((hsl.lightness * 0.45).clamp(0.2, 0.45))
         .withSaturation(0.15)
         .toColor();
-    final surface = hsl.withLightness((hsl.lightness * 1.08).clamp(0.0, 1.0)).toColor();
-    final surfaceHigh = hsl.withLightness((hsl.lightness * 1.16).clamp(0.0, 1.0)).toColor();
+    final surface = hsl
+        .withLightness((hsl.lightness * 1.08).clamp(0.0, 1.0))
+        .toColor();
+    final surfaceHigh = hsl
+        .withLightness((hsl.lightness * 1.16).clamp(0.0, 1.0))
+        .toColor();
 
     return _build(
       brightness: brightness,
@@ -126,7 +132,9 @@ class AppTheme {
       onSurface: textColor,
       onSurfaceMuted: onSurfaceMuted,
       divider: divider,
-      error: brightness == Brightness.dark ? const Color(0xFFEF5350) : const Color(0xFFC62828),
+      error: brightness == Brightness.dark
+          ? const Color(0xFFEF5350)
+          : const Color(0xFFC62828),
     );
   }
 
@@ -141,10 +149,7 @@ class AppTheme {
     required Color divider,
     required Color error,
   }) {
-    final base = ColorScheme.fromSeed(
-      seedColor: seed,
-      brightness: brightness,
-    );
+    final base = ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
     final accentOn = seed.computeLuminance() > 0.5
         ? Colors.black
         : Colors.white;
@@ -175,6 +180,15 @@ class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
       canvasColor: background,
+
+      // Мигающий курсор раньше брал цвет темы и сливался с фоном поля.
+      // В тёмной теме он всегда белый; в светлой белым он был бы не виден,
+      // поэтому там — тёмный.
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: brightness == Brightness.dark
+            ? Colors.white
+            : const Color(0xFF1B1B1F),
+      ),
 
       appBarTheme: AppBarTheme(
         backgroundColor: background,
@@ -307,8 +321,7 @@ class _KhsPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    if (route.settings.name == Navigator.defaultRouteName ||
-        route.isFirst) {
+    if (route.settings.name == Navigator.defaultRouteName || route.isFirst) {
       return child;
     }
     final curved = CurvedAnimation(
