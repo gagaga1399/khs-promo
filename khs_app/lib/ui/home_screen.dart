@@ -6,7 +6,6 @@ import '../localization/app_strings.dart';
 import '../state/app_state.dart';
 import '../ui/app_theme.dart';
 import '../ui/widgets/dashboard_right.dart';
-import '../ui/widgets/dashboard_sidebar.dart';
 import '../ui/widgets/event_card.dart';
 import 'calendar_screen.dart';
 import 'glass_bottom_bar.dart';
@@ -17,8 +16,46 @@ import 'task_edit_screen.dart';
 import 'widgets/quick_add_bar.dart';
 import 'widgets/task_tile.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+/// Номер вкладки настроек в нижней навигации: на ней панель уезжает вниз.
+const int _settingsIndex = 3;
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _wideIndex = 0;
+
+  /// Откуда пришли в настройки: панель там прячется, и вернуться надо туда, а
+  /// не всегда на «Главную» — иначе кнопка назад выбрасывает в начало.
+  int _widePrevIndex = 0;
+  late final PageController _widePageController = PageController();
+
+  void _wideGoTo(int i) {
+    setState(() {
+      if (_wideIndex != i) _widePrevIndex = _wideIndex;
+      _wideIndex = i;
+    });
+    _widePageController.animateToPage(
+      i,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  /// Возврат из настроек: на предыдущую вкладку, и если мы уже там — на
+  /// главную, чтобы кнопка никогда не вела в себя же.
+  void _wideBackFromSettings() =>
+      _wideGoTo(_widePrevIndex == 3 ? 0 : _widePrevIndex);
+
+  @override
+  void dispose() {
+    _widePageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,33 +86,59 @@ class HomeScreen extends StatelessWidget {
             tooltip: strings.t('search'),
             onPressed: () => SearchScreen.open(context),
           ),
-          IconButton(
-            icon: const Icon(Icons.calendar_month),
-            tooltip: strings.t('calendar'),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CalendarScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: strings.t('settings'),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
         ],
       ),
-      body: Row(
+      // Панель живёт здесь же, а не на отдельных маршрутах: иначе при переходе
+      // в календарь или заметки она исчезала бы — экран без панели выглядит
+      // сломанным. Поэтому wide-раздел тоже переключается страницей.
+      extendBody: true,
+      body: PageView(
+        controller: _widePageController,
+        physics: const NeverScrollableScrollPhysics(),
+        onPageChanged: (i) => setState(() => _wideIndex = i),
         children: [
-          const DashboardSidebar(),
-          const VerticalDivider(width: 1),
-          Expanded(child: design ? const NotesPanel() : const _CenterPanel()),
-          if (!design) ...[
-            const VerticalDivider(width: 1),
-            const DashboardRightPanel(),
-          ],
+          Row(
+            children: [
+              Expanded(
+                child: design ? const NotesPanel() : const _CenterPanel(),
+              ),
+              if (!design) ...[
+                const VerticalDivider(width: 1),
+                const DashboardRightPanel(),
+              ],
+            ],
+          ),
+          const CalendarScreen(embedded: true),
+          const NotesPanel(showAddButton: true),
+          const SettingsScreen(embedded: true),
+        ],
+      ),
+      bottomNavigationBar: GlassBottomBar(
+        currentIndex: _wideIndex,
+        onTap: _wideGoTo,
+        hidden: _wideIndex == _settingsIndex,
+        onBack: _wideBackFromSettings,
+        items: [
+          GlassNavItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home,
+            label: strings.t('home'),
+          ),
+          GlassNavItem(
+            icon: Icons.calendar_month_outlined,
+            activeIcon: Icons.calendar_month,
+            label: strings.t('calendar'),
+          ),
+          GlassNavItem(
+            icon: Icons.book_outlined,
+            activeIcon: Icons.book,
+            label: strings.t('notes'),
+          ),
+          GlassNavItem(
+            icon: Icons.settings_outlined,
+            activeIcon: Icons.settings,
+            label: strings.t('settings'),
+          ),
         ],
       ),
     );
@@ -92,16 +155,24 @@ class MobileShell extends StatefulWidget {
 
 class _MobileShellState extends State<MobileShell> {
   int _index = 0;
+  int _prevIndex = 0;
   late final PageController _pageController = PageController();
 
   void _goTo(int i) {
-    setState(() => _index = i);
+    setState(() {
+      if (_index != i) _prevIndex = _index;
+      _index = i;
+    });
     _pageController.animateToPage(
       i,
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
     );
   }
+
+  /// Возврат из настроек на предыдущую вкладку.
+  void _backFromSettings() =>
+      _goTo(_prevIndex == _settingsIndex ? 0 : _prevIndex);
 
   @override
   void dispose() {
@@ -154,6 +225,8 @@ class _MobileShellState extends State<MobileShell> {
       bottomNavigationBar: GlassBottomBar(
         currentIndex: _index,
         onTap: _goTo,
+        hidden: _index == _settingsIndex,
+        onBack: _backFromSettings,
         items: [
           GlassNavItem(
             icon: Icons.home_outlined,
@@ -286,9 +359,7 @@ class _CleanupMenu extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.cleaning_services_outlined),
         title: Text(
-          isCompleted
-              ? strings.t('clearCompleted')
-              : strings.t('clearOverdue'),
+          isCompleted ? strings.t('clearCompleted') : strings.t('clearOverdue'),
         ),
         content: Text(strings.t('deleteConfirm')),
         actions: [
@@ -438,18 +509,6 @@ class _NarrowDashboardState extends State<_NarrowDashboard> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 
   @override
