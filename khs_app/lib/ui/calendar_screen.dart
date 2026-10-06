@@ -7,6 +7,9 @@ import '../models/task.dart';
 import '../state/app_state.dart';
 import 'notes_editor_screen.dart';
 import 'task_edit_screen.dart';
+import 'widgets/aurora_grid.dart';
+import 'widgets/pulse_glow.dart';
+import 'widgets/shimmer_ring.dart';
 import 'widgets/task_tile.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -20,11 +23,20 @@ class CalendarScreen extends StatefulWidget {
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class _CalendarScreenState extends State<CalendarScreen> {
+class _CalendarScreenState extends State<CalendarScreen>
+    with SingleTickerProviderStateMixin {
   late DateTime _focusedDay;
   late DateTime _selectedDay;
   DateTime? _lastTapDay;
   DateTime? _lastTapAt;
+
+  /// Одно дыхание на весь экран: сегодняшняя ячейка, маркеры задач и подпись
+  /// дня слушают его вместо своих контроллеров — иначе на 40 ячейках
+  /// получилось бы 40 тикеров.
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  )..repeat();
 
   @override
   void initState() {
@@ -32,6 +44,51 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final state = context.read<AppState>();
     _focusedDay = state.selectedDate;
     _selectedDay = state.selectedDate;
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  /// Ячейка дня. Выбранный день получает тот же белый перелив, что и поле
+  /// быстрого ввода, сегодняшний — дышащее свечение с кольцом акцента.
+  ///
+  /// Цифра всегда берёт цвет из темы, а белым остаётся только свет: на
+  /// светлой теме белая цифра на светлой ячейке была бы нечитаема.
+  Widget _dayCell(BuildContext context, DateTime day) {
+    final scheme = Theme.of(context).colorScheme;
+    final selected = isSameDay(_selectedDay, day);
+    final now = DateTime.now();
+    final today =
+        day.year == now.year && day.month == now.month && day.day == now.day;
+    final number = Text(
+      '${day.day}',
+      style: TextStyle(
+        fontWeight: selected || today ? FontWeight.w700 : FontWeight.w500,
+        color: selected || today ? scheme.primary : scheme.onSurface,
+      ),
+    );
+    final box = BoxDecoration(
+      shape: BoxShape.circle,
+      color: selected ? Colors.white.withValues(alpha: 0.16) : null,
+      border: today && !selected
+          ? Border.all(color: scheme.primary.withValues(alpha: 0.55))
+          : null,
+    );
+    Widget cell = Container(
+      width: 38,
+      height: 38,
+      alignment: Alignment.center,
+      decoration: box,
+      child: number,
+    );
+    if (selected) {
+      return ShimmerRing(radius: 999, child: cell);
+    }
+    if (today) return PulseGlow(animation: _pulse, child: cell);
+    return cell;
   }
 
   /// Задачи с сроком на выбранный день (включая выполненные — они
@@ -78,49 +135,82 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final strings = state.strings;
+    final scheme = Theme.of(context).colorScheme;
     final all = state.tasks;
     final dayTasks = _tasksForDay(_selectedDay, all);
     final dateFormat = DateFormat('d MMMM yyyy', strings.locale);
 
     final body = Column(
       children: [
-        TableCalendar<Object>(
-          firstDay: DateTime(2020),
-          lastDay: DateTime(2035),
-          focusedDay: _focusedDay,
-          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-          onDaySelected: (selected, focused) {
-            final now = DateTime.now();
-            final isDouble =
-                isSameDay(_lastTapDay, selected) &&
-                _lastTapAt != null &&
-                now.difference(_lastTapAt!) < const Duration(milliseconds: 350);
-            setState(() {
-              _selectedDay = selected;
-              _focusedDay = focused;
-            });
-            _lastTapDay = selected;
-            _lastTapAt = now;
-            if (isDouble) _openDayNotes(selected);
-          },
-          eventLoader: (day) {
-            return _tasksForDay(day, all);
-          },
-          locale: strings.locale,
-          startingDayOfWeek: StartingDayOfWeek.monday,
-          calendarFormat: CalendarFormat.month,
-          availableCalendarFormats: const {
-            CalendarFormat.month: 'Month',
-            CalendarFormat.week: 'Week',
-          },
-          headerStyle: const HeaderStyle(
-            formatButtonVisible: false,
-            titleCentered: true,
+        // Карточка сетки. Фон не добавляет высоты, поэтому встроенная вкладка
+        // на телефоне не начала бы переполняться. Декор — полярное сияние с
+        // пробегающим бликом, а не кольцо: у поля быстрого ввода перелив по
+        // контуру, тут свет живёт внутри панели, иначе оба экрана читались бы
+        // одинаково.
+        Container(
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(18),
           ),
-          calendarStyle: CalendarStyle(
-            markerDecoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-              shape: BoxShape.circle,
+          clipBehavior: Clip.antiAlias,
+          child: AuroraGrid(
+            accent: scheme.primary,
+            radius: 18,
+            child: TableCalendar<Object>(
+              firstDay: DateTime(2020),
+              lastDay: DateTime(2035),
+              focusedDay: _focusedDay,
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              onDaySelected: (selected, focused) {
+                final now = DateTime.now();
+                final isDouble =
+                    isSameDay(_lastTapDay, selected) &&
+                    _lastTapAt != null &&
+                    now.difference(_lastTapAt!) <
+                        const Duration(milliseconds: 350);
+                setState(() {
+                  _selectedDay = selected;
+                  _focusedDay = focused;
+                });
+                _lastTapDay = selected;
+                _lastTapAt = now;
+                if (isDouble) _openDayNotes(selected);
+              },
+              eventLoader: (day) {
+                return _tasksForDay(day, all);
+              },
+              locale: strings.locale,
+              startingDayOfWeek: StartingDayOfWeek.monday,
+              calendarFormat: CalendarFormat.month,
+              availableCalendarFormats: const {
+                CalendarFormat.month: 'Month',
+                CalendarFormat.week: 'Week',
+              },
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
+              ),
+              calendarStyle: const CalendarStyle(markersMaxCount: 1),
+              calendarBuilders: CalendarBuilders(
+                selectedBuilder: (context, day, _) => _dayCell(context, day),
+                todayBuilder: (context, day, _) => _dayCell(context, day),
+                // markersMaxCount: 1, поэтому хватает singleMarkerBuilder: он вызывается
+                // только для дня с событиями, а не для всех 42 ячеек.
+                singleMarkerBuilder: (context, day, event) => PulseGlow(
+                  animation: _pulse,
+                  min: 0.18,
+                  max: 0.55,
+                  blur: 3,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -198,5 +288,3 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 }
-
-

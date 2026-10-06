@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/task.dart';
 import '../../state/app_state.dart';
+import 'shimmer_ring.dart';
 
 class QuickAddBar extends StatefulWidget {
   const QuickAddBar({super.key});
@@ -123,29 +124,34 @@ class _QuickAddBarState extends State<QuickAddBar> {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: Card(
-        elevation: 0,
-        color: scheme.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: TextField(
-          controller: _controller,
-          focusNode: _focusNode,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _submit(),
-          decoration: InputDecoration(
-            hintText: strings.t('quickAddHint'),
-            helperText: strings.t('quickAddExample'),
-            helperMaxLines: 2,
-            prefixIcon: const Icon(Icons.add_circle_outline),
-            suffixIcon: IconButton(
-              icon: Icon(Icons.send, color: scheme.primary),
-              tooltip: strings.t('save'),
-              onPressed: _submit,
-            ),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
+      child: ShimmerRing(
+        radius: 16,
+        child: Card(
+          elevation: 0,
+          color: scheme.surfaceContainerHigh,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: TextField(
+            controller: _controller,
+            focusNode: _focusNode,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _submit(),
+            decoration: InputDecoration(
+              hintText: strings.t('quickAddHint'),
+              helperText: strings.t('quickAddExample'),
+              helperMaxLines: 2,
+              prefixIcon: const Icon(Icons.add_circle_outline),
+              suffixIcon: IconButton(
+                icon: Icon(Icons.send, color: scheme.primary),
+                tooltip: strings.t('save'),
+                onPressed: _submit,
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
           ),
         ),
