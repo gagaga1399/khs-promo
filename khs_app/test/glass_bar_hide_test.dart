@@ -149,6 +149,24 @@ void main() {
     expect(back, 1);
   });
 
+  testWidgets('кнопка назад идёт без серого поля под собой', (tester) async {
+    await tester.pumpWidget(
+      _host(index: _settingsIndex, hidden: true, onBack: () {}),
+    );
+    await tester.pumpAndSettle();
+
+    final plates = find.ancestor(
+      of: find.byIcon(Icons.arrow_back),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is DecoratedBox &&
+            w.decoration is BoxDecoration &&
+            (w.decoration as BoxDecoration).shape == BoxShape.circle,
+      ),
+    );
+    expect(plates, findsNothing, reason: 'серую подложку под стрелкой убрали');
+  });
+
   testWidgets('кнопки назад нет, пока капсула на месте', (tester) async {
     await tester.pumpWidget(_host(index: 0, onBack: () {}));
     await tester.pumpAndSettle();

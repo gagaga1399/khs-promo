@@ -396,7 +396,7 @@ class _GlassBottomBarState extends State<GlassBottomBar>
                   Positioned.fill(
                     child: Opacity(
                       opacity: away,
-                      child: Center(child: _backPill(context, widget.onBack!)),
+                      child: Center(child: _backPill(widget.onBack!)),
                     ),
                   ),
               ],
@@ -424,23 +424,18 @@ class _GlassBottomBarState extends State<GlassBottomBar>
 
   /// Кнопка возврата на месте ушедшей капсулы. Без неё панель убирать нельзя:
   /// настройки открываются как вкладка, и возвращаться больше нечем.
-  Widget _backPill(BuildContext context, VoidCallback onBack) {
-    final scheme = Theme.of(context).colorScheme;
+  /// Подложка под стрелкой не нужна: на узком экране это лишнее серое поле,
+  /// которое отвлекает от содержимого.
+  Widget _backPill(VoidCallback onBack) {
     return Tooltip(
       message: MaterialLocalizations.of(context).backButtonTooltip,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: scheme.surfaceContainerHigh,
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-          onPressed: () {
-            HapticFeedback.selectionClick();
-            onBack();
-          },
-        ),
+      child: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+        onPressed: () {
+          HapticFeedback.selectionClick();
+          onBack();
+        },
       ),
     );
   }
