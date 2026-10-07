@@ -118,7 +118,7 @@ class _AccountScreenState extends State<AccountScreen> {
     final theme = Theme.of(context);
     final state = context.watch<AppState>();
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           const SizedBox(height: 24),
@@ -145,8 +145,8 @@ class _AccountScreenState extends State<AccountScreen> {
               listenable: Listenable.merge([state, _auth]),
               builder: (context, _) => Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+                  horizontal: 20,
+                  vertical: 16,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,7 +229,7 @@ class _AccountScreenState extends State<AccountScreen> {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
       children: [
         Text(
           _register ? 'Создать аккаунт' : 'Вход в аккаунт',
@@ -306,7 +306,7 @@ class _AccountScreenState extends State<AccountScreen> {
           children: [
             const Expanded(child: Divider()),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text('или', style: theme.textTheme.bodySmall),
             ),
             const Expanded(child: Divider()),

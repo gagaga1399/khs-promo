@@ -325,7 +325,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _listHeader(String title, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
       child: Row(
         children: [
           Icon(icon, size: 18, color: Colors.grey.shade600),

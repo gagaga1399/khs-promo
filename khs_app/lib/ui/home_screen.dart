@@ -276,7 +276,7 @@ class _CenterPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
           child: Row(
             children: [
               Expanded(
@@ -301,7 +301,7 @@ class _CenterPanel extends StatelessWidget {
         const _PriorityFilterRow(),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 32),
             children: [
               if (tasks.isNotEmpty)
                 for (final task in tasks)
@@ -320,22 +320,29 @@ class _CenterPanel extends StatelessWidget {
                     },
                     onDelete: () => state.deleteTask(task),
                   ),
-              const SizedBox(height: 12),
-              const QuickAddBar(),
               const SizedBox(height: 16),
+              const QuickAddBar(),
+              const SizedBox(height: 20),
               _EventsSection(),
-              const SizedBox(height: 12),
-              Center(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          TaskEditScreen(defaultDate: state.selectedDate),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
                     ),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            TaskEditScreen(defaultDate: state.selectedDate),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: Text(strings.t('addTaskShort')),
                   ),
-                  icon: const Icon(Icons.add),
-                  label: Text(strings.t('addTaskShort')),
                 ),
               ),
             ],
@@ -438,7 +445,7 @@ class _EventsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 8, bottom: 8),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
           child: Text(
             strings.t('events'),
             style: Theme.of(context).textTheme.titleSmall,
@@ -457,9 +464,9 @@ class _EventsSection extends StatelessWidget {
                 )
               : ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   itemCount: events.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 10),
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
                   itemBuilder: (context, i) {
                     final t = events[i];
                     final color = t.category == null
@@ -525,7 +532,7 @@ class _NarrowDashboardState extends State<_NarrowDashboard> {
           height: 46,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
             children: [
               ChoiceChip(
                 label: Text(strings.t('allTasks')),
@@ -550,7 +557,7 @@ class _NarrowDashboardState extends State<_NarrowDashboard> {
         ),
         const _PriorityFilterRow(),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Row(
             children: [
               Expanded(
@@ -577,7 +584,7 @@ class _NarrowDashboardState extends State<_NarrowDashboard> {
             ],
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         _DayStrip(
           selected: state.selectedDate,
           strings: strings,
@@ -605,18 +612,21 @@ class _NarrowDashboardState extends State<_NarrowDashboard> {
                     },
                     onDelete: () => state.deleteTask(task),
                   ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               const QuickAddBar(),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
               const _EventsSection(height: 120),
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
+            child: FilledButton.tonalIcon(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -659,7 +669,7 @@ class _NarrowFilter extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -702,7 +712,7 @@ class _PriorityFilterRow extends StatelessWidget {
       height: 40,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
         children: [
           chip(strings.t('all'), null),
           const SizedBox(width: 8),
@@ -754,7 +764,7 @@ class _DayStrip extends StatelessWidget {
       height: 64,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         itemCount: days.length + 1,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) {

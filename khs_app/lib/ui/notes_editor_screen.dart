@@ -254,7 +254,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
           children: [
             if (_isNew)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 child: SegmentedButton<bool>(
                   segments: [
                     ButtonSegment(
@@ -283,7 +283,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
             if (_isDaily)
               ListTile(
                 dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
                 leading: const Icon(Icons.event, size: 20),
                 title: Text(
                   strings.t('noteDate'),
@@ -302,7 +302,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
                     : null,
               ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
               child: TextField(
                 controller: _titleController,
                 autofocus: _isNew,
@@ -329,7 +329,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
                   scrollable: true,
                   autoFocus: false,
                   scrollPhysics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                   placeholder: strings.t('noteContentHint'),
                 ),
               ),

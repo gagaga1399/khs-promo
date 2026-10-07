@@ -263,7 +263,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
           TextField(
             controller: _titleController,
@@ -276,7 +276,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               prefixIcon: const Icon(Icons.edit),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           TextField(
             controller: _notesController,
             minLines: 2,
@@ -288,7 +288,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Card(
             child: Column(
               children: [
@@ -320,7 +320,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                           ],
                         ),
                 ),
-                const Divider(height: 1),
+                const Divider(height: 16),
                 ListTile(
                   leading: const Icon(Icons.schedule),
                   title: Text(strings.t('dueTime')),
@@ -345,7 +345,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     ],
                   ),
                 ),
-                const Divider(height: 1),
+                const Divider(height: 16),
                 ListTile(
                   leading: const Icon(Icons.repeat),
                   title: Text(strings.t('recurrence')),
@@ -376,12 +376,12 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             strings.t('groups'),
             style: Theme.of(context).textTheme.titleSmall,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -401,7 +401,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   onChanged: (v) => setState(() => _category = v),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               IconButton.filledTonal(
                 tooltip: strings.t('createGroup'),
                 icon: const Icon(Icons.add),
@@ -409,12 +409,12 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             strings.t('priority'),
             style: Theme.of(context).textTheme.titleSmall,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           SegmentedButton<int>(
             segments: [
               ButtonSegment(
@@ -436,12 +436,12 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             selected: {_priority},
             onSelectionChanged: (s) => setState(() => _priority = s.first),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             strings.t('reminder'),
             style: Theme.of(context).textTheme.titleSmall,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           DropdownButtonFormField<int>(
             initialValue: _normalizeReminder(_reminderMinutes),
             decoration: const InputDecoration(border: OutlineInputBorder()),
@@ -467,7 +467,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             ],
             onChanged: (v) => setState(() => _reminderMinutes = v ?? -1),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Card(
             child: SwitchListTile(
               value: _notify,
@@ -477,7 +477,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               subtitle: Text(strings.t('notifyReminderSubtitle')),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           FilledButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.save),

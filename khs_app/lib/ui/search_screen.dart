@@ -173,7 +173,7 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 240),
                 curve: Curves.easeOut,
@@ -218,8 +218,8 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      horizontal: 20,
+                      vertical: 14,
                     ),
                   ),
                 ),
@@ -312,7 +312,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Text(
         title.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -431,7 +431,7 @@ class _NoteResult extends StatelessWidget {
         ),
       ),
       child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
         child: ListTile(
           leading: Icon(Icons.sticky_note_2_outlined, color: scheme.primary),
           title: Text(note.title, maxLines: 1, overflow: TextOverflow.ellipsis),

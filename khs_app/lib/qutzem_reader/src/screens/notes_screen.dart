@@ -392,7 +392,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Widget _tabSelector() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
       child: Row(
         children: [
           SegmentedButton<_NotesTab>(
@@ -453,7 +453,7 @@ class _NotesScreenState extends State<NotesScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          padding: const EdgeInsets.fromLTRB(16, 16, 20, 8),
           child: Row(
             children: [
               const Icon(Icons.menu_book, size: 18),
@@ -527,7 +527,7 @@ class _NotesScreenState extends State<NotesScreen> {
       children: [
         for (final id in order) ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Row(
               children: [
                 const Icon(Icons.menu_book, size: 18),
@@ -638,8 +638,8 @@ class _QuoteCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
         decoration: BoxDecoration(
           color: accent.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(8),
@@ -701,7 +701,7 @@ class _BookSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          padding: const EdgeInsets.fromLTRB(16, 16, 20, 8),
           child: Row(
             children: [
               const Icon(Icons.menu_book, size: 18),

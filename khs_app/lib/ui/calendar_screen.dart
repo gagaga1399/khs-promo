@@ -214,28 +214,29 @@ class _CalendarScreenState extends State<CalendarScreen>
             ),
           ),
         ),
-        const Divider(height: 1),
+        const Divider(height: 16),
         Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           child: Row(
             children: [
               Icon(
                 Icons.task_alt,
                 color: Theme.of(context).colorScheme.primary,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   '${strings.t('tasksFor')} ${dateFormat.format(_selectedDay)}',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
-              IconButton(
+              IconButton.filledTonal(
                 icon: const Icon(Icons.edit_calendar_outlined),
                 tooltip: strings.t('createNote'),
                 onPressed: () => _openDayNotes(_selectedDay),
               ),
-              IconButton(
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
                 icon: const Icon(Icons.add_task),
                 tooltip: strings.t('addTaskShort'),
                 onPressed: () => Navigator.push(

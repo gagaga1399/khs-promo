@@ -560,12 +560,12 @@ try {
                       }
 
                       return SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
+                              padding: const EdgeInsets.fromLTRB(8, 12, 8, 24),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -579,7 +579,7 @@ try {
                                           letterSpacing: 1.5,
                                         ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 8),
                                   Text(
                                     strings.t('hubTitle'),
                                     style: Theme.of(context)
@@ -765,7 +765,7 @@ class _FeatureBadge extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(10),
@@ -775,7 +775,7 @@ class _FeatureBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(feature.icon, size: 14, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 5),
+          const SizedBox(width: 6),
           Text(
             feature.label,
             style: theme.textTheme.labelMedium?.copyWith(

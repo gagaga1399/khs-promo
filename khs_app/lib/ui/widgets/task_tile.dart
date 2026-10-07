@@ -83,12 +83,12 @@ class TaskTile extends StatelessWidget {
         curve: Curves.easeOut,
         opacity: task.completed ? 0.72 : 1,
         child: Card(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
                   Container(
@@ -101,7 +101,7 @@ class TaskTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   AnimatedScale(
                     scale: task.completed ? 0.9 : 1,
                     duration: const Duration(milliseconds: 260),
@@ -120,7 +120,7 @@ class TaskTile extends StatelessWidget {
                           children: [
                             if (task.priority > 0) ...[
                               Icon(Icons.flag, size: 14, color: _priorityColor),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 6),
                             ],
                             Flexible(
                               child: AnimatedDefaultTextStyle(
@@ -155,7 +155,7 @@ class TaskTile extends StatelessWidget {
                           ),
                         if (task.completed)
                           Padding(
-                            padding: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.only(top: 6),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -164,7 +164,7 @@ class TaskTile extends StatelessWidget {
                                   size: 13,
                                   color: Theme.of(context).colorScheme.primary,
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 6),
                                 Text(
                                   strings.t('done'),
                                   style: TextStyle(
@@ -183,7 +183,7 @@ class TaskTile extends StatelessWidget {
                   ),
                   if (task.completed)
                     Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.only(left: 8, right: 12),
                       child: Icon(
                         Icons.check_circle,
                         size: 18,

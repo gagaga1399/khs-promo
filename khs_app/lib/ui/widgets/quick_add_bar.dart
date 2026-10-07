@@ -123,7 +123,7 @@ class _QuickAddBarState extends State<QuickAddBar> {
     final strings = context.watch<AppState>().strings;
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       child: ShimmerRing(
         radius: 16,
         child: Card(
@@ -149,8 +149,8 @@ class _QuickAddBarState extends State<QuickAddBar> {
               ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+                horizontal: 20,
+                vertical: 16,
               ),
             ),
           ),

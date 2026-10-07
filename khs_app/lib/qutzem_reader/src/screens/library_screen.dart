@@ -209,7 +209,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       body: books.isEmpty
           ? _emptyState()
           : GridView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                 maxCrossAxisExtent: 210,
                 mainAxisExtent: 270,
@@ -385,7 +385,7 @@ class _BookCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -460,7 +460,7 @@ class _BookCard extends StatelessWidget {
             Icon(Icons.menu_book, size: 44, color: Colors.grey.shade500),
             const SizedBox(height: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 color: Colors.grey.shade400,
                 borderRadius: BorderRadius.circular(4),

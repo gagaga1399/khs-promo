@@ -101,19 +101,19 @@ class SettingsTokens {
 
   // ---------- Геометрия ----------
   /// Поле от края экрана.
-  static const double margin = 16;
+  static const double margin = 20;
 
   /// Зазор между карточками.
-  static const double gap = 16;
+  static const double gap = 20;
 
   /// Радиус карточки.
   static const double radiusCard = 18;
 
   /// Внутренние отступы карточки по горизонтали.
-  static const double padH = 16;
+  static const double padH = 20;
 
   /// Внутренние отступы карточки по вертикали.
-  static const double padV = 6;
+  static const double padV = 10;
 
   /// Толщина разделителя.
   static const double dividerThickness = 1;

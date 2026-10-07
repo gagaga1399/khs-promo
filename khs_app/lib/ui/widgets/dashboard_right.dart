@@ -49,7 +49,7 @@ class DashboardRightPanel extends StatelessWidget {
       width: 320,
       color: scheme.surface,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -263,7 +263,7 @@ class _MiniCalendar extends StatelessWidget {
           monthName[0].toUpperCase() + monthName.substring(1),
           style: Theme.of(context).textTheme.titleSmall,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         GridView.count(
           crossAxisCount: 7,
           shrinkWrap: true,

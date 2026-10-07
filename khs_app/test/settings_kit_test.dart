@@ -46,11 +46,11 @@ void main() {
     });
 
     test('геометрия из ТЗ', () {
-      expect(SettingsTokens.margin, 16);
+      expect(SettingsTokens.margin, 20);
       expect(SettingsTokens.gap, greaterThanOrEqualTo(16));
       expect(SettingsTokens.gap, lessThanOrEqualTo(20));
       expect(SettingsTokens.radiusCard, 18);
-      expect(SettingsTokens.padH, 16);
+      expect(SettingsTokens.padH, 20);
     });
 
     test('разделитель внутри карточки начинается на тексте, а не на краю', () {

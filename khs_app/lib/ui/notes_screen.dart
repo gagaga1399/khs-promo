@@ -9,7 +9,7 @@ import 'notes_trash_screen.dart';
 /// Режим «Дизайн» — панель заметок (центр экрана).
 class NotesPanel extends StatelessWidget {
   /// [showAddButton] — показывать ли крупную кнопку «Создать заметку» сверху.
-  /// На телефоне её роль берёт плавающая кнопка на вкладке заметок.
+  /// Кнопка одна и на телефоне, и на десктопе: отдельной плавающей нет.
   const NotesPanel({super.key, this.showAddButton = true});
 
   final bool showAddButton;
@@ -24,7 +24,7 @@ class NotesPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
           child: Row(
             children: [
               Expanded(
@@ -49,12 +49,12 @@ class NotesPanel extends StatelessWidget {
         ),
         if (showAddButton)
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
             child: SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+              child: FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
                 ),
                 onPressed: () {
                   final existing = state.notesForDate(state.selectedDate);
@@ -80,19 +80,18 @@ class NotesPanel extends StatelessWidget {
               ),
             ),
           ),
-        const Divider(height: 1),
         Expanded(
           child: notes.isEmpty
               ? _EmptyNotes(message: strings.t('noNotes'))
               : ListView.separated(
                   padding: EdgeInsets.fromLTRB(
-                    12,
-                    12,
-                    12,
-                    showAddButton ? 12 : 96,
+                    20,
+                    16,
+                    20,
+                    showAddButton ? 16 : 104,
                   ),
                   itemCount: notes.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (context, i) {
                     final note = notes[i];
                     final dateFormat = DateFormat(
@@ -110,14 +109,14 @@ class NotesPanel extends StatelessWidget {
                           ),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(14),
+                          padding: const EdgeInsets.all(16),
                           child: Row(
                             children: [
                               Icon(
                                 Icons.description_outlined,
                                 color: Theme.of(context).colorScheme.primary,
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,7 +132,7 @@ class NotesPanel extends StatelessWidget {
                                     ),
                                     if (note.snippet.isNotEmpty)
                                       Padding(
-                                        padding: const EdgeInsets.only(top: 2),
+                                        padding: const EdgeInsets.only(top: 6),
                                         child: Text(
                                           note.snippet,
                                           style: TextStyle(
@@ -149,14 +148,14 @@ class NotesPanel extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 12),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
                                     dateFormat.format(note.updatedAt),
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 12,
                                       color: Theme.of(context)
                                           .colorScheme
                                           .onSurfaceVariant,
@@ -164,25 +163,25 @@ class NotesPanel extends StatelessWidget {
                                   ),
                                   if (note.date != null)
                                     Padding(
-                                      padding: const EdgeInsets.only(top: 3),
+                                      padding: const EdgeInsets.only(top: 8),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Icon(
                                             Icons.event,
-                                            size: 11,
+                                            size: 13,
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .primary,
                                           ),
-                                          const SizedBox(width: 3),
+                                          const SizedBox(width: 6),
                                           Text(
                                             DateFormat(
                                               'd MMM',
                                               strings.locale,
                                             ).format(note.date!),
                                             style: TextStyle(
-                                              fontSize: 11,
+                                              fontSize: 12,
                                               fontWeight: FontWeight.w600,
                                               color: Theme.of(context)
                                                   .colorScheme
@@ -223,7 +222,7 @@ class _EmptyNotes extends StatelessWidget {
             size: 64,
             color: Theme.of(context).disabledColor,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(message, style: Theme.of(context).textTheme.bodyLarge),
         ],
       ),
