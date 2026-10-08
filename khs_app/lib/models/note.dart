@@ -15,6 +15,10 @@ class Note {
   /// Мягкое удаление (см. Task.deleted).
   final bool deleted;
 
+  /// Путь папки вложенными заметками: `''` — корень, `'Работа'`,
+  /// `'Работа/Идеи'`. Папки наследуются: заметка лежит ровно в одной папке.
+  final String folder;
+
   const Note({
     this.id,
     required this.title,
@@ -24,6 +28,7 @@ class Note {
     this.date,
     this.clientKey,
     this.deleted = false,
+    this.folder = '',
   });
 
   String get snippet {
@@ -43,6 +48,7 @@ class Note {
     DateTime? date,
     String? clientKey,
     bool? deleted,
+    String? folder,
   }) {
     return Note(
       id: id ?? this.id,
@@ -53,6 +59,7 @@ class Note {
       date: date ?? this.date,
       clientKey: clientKey ?? this.clientKey,
       deleted: deleted ?? this.deleted,
+      folder: folder ?? this.folder,
     );
   }
 
@@ -66,6 +73,7 @@ class Note {
       'note_date': date?.millisecondsSinceEpoch,
       'client_key': clientKey,
       'deleted': deleted ? 1 : 0,
+      'folder': folder,
     };
   }
 
@@ -81,6 +89,7 @@ class Note {
           : DateTime.fromMillisecondsSinceEpoch(map['note_date'] as int),
       clientKey: map['client_key'] as String?,
       deleted: (map['deleted'] as int? ?? 0) == 1,
+      folder: map['folder'] is String ? map['folder'] as String : '',
     );
   }
 }

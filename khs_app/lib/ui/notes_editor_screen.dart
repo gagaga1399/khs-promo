@@ -17,11 +17,15 @@ class NotesEditorScreen extends StatefulWidget {
   /// Текст из Obsidian, если открываем заметку дня без локальной копии.
   final String initialContent;
 
+  /// Папка для новой заметки (пустая строка — корень).
+  final String folder;
+
   const NotesEditorScreen({
     super.key,
     this.note,
     this.date,
     this.initialContent = '',
+    this.folder = '',
   });
 
   @override
@@ -139,6 +143,7 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
         effectiveTitle,
         content,
         date: _isDaily ? _date : null,
+        folder: widget.folder,
       );
     } else {
       await state.updateNote(

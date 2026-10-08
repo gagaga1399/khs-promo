@@ -9,7 +9,7 @@ import '../models/task.dart';
 
 class TaskDatabase {
   static const _dbName = 'taskforge.db';
-  static const _dbVersion = 6;
+  static const _dbVersion = 7;
 
   /// Если true (приложение), БД на ПК живёт в стабильной папке приложения.
   /// Тесты выключают, чтобы задавать свой каталог.
@@ -129,7 +129,8 @@ class TaskDatabase {
               updated_at INTEGER NOT NULL,
               note_date INTEGER,
               client_key TEXT,
-              deleted INTEGER NOT NULL DEFAULT 0
+              deleted INTEGER NOT NULL DEFAULT 0,
+              folder TEXT NOT NULL DEFAULT ''
             )
           ''');
         },
@@ -176,6 +177,11 @@ class TaskDatabase {
           if (oldVersion < 6) {
             await db.execute(
               'ALTER TABLE tasks ADD COLUMN notify INTEGER NOT NULL DEFAULT 1',
+            );
+          }
+          if (oldVersion < 7) {
+            await db.execute(
+              "ALTER TABLE notes ADD COLUMN folder TEXT NOT NULL DEFAULT ''",
             );
           }
         },

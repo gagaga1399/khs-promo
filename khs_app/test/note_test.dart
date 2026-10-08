@@ -17,6 +17,38 @@ void main() {
     expect(restored.updatedAt, DateTime(2026, 8, 15, 11));
   });
 
+  test('Note round-trips folder and survives an old map without it', () {
+    final base = DateTime(2026, 8, 15, 10);
+    final note = Note(
+      title: 'Идеи',
+      createdAt: base,
+      updatedAt: base,
+      folder: 'Работа/Идеи',
+    );
+    final restored = Note.fromMap(note.toMap());
+    expect(restored.folder, 'Работа/Идеи');
+    expect(
+      note.copyWith(title: 'Новое').folder,
+      'Работа/Идеи',
+      reason: 'copyWith должен сохранять папку',
+    );
+    expect(
+      note.copyWith(folder: 'Архив').folder,
+      'Архив',
+      reason: 'copyWith должен менять папку',
+    );
+
+    // Старый клиент (1.2.34) прислал строку без колонки folder —
+    // заметка не должна падать и попадает в корень.
+    final oldRow = Map<String, dynamic>.from(note.toMap())..remove('folder');
+    expect(Note.fromMap(oldRow).folder, '');
+    expect(
+      Note(title: 'x', createdAt: base, updatedAt: base).toMap()['folder'],
+      '',
+      reason: 'по умолчанию заметка лежит в корне',
+    );
+  });
+
   test('Note round-trips daily date via map', () {
     final note = Note(
       title: 'День',

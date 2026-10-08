@@ -162,4 +162,77 @@ void main() {
     final after = (await db.getTasks()).single;
     expect(after.notify, isTrue);
   });
+
+  test('миграция v6→v7: старые заметки получают folder = корень', () async {
+    final path = _joinLike(
+      await databaseFactory.getDatabasesPath(),
+      'taskforge.db',
+    );
+    await databaseFactory.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 6,
+        onCreate: (db, version) async {
+          await db.execute('''
+            CREATE TABLE tasks(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              title TEXT NOT NULL,
+              notes TEXT,
+              due_at INTEGER,
+              priority INTEGER NOT NULL DEFAULT 1,
+              completed INTEGER NOT NULL DEFAULT 0,
+              recurrence TEXT NOT NULL DEFAULT '',
+              reminder_at INTEGER,
+              created_at INTEGER NOT NULL,
+              completed_at INTEGER,
+              category TEXT,
+              client_key TEXT,
+              deleted INTEGER NOT NULL DEFAULT 0,
+              updated_at INTEGER,
+              notify INTEGER NOT NULL DEFAULT 1
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE notes(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              title TEXT NOT NULL,
+              content TEXT,
+              created_at INTEGER NOT NULL,
+              updated_at INTEGER NOT NULL,
+              note_date INTEGER,
+              client_key TEXT,
+              deleted INTEGER NOT NULL DEFAULT 0
+            )
+          ''');
+        },
+      ),
+    );
+    final old = await databaseFactory.openDatabase(path);
+    await old.insert('notes', {
+      'title': 'Старая',
+      'created_at': DateTime(2026, 8, 15).millisecondsSinceEpoch,
+      'updated_at': DateTime(2026, 8, 15).millisecondsSinceEpoch,
+      'client_key': 'oldkey',
+    });
+    await old.close();
+
+    final db = TaskDatabase();
+    final migrated = (await db.getNotes()).single;
+    expect(migrated.title, 'Старая');
+    expect(migrated.folder, '');
+
+    await db.insertNote(
+      Note(
+        title: 'Новая',
+        createdAt: DateTime(2026, 8, 16),
+        updatedAt: DateTime(2026, 8, 16),
+        folder: 'Работа',
+      ),
+    );
+    final rows = await db.getAllNotes();
+    final newRow = rows.firstWhere((r) => r['title'] == 'Новая');
+    expect(newRow['folder'], 'Работа');
+    final oldRow = rows.firstWhere((r) => r['title'] == 'Старая');
+    expect(oldRow['folder'], '');
+  });
 }

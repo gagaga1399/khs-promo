@@ -461,12 +461,28 @@ class ObsidianService {
     return null;
   }
 
+  /// Папка заметки внутри хранилища: `заметки/<путь из Note.folder>`.
+  String _standaloneDir(Note note) {
+    var dir = p.join(vaultPath, 'заметки');
+    for (final part in note.folder.split('/')) {
+      if (part.isEmpty) continue;
+      dir = p.join(dir, _safeNoteName(part));
+    }
+    return dir;
+  }
+
   Future<File?> _findStandaloneNoteFile(Note note) async {
     final key = note.clientKey;
     if (key == null || key.isEmpty) return null;
     final dir = Directory(p.join(vaultPath, 'заметки'));
     if (!await dir.exists()) return null;
-    await for (final e in dir.list()) {
+    List<FileSystemEntity> entries;
+    try {
+      entries = await dir.list(recursive: true).toList();
+    } catch (_) {
+      return null;
+    }
+    for (final e in entries) {
       if (e is! File) continue;
       final f = e;
       try {
@@ -478,7 +494,7 @@ class ObsidianService {
   }
 
   Future<String> writeStandaloneNote(Note note) async {
-    final folder = p.join(vaultPath, 'заметки');
+    final folder = _standaloneDir(note);
     await Directory(folder).create(recursive: true);
     final previous = await _findStandaloneNoteFile(note);
     final baseName = _safeNoteName(note.title);
@@ -524,7 +540,7 @@ class ObsidianService {
     // (есть маркер KHS): чужой пользовательский файл с таким же именем
     // трогать нельзя (#7).
     final file = File(
-      p.join(vaultPath, 'заметки', '${_safeNoteName(note.title)}.md'),
+      p.join(_standaloneDir(note), '${_safeNoteName(note.title)}.md'),
     );
     if (await file.exists()) {
       try {

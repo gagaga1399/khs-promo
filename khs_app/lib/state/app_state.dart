@@ -40,6 +40,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   List<Note> _notes = [];
   List<Note> _deletedNotes = [];
   List<String> _groups = [];
+
+  /// Пустые папки заметок (без единой заметки). Папки с заметками
+  /// выводятся из [Note.folder], а эти хранятся в prefs — иначе
+  /// свежесозданная папка исчезала бы до первой заметки внутри.
+  final Set<String> _emptyFolders = <String>{};
   Color _accentColor = AppTheme.defaultAccent;
   DateTime _selectedDate = _today();
   bool ready = false;
@@ -100,7 +105,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool _showHubSoonTiles = true;
   Color _customTextColor = const Color(0xFFF5F5F5);
 
-  late ObsidianService _obsidian;
+  /// Сервис Obsidian. Есть значение по умолчанию, чтобы addNote/updateNote
+  /// работали и до init() (в тестах vault не настроен и всё равно выключено).
+  ObsidianService _obsidian = ObsidianService(defaultVaultPath);
 
   static DateTime _today() {
     final now = DateTime.now();
@@ -415,6 +422,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       _prefs?.getInt('custom_text_color') ?? const Color(0xFFF5F5F5).toARGB32(),
     );
     _groups = _prefs?.getStringList('groups') ?? [];
+    _emptyFolders.addAll(_prefs?.getStringList('note_folders') ?? []);
     _notificationsEnabled = _prefs?.getBool('notifications_enabled') ?? true;
     final savedMode = _prefs?.getString('theme_mode');
     if (savedMode != null) {
@@ -1216,7 +1224,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     await updateTask(task.copyWith(clearReminder: true));
   }
 
-  Future<Note> addNote(String title, String content, {DateTime? date}) async {
+  Future<Note> addNote(
+    String title,
+    String content, {
+    DateTime? date,
+    String folder = '',
+  }) async {
     final now = DateTime.now();
     final note = Note(
       title: title.trim(),
@@ -1224,6 +1237,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       date: date,
       createdAt: now,
       updatedAt: now,
+      folder: folder,
     );
     final id = await db.insertNote(note);
     final saved = note.copyWith(id: id);
@@ -1293,6 +1307,118 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   bool hasNotesOn(DateTime date) => notesForDate(date).isNotEmpty;
+
+  // ---------------------------------------------------------------------------
+  // Папки заметок
+  // ---------------------------------------------------------------------------
+
+  /// Последний сегмент пути: `'Работа/Идеи'` → `'Идеи'`.
+  static String folderName(String path) =>
+      path.isEmpty ? '' : path.substring(path.lastIndexOf('/') + 1);
+
+  /// Родительская папка: `'Работа/Идеи'` → `'Работа'`, корень → `''`.
+  static String folderParent(String path) {
+    final i = path.lastIndexOf('/');
+    return i <= 0 ? '' : path.substring(0, i);
+  }
+
+  /// Склеить путь: `joinFolder('Работа', 'Идеи')` → `'Работа/Идеи'`.
+  static String joinFolder(String parent, String name) =>
+      parent.isEmpty ? name : '$parent/$name';
+
+  /// Все папки: выведенные из путей заметок (включая промежуточные уровни)
+  /// плюс сохранённые пустые.
+  Set<String> get noteFolderPaths {
+    final out = <String>{};
+    for (final p in _emptyFolders) {
+      var f = p;
+      while (f.isNotEmpty) {
+        out.add(f);
+        f = folderParent(f);
+      }
+    }
+    for (final n in _notes) {
+      var f = n.folder;
+      while (f.isNotEmpty) {
+        out.add(f);
+        f = folderParent(f);
+      }
+    }
+    return out;
+  }
+
+  /// Дочерние папки непосредственно внутри [path].
+  List<String> childFolders(String path) {
+    final prefix = path.isEmpty ? '' : '$path/';
+    final out = <String>{};
+    for (final p in noteFolderPaths) {
+      if (!p.startsWith(prefix) || p.length == prefix.length) continue;
+      final rest = p.substring(prefix.length);
+      final i = rest.indexOf('/');
+      out.add(i == -1 ? p : prefix + rest.substring(0, i));
+    }
+    return out.toList()..sort();
+  }
+
+  /// Заметки, лежащие ровно в этой папке.
+  List<Note> notesInFolder(String path) =>
+      _notes.where((n) => n.folder == path).toList();
+
+  /// В папке есть заметки или дочерние папки — удалять её нельзя.
+  bool folderHasContent(String path) =>
+      _notes.any((n) => n.folder == path) || childFolders(path).isNotEmpty;
+
+  Future<void> createFolder(String path) async {
+    if (path.isEmpty || noteFolderPaths.contains(path)) return;
+    _emptyFolders.add(path);
+    await _prefs?.setStringList('note_folders', _emptyFolders.toList());
+    notifyListeners();
+  }
+
+  /// Переименовать папку и всё её содержимое (заметки и вложенные пустые
+  /// папки получают новый префикс).
+  Future<void> renameFolder(String oldPath, String newPath) async {
+    if (oldPath.isEmpty || newPath.isEmpty || oldPath == newPath) return;
+    final now = DateTime.now();
+    final from = '$oldPath/';
+    final to = '$newPath/';
+    for (var i = 0; i < _notes.length; i++) {
+      final n = _notes[i];
+      String? moved;
+      if (n.folder == oldPath) {
+        moved = newPath;
+      } else if (n.folder.startsWith(from)) {
+        moved = to + n.folder.substring(from.length);
+      }
+      if (moved == null) continue;
+      final updated = n.copyWith(folder: moved, updatedAt: now);
+      await db.updateNote(updated);
+      _notes[i] = updated;
+    }
+    final movedFolders = <String>{};
+    for (final p in _emptyFolders) {
+      if (p == oldPath) {
+        movedFolders.add(newPath);
+      } else if (p.startsWith(from)) {
+        movedFolders.add(to + p.substring(from.length));
+      }
+    }
+    _emptyFolders.remove(oldPath);
+    _emptyFolders.removeWhere((p) => p.startsWith(from));
+    _emptyFolders.addAll(movedFolders);
+    await _prefs?.setStringList('note_folders', _emptyFolders.toList());
+    notifyListeners();
+    _maybeSync();
+  }
+
+  /// Удалить пустую папку. Возвращает `false`, если внутри что-то есть.
+  Future<bool> deleteFolder(String path) async {
+    if (path.isEmpty || folderHasContent(path)) return false;
+    _emptyFolders.remove(path);
+    await _prefs?.setStringList('note_folders', _emptyFolders.toList());
+    notifyListeners();
+    return true;
+  }
 
   /// Пишет заметку в Obsidian (если vault настроен): ежедневную — в блок
   /// ежедневной заметки с задачами дня, отдельную (без даты) — отдельным
