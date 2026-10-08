@@ -35,7 +35,7 @@ void main() {
     await tester.pumpWidget(host(const NotesPanel()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Сделать новую заметку'), findsOneWidget);
+    expect(find.text('Новая заметка'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -52,7 +52,8 @@ void main() {
               children: [
                 TaskTile(
                   task: Task(
-                    title: 'Очень длинное название задачи, которое точно '
+                    title:
+                        'Очень длинное название задачи, которое точно '
                         'не поместится в одну строку на узком экране',
                     dueAt: DateTime.now(),
                     priority: 2,

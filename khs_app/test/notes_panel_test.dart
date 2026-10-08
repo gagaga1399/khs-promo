@@ -29,12 +29,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  testWidgets('NotesPanel shows "Сделать новую заметку" on top', (
-    tester,
-  ) async {
+  testWidgets('NotesPanel shows "Новая заметка" on top', (tester) async {
     final state = AppState();
     await tester.pumpWidget(wrap(state));
-    expect(find.text('Сделать новую заметку'), findsOneWidget);
+    expect(find.text('Новая заметка'), findsOneWidget);
     expect(find.text('Нет заметок. Создай первую!'), findsOneWidget);
   });
 
@@ -42,7 +40,7 @@ void main() {
     setBigScreen(tester);
     final state = AppState();
     await tester.pumpWidget(wrap(state));
-    await tester.tap(find.text('Сделать новую заметку'));
+    await tester.tap(find.text('Новая заметка'));
     await tester.pumpAndSettle();
     expect(find.byType(NotesEditorScreen), findsOneWidget);
   });

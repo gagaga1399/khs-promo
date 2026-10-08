@@ -1,5 +1,6 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../localization/app_strings.dart';
@@ -9,12 +10,23 @@ import 'notes_editor_screen.dart';
 import 'notes_tasks_screen.dart';
 import 'notes_trash_screen.dart';
 
-/// Панель заметок в виде файлового менеджера (как в Obsidian):
-/// папки уровнем ниже, внутри — заметки; хлебные крошки, создание
-/// папок, перемещение заметок и подстраница «Задачи» из корня.
+/// Строка дерева: папка или заметка с уровнем вложенности.
+class _TreeRow {
+  final String path;
+  final int depth;
+  final bool isFolder;
+  final Note? note;
+
+  const _TreeRow.folder(this.path, this.depth) : isFolder = true, note = null;
+
+  const _TreeRow.note(Note this.note, this.depth) : isFolder = false, path = '';
+}
+
+/// Панель заметок как проводник в Obsidian: плотное дерево папок и заметок,
+/// сворачивание по тапу, контекстное меню по долгому нажатию, компактная
+/// кнопка «Новая заметка» и подстраница «Задачи» из корня.
 class NotesPanel extends StatefulWidget {
-  /// [showAddButton] — показывать ли крупную кнопку «Создать заметку» сверху.
-  /// Кнопка одна и на телефоне, и на десктопе: отдельной плавающей нет.
+  /// [showAddButton] — показывать ли кнопку «Новая заметка» сверху.
   const NotesPanel({super.key, this.showAddButton = true});
 
   final bool showAddButton;
@@ -24,65 +36,99 @@ class NotesPanel extends StatefulWidget {
 }
 
 class _NotesPanelState extends State<NotesPanel> {
-  /// Текущая папка; `''` — корень.
-  String _path = '';
+  /// Раскрытые папки — по умолчанию дерево свёрнуто до корня, как в Obsidian.
+  final Set<String> _expanded = <String>{};
 
-  void _enter(String path) => setState(() => _path = path);
+  /// Папка, в которую создадутся новые заметки; `''` — корень.
+  String _current = '';
 
-  void _goUp() => setState(() => _path = AppState.folderParent(_path));
+  bool _isExpanded(String path) => _expanded.contains(path);
+
+  void _select(String path) {
+    setState(() {
+      _current = path;
+      if (path.isNotEmpty) _expanded.add(path);
+    });
+  }
+
+  void _toggle(String path) {
+    setState(() {
+      _current = path;
+      if (!_expanded.add(path)) _expanded.remove(path);
+    });
+  }
+
+  /// Раскрыть папку и всех её предков — чтобы новое/перемещённое
+  /// содержимое сразу оказалось видимым.
+  void _reveal(String path) {
+    while (path.isNotEmpty) {
+      _expanded.add(path);
+      path = AppState.folderParent(path);
+    }
+  }
+
+  /// Плоский список строк дерева: на уровне — сначала папки, потом заметки,
+  /// каждые по алфавиту (как в Obsidian).
+  List<_TreeRow> _rows(AppState state) {
+    final out = <_TreeRow>[];
+    void walk(String path, int depth) {
+      for (final folder in state.childFolders(path)) {
+        out.add(_TreeRow.folder(folder, depth));
+        if (_isExpanded(folder)) walk(folder, depth + 1);
+      }
+      final notes = state.notesInFolder(path).toList()
+        ..sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
+      for (final note in notes) {
+        out.add(_TreeRow.note(note, depth));
+      }
+    }
+
+    walk('', 0);
+    return out;
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final strings = state.strings;
-    final folders = state.childFolders(_path);
-    final notes = state.notesInFolder(_path);
-    final title = _path.isEmpty
-        ? strings.t('notes')
-        : AppState.folderName(_path);
-    final isEmpty = folders.isEmpty && notes.isEmpty;
+    final rows = _rows(state);
     final activeTasks = state.tasks.where((t) => !t.completed).length;
-
-    final items = <Widget>[
-      if (_path.isEmpty)
-        _tasksEntryCard(
-          context,
-          strings,
-          activeTasks,
-          onOpen: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const NotesTasksScreen()),
-          ),
-        ),
-      if (isEmpty)
-        SizedBox(height: 220, child: _EmptyNotes(message: strings.t('noNotes')))
-      else ...[
-        for (final folder in folders) _folderCard(context, strings, folder),
-        for (final note in notes) _noteCard(context, strings, note),
-      ],
-    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Шапка проводника: «Новая заметка» + создать папку + корзина.
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+          padding: const EdgeInsets.fromLTRB(12, 12, 4, 0),
           child: Row(
             children: [
-              if (_path.isNotEmpty)
-                IconButton(
-                  tooltip: strings.t('notes'),
-                  icon: const Icon(Icons.arrow_upward, size: 20),
-                  onPressed: _goUp,
-                ),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+              if (widget.showAddButton)
+                Expanded(
+                  child: SizedBox(
+                    height: 36,
+                    child: FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(36),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        textStyle: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onPressed: _createNote,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: Text(strings.t('makeNewNote')),
+                    ),
                   ),
-                ),
+                )
+              else
+                const Spacer(),
+              IconButton(
+                tooltip: strings.t('newFolder'),
+                icon: const Icon(Icons.create_new_folder_outlined, size: 20),
+                onPressed: _createFolder,
               ),
               IconButton(
                 tooltip: strings.t('trash'),
@@ -92,120 +138,86 @@ class _NotesPanelState extends State<NotesPanel> {
                   MaterialPageRoute(builder: (_) => const NotesTrashScreen()),
                 ),
               ),
-              PopupMenuButton<String>(
-                tooltip: strings.t('create'),
-                icon: const Icon(Icons.add, size: 22),
-                onSelected: (action) {
-                  if (action == 'note') {
-                    _openEditor();
-                  } else {
-                    _createFolder();
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'note',
-                    child: Text(strings.t('makeNewNote')),
-                  ),
-                  PopupMenuItem(
-                    value: 'folder',
-                    child: Text(strings.t('newFolder')),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
-        if (_path.isNotEmpty) _breadcrumbs(context, strings),
-        if (widget.showAddButton)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                ),
-                onPressed: _openEditor,
-                icon: const Icon(Icons.add),
-                label: Text(strings.t('makeNewNote')),
-              ),
-            ),
-          ),
+        if (_current.isNotEmpty) _breadcrumbs(context, strings),
         Expanded(
           child: ListView(
             padding: EdgeInsets.fromLTRB(
-              20,
-              16,
-              20,
+              8,
+              4,
+              8,
               widget.showAddButton ? 16 : 104,
             ),
-            children: _withGaps(items),
+            children: [
+              _tasksRow(
+                context,
+                strings,
+                activeTasks,
+                onOpen: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotesTasksScreen()),
+                  );
+                },
+              ),
+              for (final row in rows) _treeRow(context, row),
+              if (rows.isEmpty)
+                SizedBox(
+                  height: 170,
+                  child: _EmptyNotes(message: strings.t('noNotes')),
+                ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  List<Widget> _withGaps(List<Widget> items) {
-    final out = <Widget>[];
-    for (var i = 0; i < items.length; i++) {
-      if (i > 0) out.add(const SizedBox(height: 12));
-      out.add(items[i]);
-    }
-    return out;
-  }
-
-  void _openEditor() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => NotesEditorScreen(folder: _path)),
-    );
-  }
-
   // -------------------------------------------------------------------------
-  // Хлебные крошки: Заметки / Работа / Идеи
+  // Хлебные крошки выбранной папки (где создастся новая заметка)
   // -------------------------------------------------------------------------
 
   Widget _breadcrumbs(BuildContext context, AppStrings strings) {
+    final scheme = Theme.of(context).colorScheme;
     final segments = <Widget>[
-      _crumbButton(
-        strings.t('notes'),
-        bold: _path.isEmpty,
-        onTap: () => setState(() => _path = ''),
-      ),
+      _crumbButton(strings.t('notes'), bold: false, onTap: () => _select('')),
     ];
     var cumulative = '';
-    final parts = _path.split('/');
+    final parts = _current.split('/');
     for (var i = 0; i < parts.length; i++) {
       cumulative = i == 0 ? parts[i] : '$cumulative/${parts[i]}';
       final path = cumulative;
-      segments.add(_crumbIcon());
+      segments.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 1),
+          child: Icon(
+            Icons.chevron_right,
+            size: 14,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+      );
       segments.add(
         _crumbButton(
           parts[i],
           bold: i == parts.length - 1,
-          onTap: () => _enter(path),
+          onTap: () => _select(path),
         ),
       );
     }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(children: segments),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: SizedBox(
+        height: 24,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: segments),
+        ),
       ),
     );
   }
-
-  Widget _crumbIcon() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 2),
-    child: Icon(
-      Icons.chevron_right,
-      size: 16,
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-    ),
-  );
 
   Widget _crumbButton(
     String label, {
@@ -213,14 +225,14 @@ class _NotesPanelState extends State<NotesPanel> {
     required VoidCallback onTap,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
             color: bold
                 ? Theme.of(context).colorScheme.primary
@@ -232,177 +244,119 @@ class _NotesPanelState extends State<NotesPanel> {
   }
 
   // -------------------------------------------------------------------------
-  // Карточки
+  // Строки дерева
   // -------------------------------------------------------------------------
 
-  Widget _tasksEntryCard(
+  Widget _tasksRow(
     BuildContext context,
     AppStrings strings,
     int activeTasks, {
     required VoidCallback onOpen,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
         onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(Icons.checklist_outlined, color: scheme.primary),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      strings.t('tasks'),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
+        child: SizedBox(
+          height: 30,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 8, right: 8),
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                const SizedBox(width: 4),
+                Icon(Icons.checklist_outlined, size: 16, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    strings.t('tasks'),
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
                     ),
-                    if (activeTasks > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          '$activeTasks',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _folderCard(BuildContext context, AppStrings strings, String path) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _enter(path),
-        onLongPress: () => _folderActions(path),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(Icons.folder_outlined, color: scheme.primary),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  AppState.folderName(path),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _noteCard(BuildContext context, AppStrings strings, Note note) {
-    final scheme = Theme.of(context).colorScheme;
-    final dateFormat = DateFormat('d MMM, HH:mm', strings.locale);
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => NotesEditorScreen(note: note)),
-        ),
-        onLongPress: () => _noteActions(note),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(Icons.description_outlined, color: scheme.primary),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      note.title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (note.snippet.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          note.snippet,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
+                if (activeTasks > 0)
                   Text(
-                    dateFormat.format(note.updatedAt),
+                    '$activeTasks',
                     style: TextStyle(
                       fontSize: 12,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
-                  if (note.date != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.event, size: 13, color: scheme.primary),
-                          const SizedBox(width: 6),
-                          Text(
-                            DateFormat(
-                              'd MMM',
-                              strings.locale,
-                            ).format(note.date!),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: scheme.primary,
-                            ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _treeRow(BuildContext context, _TreeRow row) {
+    final scheme = Theme.of(context).colorScheme;
+    final expanded = row.isFolder && _isExpanded(row.path);
+    final selected = row.isFolder && _current == row.path;
+    final label = row.isFolder
+        ? AppState.folderName(row.path)
+        : row.note!.title;
+
+    return Material(
+      color: selected ? scheme.surfaceContainerHighest : Colors.transparent,
+      child: InkWell(
+        onTap: row.isFolder
+            ? () => _toggle(row.path)
+            : () => _openNote(row.note!),
+        onLongPress: row.isFolder
+            ? () => _folderActions(row.path)
+            : () => _noteActions(row.note!),
+        child: SizedBox(
+          height: 30,
+          child: Padding(
+            padding: EdgeInsets.only(left: 8 + row.depth * 14, right: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  child: row.isFolder
+                      ? Transform.rotate(
+                          angle: expanded ? math.pi / 2 : 0,
+                          child: Icon(
+                            Icons.chevron_right,
+                            size: 16,
+                            color: scheme.onSurfaceVariant,
                           ),
-                        ],
-                      ),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  row.isFolder
+                      ? (expanded ? Icons.folder_open : Icons.folder)
+                      : Icons.description_outlined,
+                  size: 16,
+                  color: row.isFolder
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: row.isFolder
+                          ? FontWeight.w600
+                          : FontWeight.w400,
                     ),
-                ],
-              ),
-            ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -410,7 +364,65 @@ class _NotesPanelState extends State<NotesPanel> {
   }
 
   // -------------------------------------------------------------------------
-  // Действия с папками
+  // Создание
+  // -------------------------------------------------------------------------
+
+  void _createNote() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => NotesEditorScreen(folder: _current)),
+    );
+  }
+
+  void _openNote(Note note) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => NotesEditorScreen(note: note)),
+    );
+  }
+
+  Future<void> _createFolder() async {
+    final state = context.read<AppState>();
+    final strings = state.strings;
+    final controller = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(strings.t('newFolder')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(labelText: strings.t('folderName')),
+          onSubmitted: (_) => Navigator.pop(ctx, true),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(strings.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(strings.t('create')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final name = controller.text.trim();
+    if (name.isEmpty || name.contains('/')) return;
+    final path = AppState.joinFolder(_current, name);
+    if (state.noteFolderPaths.contains(path)) {
+      _showMessage(strings.t('folderExists'));
+      return;
+    }
+    await state.createFolder(path);
+    if (!mounted) return;
+    // Родители должны быть раскрыты, иначе папка не видна.
+    setState(() => _reveal(path));
+  }
+
+  // -------------------------------------------------------------------------
+  // Контекстное меню папки
   // -------------------------------------------------------------------------
 
   Future<void> _folderActions(String path) async {
@@ -443,44 +455,6 @@ class _NotesPanelState extends State<NotesPanel> {
     } else if (action == 'delete') {
       await _deleteFolder(path);
     }
-  }
-
-  Future<void> _createFolder() async {
-    final state = context.read<AppState>();
-    final strings = state.strings;
-    final controller = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(strings.t('newFolder')),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(labelText: strings.t('folderName')),
-          onSubmitted: (_) => Navigator.pop(ctx, true),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(strings.t('cancel')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(strings.t('create')),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    final name = controller.text.trim();
-    if (name.isEmpty || name.contains('/')) return;
-    final path = AppState.joinFolder(_path, name);
-    if (state.noteFolderPaths.contains(path)) {
-      _showMessage(strings.t('folderExists'));
-      return;
-    }
-    await state.createFolder(path);
-    if (mounted) _enter(path);
   }
 
   Future<void> _renameFolder(String path) async {
@@ -520,22 +494,39 @@ class _NotesPanelState extends State<NotesPanel> {
     }
     await state.renameFolder(path, newPath);
     if (!mounted) return;
-    if (_path == path) {
-      setState(() => _path = newPath);
-    } else if (_path.startsWith('$path/')) {
-      setState(() => _path = newPath + _path.substring(path.length));
-    }
+    setState(() {
+      if (_current == path) {
+        _current = newPath;
+      } else if (_current.startsWith('$path/')) {
+        _current = newPath + _current.substring(path.length);
+      }
+      // Раскрытые папки старого пути переезжают на новый.
+      final moved = _expanded
+          .where((p) => p == path || p.startsWith('$path/'))
+          .toList();
+      for (final p in moved) {
+        _expanded.remove(p);
+        _expanded.add(newPath + p.substring(path.length));
+      }
+    });
   }
 
   Future<void> _deleteFolder(String path) async {
     final state = context.read<AppState>();
     final ok = await state.deleteFolder(path);
     if (!mounted) return;
-    if (!ok) _showMessage(state.strings.t('folderNotEmpty'));
+    if (!ok) {
+      _showMessage(state.strings.t('folderNotEmpty'));
+      return;
+    }
+    setState(() {
+      if (_current == path || _current.startsWith('$path/')) _current = '';
+      _expanded.removeWhere((p) => p == path || p.startsWith('$path/'));
+    });
   }
 
   // -------------------------------------------------------------------------
-  // Действия с заметками
+  // Контекстное меню заметки
   // -------------------------------------------------------------------------
 
   Future<void> _noteActions(Note note) async {
@@ -623,6 +614,10 @@ class _NotesPanelState extends State<NotesPanel> {
     );
     if (chosen == null || chosen == note.folder || !mounted) return;
     await state.updateNote(note.copyWith(folder: chosen));
+    // Показываем заметку в новом месте: раскрываем целевую папку.
+    if (mounted) {
+      setState(() => _reveal(chosen));
+    }
   }
 
   void _showMessage(String text) {
@@ -644,11 +639,11 @@ class _EmptyNotes extends StatelessWidget {
         children: [
           Icon(
             Icons.note_add_outlined,
-            size: 64,
+            size: 48,
             color: Theme.of(context).disabledColor,
           ),
-          const SizedBox(height: 16),
-          Text(message, style: Theme.of(context).textTheme.bodyLarge),
+          const SizedBox(height: 12),
+          Text(message, style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
     );

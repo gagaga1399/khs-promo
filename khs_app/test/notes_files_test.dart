@@ -36,7 +36,7 @@ void main() {
 
   Future<AppState> makeState(WidgetTester tester) async {
     // Реальный IO (sqflite) внутри testWidgets выполняется через runAsync,
-    // иначе фейковый цикл событий теста подвисает навсегда.
+    // иначе фейковый цикл событий теста подвиснет навсегда.
     final state = await tester.runAsync(() async {
       final s = AppState();
       await s.addNote('Корневая', 'текст');
@@ -89,71 +89,76 @@ void main() {
     expect(AppState.folderName('Работа/Идеи'), 'Идеи');
   });
 
-  testWidgets('в корне видны промежуточная папка и подстраница задач', (
-    tester,
-  ) async {
+  testWidgets('в корне: папка, заметка и подстраница задач', (tester) async {
     final state = await makeState(tester);
     await tester.pumpWidget(wrap(state));
+
     expect(find.text('Работа'), findsOneWidget);
     expect(find.text('Корневая'), findsOneWidget);
-    expect(find.text('В папке'), findsNothing);
+    expect(find.text('В папке'), findsNothing, reason: 'папка свёрнута');
     expect(find.text('Задачи'), findsOneWidget);
+    expect(find.text('Новая заметка'), findsOneWidget);
   });
 
-  testWidgets('переход по папкам показывает её содержимое', (tester) async {
+  testWidgets('тап по папке раскрывает её содержимое', (tester) async {
     setBigScreen(tester);
     final state = await makeState(tester);
     await tester.pumpWidget(wrap(state));
 
     await tester.tap(find.text('Работа'));
     await tester.pumpAndSettle();
-    // Заголовок и крошка с одним именем.
-    expect(find.text('Работа'), findsNWidgets(2));
     expect(find.text('Идеи'), findsOneWidget);
-    expect(find.text('Корневая'), findsNothing);
+    expect(find.text('Корневая'), findsOneWidget);
+    expect(find.text('В папке'), findsNothing);
 
     await tester.tap(find.text('Идеи'));
     await tester.pumpAndSettle();
     expect(find.text('В папке'), findsOneWidget);
-    expect(find.text('Корневая'), findsNothing);
+    // Выбранная папка видна в крошках: строка дерева + сегмент.
+    expect(find.text('Идеи'), findsNWidgets(2));
   });
 
-  testWidgets('меню создаёт новую папку и открывает её', (tester) async {
+  testWidgets('кнопка новой папки создаёт папку в текущей', (tester) async {
     setBigScreen(tester);
     final state = await makeState(tester);
     await tester.pumpWidget(wrap(state));
 
-    await tester.tap(find.byType(PopupMenuButton<String>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Новая папка'));
+    await tester.tap(find.byIcon(Icons.create_new_folder_outlined));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Черновики');
     await tester.tap(find.text('Создать'));
     await tester.pumpAndSettle();
 
     expect(state.noteFolderPaths, contains('Черновики'));
-    // Открылись в свежесозданной папке: корневые элементы не видны.
-    // Заголовок и крошка с одним именем.
-    expect(find.text('Черновики'), findsNWidgets(2));
-    expect(find.text('Задачи'), findsNothing);
-    expect(find.text('Корневая'), findsNothing);
-    expect(find.text('Нет заметок. Создай первую!'), findsOneWidget);
+    expect(find.text('Черновики'), findsOneWidget);
+    expect(find.text('Нет заметок. Создай первую!'), findsNothing);
   });
 
-  testWidgets('кнопка «Сделать новую заметку» открывает редактор в папке', (
-    tester,
-  ) async {
+  testWidgets('кнопка «Новая заметка» открывает редактор', (tester) async {
     setBigScreen(tester);
     final state = await makeState(tester);
     await tester.pumpWidget(wrap(state));
-    await tester.tap(find.text('Работа'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Идеи'));
-    await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Сделать новую заметку'));
+    await tester.tap(find.text('Новая заметка'));
     await tester.pumpAndSettle();
     expect(find.byType(NotesEditorScreen), findsOneWidget);
+  });
+
+  testWidgets('тап по заметке открывает её, долгий — меню', (tester) async {
+    setBigScreen(tester);
+    final state = await makeState(tester);
+    await tester.pumpWidget(wrap(state));
+
+    await tester.tap(find.text('Корневая'));
+    await tester.pumpAndSettle();
+    expect(find.byType(NotesEditorScreen), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.longPress(find.text('Корневая'));
+    await tester.pumpAndSettle();
+    expect(find.text('Переместить в папку'), findsOneWidget);
+    expect(find.text('Удалить'), findsOneWidget);
   });
 
   testWidgets('из корня открывается подстраница задач', (tester) async {
