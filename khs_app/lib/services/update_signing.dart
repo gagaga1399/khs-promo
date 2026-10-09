@@ -6,7 +6,7 @@ import 'package:cryptography/cryptography.dart';
 /// Свой СООТВЕТСТВУЕТ приватному ключу в tool/sign_update.dart /
 /// на диске владельца. Не публикуйте приватный ключ.
 const String kUpdatePublicKeyBase64 =
-    'kjJ38XL3j/gHPLsN1bz3U6XKuQIfcJ8QNsaqqGUEPBU=';
+    'eRvDmsvsom3cHqIUaW7Ch5PpS906FhtBa9d797RGfCA=';
 
 SimplePublicKey get kUpdatePublicKey => SimplePublicKey(
   base64Decode(kUpdatePublicKeyBase64),
