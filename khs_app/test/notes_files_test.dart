@@ -118,6 +118,25 @@ void main() {
     expect(find.text('Идеи'), findsNWidgets(2));
   });
 
+  testWidgets('раскрытие папки анимируется', (tester) async {
+    setBigScreen(tester);
+    final state = await makeState(tester);
+    await tester.pumpWidget(wrap(state));
+
+    final before = tester
+        .widget<AnimatedRotation>(find.byType(AnimatedRotation).first)
+        .turns;
+    expect(before, 0, reason: 'папка свёрнута');
+
+    await tester.tap(find.text('Работа'));
+    await tester.pumpAndSettle();
+
+    final after = tester
+        .widget<AnimatedRotation>(find.byType(AnimatedRotation).first)
+        .turns;
+    expect(after, 0.25, reason: 'крылышко повёрнуто');
+  });
+
   testWidgets('кнопка новой папки создаёт папку в текущей', (tester) async {
     setBigScreen(tester);
     final state = await makeState(tester);

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -296,6 +294,27 @@ class _NotesPanelState extends State<NotesPanel> {
   }
 
   Widget _treeRow(BuildContext context, _TreeRow row) {
+    final key = ValueKey(
+      row.isFolder ? 'folder:${row.path}' : 'note:${row.note!.id}',
+    );
+    // Появление строки: лёгкий подъём вверх и проявление.
+    return TweenAnimationBuilder<double>(
+      key: key,
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      child: _treeRowContent(context, row),
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, (1 - t) * 6),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _treeRowContent(BuildContext context, _TreeRow row) {
     final scheme = Theme.of(context).colorScheme;
     final expanded = row.isFolder && _isExpanded(row.path);
     final selected = row.isFolder && _current == row.path;
@@ -304,7 +323,7 @@ class _NotesPanelState extends State<NotesPanel> {
         : row.note!.title;
 
     return Material(
-      color: selected ? scheme.surfaceContainerHighest : Colors.transparent,
+      color: Colors.transparent,
       child: InkWell(
         onTap: row.isFolder
             ? () => _toggle(row.path)
@@ -312,50 +331,65 @@ class _NotesPanelState extends State<NotesPanel> {
         onLongPress: row.isFolder
             ? () => _folderActions(row.path)
             : () => _noteActions(row.note!),
-        child: SizedBox(
-          height: 30,
-          child: Padding(
-            padding: EdgeInsets.only(left: 8 + row.depth * 14, right: 8),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  child: row.isFolder
-                      ? Transform.rotate(
-                          angle: expanded ? math.pi / 2 : 0,
-                          child: Icon(
-                            Icons.chevron_right,
-                            size: 16,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  row.isFolder
-                      ? (expanded ? Icons.folder_open : Icons.folder)
-                      : Icons.description_outlined,
-                  size: 16,
-                  color: row.isFolder
-                      ? scheme.primary
-                      : scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: row.isFolder
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOut,
+          color: selected ? scheme.surfaceContainerHighest : Colors.transparent,
+          child: SizedBox(
+            height: 30,
+            child: Padding(
+              padding: EdgeInsets.only(left: 8 + row.depth * 14, right: 8),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    child: row.isFolder
+                        ? AnimatedRotation(
+                            turns: expanded ? 0.25 : 0,
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOutCubic,
+                            child: Icon(
+                              Icons.chevron_right,
+                              size: 16,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          )
+                        : null,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 150),
+                    child: Icon(
+                      row.isFolder
+                          ? (expanded ? Icons.folder_open : Icons.folder)
+                          : Icons.description_outlined,
+                      key: ValueKey(
+                        row.isFolder
+                            ? (expanded ? 'folder_open' : 'folder')
+                            : 'note',
+                      ),
+                      size: 16,
+                      color: row.isFolder
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: row.isFolder
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
