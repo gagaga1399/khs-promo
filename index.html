@@ -207,7 +207,7 @@
 
 <header>
   <div class="wrap">
-    <div class="logo"><img src="cover.png" alt="KHS"> KHS <small>метод</small></div>
+    <div class="logo"><img src="/files/cover.png" alt="KHS"> KHS <small>метод</small></div>
   </div>
 </header>
 
@@ -216,10 +216,10 @@
   <h1 class="reveal">Убей<br>привычную<br>структуру</h1>
   <p class="sub reveal">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS не разрушает ради хаоса — он заменяет то, что держит тебя в покое, на то, что ведёт в движение.</p>
   <div class="btns reveal">
-    <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.34.apk" id="btnAndroid" target="_blank" rel="noopener">Скачать для Android <small id="apkSize"></small></a>
-    <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.34-windows.zip" id="btnWindows" target="_blank" rel="noopener">Скачать для Windows <small id="zipSize"></small></a>
+    <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.35.apk" id="btnAndroid" target="_blank" rel="noopener">Скачать для Android <small id="apkSize"></small></a>
+    <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.35-windows.zip" id="btnWindows" target="_blank" rel="noopener">Скачать для Windows <small id="zipSize"></small></a>
   </div>
-  <div class="meta reveal">Версия <span id="verline">1.2.34</span> · обновление по Wi-Fi из приложения</div>
+  <div class="meta reveal">Версия <span id="verline">1.2.35</span> · обновление по Wi-Fi из приложения</div>
 </div>
 
 <section class="wrap block" id="appsSection">
@@ -230,8 +230,8 @@
       <h3>KHS Tasks</h3>
       <p>Задачи и приоритеты, заметки дня, календарь. Живёт внутри хаба KHS.</p>
       <p style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
-        <a id="btnAndroidCard" class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.34.apk" target="_blank" rel="noopener">Android <small id="apkSize3"></small></a>
-        <a id="btnWindowsCard" class="btn btn-ghost" style="padding:10px 16px;font-size:12px" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.34-windows.zip" target="_blank" rel="noopener">Windows <small id="zipSize3"></small></a>
+        <a id="btnAndroidCard" class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.35.apk" target="_blank" rel="noopener">Android <small id="apkSize3"></small></a>
+        <a id="btnWindowsCard" class="btn btn-ghost" style="padding:10px 16px;font-size:12px" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.35-windows.zip" target="_blank" rel="noopener">Windows <small id="zipSize3"></small></a>
       </p>
     </div>
     <div class="card reveal">
@@ -381,15 +381,15 @@
         img.classList.add('is-visible');
       }
     };
-    img.src = name;
+    img.src = '/files/' + name;
   });
 
-      document.getElementById('verline').textContent = '1.2.34';
-    document.getElementById('apkSize').textContent = '78.9 MB';
+      document.getElementById('verline').textContent = '1.2.35';
+    document.getElementById('apkSize').textContent = '79.1 MB';
     document.getElementById('zipSize').textContent = '25.8 MB';
-    document.getElementById('apkSize3').textContent = '78.9 MB';
+    document.getElementById('apkSize3').textContent = '79.1 MB';
     document.getElementById('zipSize3').textContent = '25.8 MB';
-    document.getElementById('qzSize').textContent = '56.6 MB';
+    document.getElementById('qzSize').textContent = '0.0 MB';
 function fmt(b) {
     var mb = b / 1024 / 1024;
     return (mb >= 1000 ? (mb/1024).toFixed(1) + ' GB' : mb.toFixed(1) + ' MB');
