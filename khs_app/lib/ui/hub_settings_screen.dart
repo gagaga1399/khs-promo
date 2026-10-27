@@ -30,6 +30,13 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
   static const _khsPackage = 'com.qutzem.khs';
   String? _version;
   String _query = '';
+  final _keyController = TextEditingController();
+
+  @override
+  void dispose() {
+    _keyController.dispose();
+    super.dispose();
+  }
 
   /// Группа видна, если запрос пуст или совпал с одним из её пунктов.
   bool _visible(List<String> haystack) {
@@ -352,6 +359,19 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
     ];
   }
 
+  /// Проверяет ключ лицензии и разблокирует трекеры либо показывает ошибку.
+  Future<void> _tryUnlock(AppState state, AppStrings strings) async {
+    final ok = await state.unlockTracker(_keyController.text);
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (ok) {
+      _keyController.clear();
+      messenger.showSnackBar(SnackBar(content: Text(strings.t('licenseUnlocked'))));
+    } else {
+      messenger.showSnackBar(SnackBar(content: Text(strings.t('licenseBad'))));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -495,6 +515,7 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
           if (_visible([
             strings.t('hubTasksTile'),
             strings.t('hubQutzemTile'),
+            strings.t('hubTrackerTile'),
             strings.t('hubSoonTiles'),
           ]))
             SettingsCard(
@@ -525,6 +546,18 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
                   showChevron: false,
                 ),
                 SettingsRow(
+                  title: strings.t('hubTrackerTile'),
+                  icon: Icons.show_chart_outlined,
+                  iconColor: SettingsTokens.iconText,
+                  trailing: Switch(
+                    value: state.showHubTrackerTile,
+                    onChanged: (v) => state.setShowHubTrackerTile(v),
+                  ),
+                  onTap: () =>
+                      state.setShowHubTrackerTile(!state.showHubTrackerTile),
+                  showChevron: false,
+                ),
+                SettingsRow(
                   title: strings.t('hubSoonTiles'),
                   subtitle: strings.t('hubSoonTilesHelp'),
                   icon: Icons.widgets_outlined,
@@ -537,6 +570,54 @@ class _HubSettingsScreenState extends State<HubSettingsScreen> {
                       state.setShowHubSoonTiles(!state.showHubSoonTiles),
                   showChevron: false,
                 ),
+              ],
+            ),
+          if (_visible([
+            strings.t('licenseTitle'),
+            strings.t('licenseKeyHint'),
+            strings.t('licenseUnlock'),
+            'лиценз',
+            'ключ',
+            'трекер',
+          ]))
+            SettingsCard(
+              title: strings.t('licenseTitle'),
+              children: [
+                SettingsField(
+                  controller: _keyController,
+                  label: strings.t('licenseKeyHint'),
+                  prefixIcon: Icon(
+                    Icons.key,
+                    size: 20,
+                    color: SettingsTokens.iconUpdate,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                SettingsRow(
+                  title: state.trackerUnlocked
+                      ? strings.t('licenseUnlocked')
+                      : strings.t('licenseLockedTitle'),
+                  subtitle: strings.t('licenseHelp'),
+                  icon: state.trackerUnlocked
+                      ? Icons.lock_open
+                      : Icons.lock,
+                  iconColor: state.trackerUnlocked
+                      ? const Color(0xFF2B8A3E)
+                      : SettingsTokens.iconUpdate,
+                  onTap: state.trackerUnlocked
+                      ? null
+                      : () => _tryUnlock(state, strings),
+                  showChevron: false,
+                ),
+                if (state.trackerUnlocked)
+                  SettingsRow(
+                    title: strings.t('licenseReset'),
+                    subtitle: strings.t('licenseResetHelp'),
+                    icon: Icons.lock_reset,
+                    iconColor: SettingsTokens.iconUpdate,
+                    onTap: () => state.lockTracker(),
+                    showChevron: false,
+                  ),
               ],
             ),
           if (_visible([

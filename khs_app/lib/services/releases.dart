@@ -24,6 +24,62 @@ class ReleaseInfo {
 
 const List<ReleaseInfo> khsReleases = [
   ReleaseInfo(
+    version: '1.2.36',
+    date: '17.10.2026',
+    changes: [
+      ChangeEntry(
+        'Трекеры привычек: свои метрики, записи за день, графики и серия дней — ритм держится на виду',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Трекеры открываются лицензионным ключом из настроек хаба; без ключа раздел закрыт',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Настройки Марафона: дата старта и цель в днях — счёт идёт от календарного дня',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Раздел «Дерево» (Temper) убран из приложения: хаб стал проще и легче',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Цвета графиков зависят от типа метрики, серии дневных заметок починены',
+        ChangeType.bugfix,
+      ),
+      ChangeEntry(
+        'Промо-сайт переписан на полноэкранные слайды: знакомство, манифест, цикл метода, инструменты и файлы для скачивания — внизу',
+        ChangeType.feature,
+      ),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.2.35',
+    date: '09.10.2026',
+    changes: [
+      ChangeEntry(
+        'Заметки теперь компактное дерево как в Obsidian: сворачиваемые папки, плотный список строк, анимации раскрытия, быстрое создание папок и заметок, хлебные крошки и подстраница задач',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Облачная синхронизация задач и заметок: вход по почте и через Google',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Подровнены отступы по всему приложению, нижняя панель на настройках уезжает вниз, а её место занимает кнопка возврата',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Анимации: кольцо у кнопки быстрого добавления, свечение в календаре',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Починена проверка обновлений на ПК: сервер поднимался не всегда из-за адреса вида 192.168.0.107:4680',
+        ChangeType.bugfix,
+      ),
+    ],
+  ),
+  ReleaseInfo(
     version: '1.2.34',
     date: '04.10.2026',
     changes: [
@@ -801,6 +857,50 @@ ReleaseInfo? get latestRelease =>
 
 /// История самого хаба KHS (без изменений KHS Tasks).
 const List<ReleaseInfo> khsHubReleases = [
+  ReleaseInfo(
+    version: '1.2.36',
+    date: '17.10.2026',
+    changes: [
+      ChangeEntry(
+        'Трекеры привычек: свои метрики, записи за день и графики; часть метрик открывается лицензионным ключом',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Раздел «Дерево» (Temper) убран из хаба',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Настройки Марафона: дата старта и цель в днях',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Цвета графиков по типу метрики, серии дневных заметок починены',
+        ChangeType.bugfix,
+      ),
+    ],
+  ),
+  ReleaseInfo(
+    version: '1.2.35',
+    date: '09.10.2026',
+    changes: [
+      ChangeEntry(
+        'Заметки — компактное дерево как в Obsidian: папки, хлебные крошки и подстраница задач',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Облачная синхронизация задач и заметок: вход по почте и через Google',
+        ChangeType.feature,
+      ),
+      ChangeEntry(
+        'Отступы по всему приложению, кнопка возврата вместо нижней панели на настройках',
+        ChangeType.improvement,
+      ),
+      ChangeEntry(
+        'Починена проверка обновлений на ПК при адресе вида 192.168.0.107:4680',
+        ChangeType.bugfix,
+      ),
+    ],
+  ),
   ReleaseInfo(
     version: '1.2.34',
     date: '04.10.2026',

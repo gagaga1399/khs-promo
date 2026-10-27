@@ -15,6 +15,8 @@ import '../state/app_state.dart';
 import 'home_screen.dart';
 import 'hub_settings_screen.dart';
 import 'download_progress.dart';
+import 'tracker_screen.dart';
+import 'tracker_lock_screen.dart';
 
 /// Экран-центр KHS: плитки приложений. Стартует после сплэша, если не
 /// задан флаг запуска (--tasks). Настройки хаба — иконка в шапке.
@@ -24,6 +26,9 @@ class HubScreen extends StatefulWidget {
   /// Открыть читалку сразу при старте (ярлык рабочего стола, аргумент
   /// `--reader`). Флаг одноразовый: хаб забирает его в initState.
   static bool openReaderOnStart = false;
+
+  /// Открыть трекеры сразу при старте (ярлык `--tracker`).
+  static bool openTrackerOnStart = false;
 
   @override
   State<HubScreen> createState() => _HubScreenState();
@@ -60,6 +65,13 @@ class _HubScreenState extends State<HubScreen> {
       HubScreen.openReaderOnStart = false;
       _readerOpen = true;
     }
+    // Ярлык с аргументом --tracker: открыть сразу трекеры отдельным экраном.
+    if (HubScreen.openTrackerOnStart) {
+      HubScreen.openTrackerOnStart = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openTracker();
+      });
+    }
   }
 
   void _openTasksFromShortcut() {
@@ -87,6 +99,27 @@ class _HubScreenState extends State<HubScreen> {
     // нет, верхняя панель остаётся хабовской. Так же устроены KHS Tasks.
     setState(() => _readerOpen = true);
   }
+
+  void _openTracker() {
+    // Трекеры открываются отдельным полноэкранным экраном — так же, как
+    // KHS Tasks, а не встраиванием в тело хаба. Без ключа лицензии — экран
+    // блокировки.
+    final locked = !context.read<AppState>().trackerUnlocked;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => locked
+            ? const TrackerLockScreen()
+            : const TrackerHomeScreen(),
+      ),
+    );
+  }
+
+  void _closeEmbedded() {
+    setState(() => _readerOpen = false);
+  }
+
+  bool get _embeddedOpen => _readerOpen;
 
   /// Установка APK: на современных Android — тихо через системный
   /// PackageInstaller (без окна установщика), иначе — системный установщик.
@@ -158,12 +191,24 @@ class _HubScreenState extends State<HubScreen> {
     );
   }
 
+  void _createTrackerShortcut() {
+    // Трекеры встроены в KHS: ярлык открывает хаб сразу на трекерах (--tracker).
+    final exe = Platform.resolvedExecutable;
+    _createShortcut(
+      name: context.read<AppState>().strings.t('hubTrackerTile'),
+      target: exe,
+      args: '--tracker',
+      icon: _iconOrExe('${File(exe).parent.path}\\tracker_icon.ico', exe),
+      busyText: context.read<AppState>().strings.t('shortcutCreated'),
+      errorText: context.read<AppState>().strings.t('shortcutError'),
+    );
+  }
+
   /// Иконка ярлыка: отдельный .ico, если файл на месте, иначе сам exe.
   /// Ссылка на несуществующий .ico даёт ярлык со сломанной иконкой, а
   /// папка сборки при пересборке очищается — такое уже случалось.
   static String _iconOrExe(String iconPath, String exe) =>
       File(iconPath).existsSync() ? iconPath : exe;
-
   Future<void> _createShortcut({
     required String name,
     required String target,
@@ -384,6 +429,10 @@ try {
     final strings = state.strings;
     final scheme = Theme.of(context).colorScheme;
 
+    // Сколько дней KHS существует: с 17 мая 2026.
+    final rawDays = DateTime.now().difference(DateTime(2026, 5, 17)).inDays;
+    final hubDays = rawDays < 0 ? 0 : rawDays;
+
     // Читалка встроена, поэтому доступна везде без проверки файлов.
     const hasQutzem = true;
 
@@ -395,15 +444,15 @@ try {
           _readerOpen ? 'QutZem Reader' : strings.t('hubTitle'),
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
-        leading: _readerOpen
+        leading: _embeddedOpen
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                onPressed: () => setState(() => _readerOpen = false),
+                onPressed: _closeEmbedded,
               )
             : null,
         actions: [
-          if (!_readerOpen && Platform.isAndroid)
+          if (!_embeddedOpen && Platform.isAndroid)
             IconButton(
               icon: _updateBusy
                   ? const SizedBox(
@@ -482,6 +531,36 @@ try {
                             _Feature(Icons.article_outlined, 'FB2'),
                             _Feature(Icons.picture_as_pdf_outlined, 'PDF'),
                             _Feature(Icons.description_outlined, 'TXT'),
+                          ],
+                        );
+                      }
+                      if (state.showHubTrackerTile) {
+                        addTile(
+                          _HubTile(
+                            iconAsset: 'assets/hubs/tracker-icon.png',
+                            title: strings.t('hubTrackerTile'),
+                            subtitle: strings.t('trackerSubtitle'),
+                            locked: !state.trackerUnlocked,
+                            onTap: _openTracker,
+                            onShortcut: Platform.isWindows
+                                ? _createTrackerShortcut
+                                : null,
+                            shortcutTooltip: strings.t('shortcutCreate'),
+                            shortcutBusy: _shortcutBusy,
+                          ),
+                          [
+                            _Feature(
+                              Icons.check_circle_outline,
+                              strings.t('trackerFeatureHabits'),
+                            ),
+                            _Feature(
+                              Icons.show_chart_outlined,
+                              strings.t('trackerFeatureMetrics'),
+                            ),
+                            _Feature(
+                              Icons.tune,
+                              strings.t('trackerFeatureProps'),
+                            ),
                           ],
                         );
                       }
@@ -590,6 +669,27 @@ try {
                                 ],
                               ),
                             ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 0, 8, 20),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: Transform(
+                                  alignment: Alignment.center,
+                                  transform: Matrix4.diagonal3Values(1.35, 1, 1),
+                                  child: Text(
+                                    strings
+                                        .t('hubSince')
+                                        .replaceFirst('{1}', '$hubDays'),
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context).textTheme.titleLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          color: scheme.onSurface,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ),
                             ...blocks,
                           ],
                         ),
@@ -613,6 +713,7 @@ class _HubTile extends StatelessWidget {
   final String? shortcutTooltip;
   final bool shortcutBusy;
   final bool dimmed;
+  final bool locked;
 
   const _HubTile({
     this.iconAsset,
@@ -624,6 +725,7 @@ class _HubTile extends StatelessWidget {
     this.shortcutTooltip,
     this.shortcutBusy = false,
     this.dimmed = false,
+    this.locked = false,
   });
 
   @override
@@ -645,7 +747,7 @@ class _HubTile extends StatelessWidget {
           onTap: onTap,
           child: Stack(
             children: [
-              if (onTap != null)
+              if (onTap != null && !locked)
                 Positioned(
                   top: 14,
                   right: 14,
@@ -653,6 +755,20 @@ class _HubTile extends StatelessWidget {
                     Icons.arrow_outward,
                     size: 18,
                     color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              if (locked)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Icon(Icons.lock, size: 18, color: scheme.error),
                   ),
                 ),
               Padding(

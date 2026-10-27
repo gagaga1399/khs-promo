@@ -27,6 +27,11 @@ class KhsApp extends StatelessWidget {
         Platform.environment['KHS_START_READER'] == '1' ||
         LauncherShortcut.startReader;
     if (directReader) HubScreen.openReaderOnStart = true;
+    // Ярлык трекеров: хаб сразу открыт на трекерах.
+    final directTracker =
+        Platform.environment['KHS_START_TRACKER'] == '1' ||
+        LauncherShortcut.startTracker;
+    if (directTracker) HubScreen.openTrackerOnStart = true;
     final initialScreen = directTasks
         ? const HomeScreen()
         : (state.showSplashAnimation ? const SplashGate() : const HubScreen());

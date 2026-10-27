@@ -10,6 +10,7 @@ import 'state/app_state.dart';
 import 'ui/khs_app.dart';
 import 'services/auth_service.dart';
 import 'services/launcher_shortcut.dart';
+import 'services/tracker_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,9 +26,20 @@ Future<void> main() async {
   await initializeDateFormatting('ru');
   final state = AppState();
   await state.init();
+  final tracker = TrackerService(
+    vaultPathProvider: () => state.obsidian.vaultPath,
+  );
   unawaited(authReady);
 
-  runApp(ChangeNotifierProvider.value(value: state, child: const KhsApp()));
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AppState>.value(value: state),
+        ChangeNotifierProvider<TrackerService>.value(value: tracker),
+      ],
+      child: const KhsApp(),
+    ),
+  );
 }
 
 /// Разбор аргументов командной строки для ярлыков рабочего стола.
@@ -38,6 +50,8 @@ void _applyLaunchArgs() {
       LauncherShortcut.startTasks = true;
     } else if (arg == '--reader') {
       LauncherShortcut.startReader = true;
+    } else if (arg == '--tracker') {
+      LauncherShortcut.startTracker = true;
     }
   }
 }

@@ -9,9 +9,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../localization/app_strings.dart';
 import '../models/note.dart';
+import '../models/note_template.dart';
 import '../models/task.dart';
+import '../models/tracker_entry.dart';
+import '../models/tracker_profile.dart';
 import '../services/auth_service.dart';
 import '../services/cloud_sync_service.dart';
+import '../services/license_key.dart';
 import '../services/notification_service.dart';
 import '../services/obsidian_service.dart';
 import '../services/sync_client.dart';
@@ -46,7 +50,20 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   /// свежесозданная папка исчезала бы до первой заметки внутри.
   final Set<String> _emptyFolders = <String>{};
   Color _accentColor = AppTheme.defaultAccent;
+
+  /// Собственный акцент раздела «Трекеры» — отдельная настройка, не из хаба.
+  Color _trackerAccent = AppTheme.accentTurquoise;
   DateTime _selectedDate = _today();
+
+  /// День рождения для трекера «Остаток жизни» (prefs: `birthday`).
+  DateTime? _birthday;
+
+  /// Старт «Марафона» и его цель в днях (prefs: `marathon_start`, `marathon_goal`).
+  DateTime _marathonStart = DateTime(2026, 2, 20);
+  int _marathonGoal = 365;
+
+  /// Разблокирован ли раздел «Трекеры» ключом (prefs: `tracker_unlocked`).
+  bool _trackerUnlocked = false;
   bool ready = false;
   String _mode = 'home'; // 'home' | 'design'
   int? _selectedTaskId;
@@ -102,12 +119,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool _showSplashAnimation = true;
   bool _showHubTasksTile = true;
   bool _showHubQutzemTile = true;
+  bool _showHubTrackerTile = true;
   bool _showHubSoonTiles = true;
   Color _customTextColor = const Color(0xFFF5F5F5);
 
   /// Сервис Obsidian. Есть значение по умолчанию, чтобы addNote/updateNote
   /// работали и до init() (в тестах vault не настроен и всё равно выключено).
   ObsidianService _obsidian = ObsidianService(defaultVaultPath);
+
+  /// Пользовательские шаблоны заметок (prefs: `note_templates`).
+  List<NoteTemplate> _noteTemplates = [];
 
   static DateTime _today() {
     final now = DateTime.now();
@@ -134,6 +155,22 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool get isDarkTheme => _themeMode == 'dark';
   Color get accentColor => _accentColor;
   Color get customTextColor => _customTextColor;
+
+  /// Акцент раздела «Трекеры»: свой, не из хаба.
+  Color get trackerAccent => _trackerAccent;
+
+  /// День рождения (для расчёта оставшихся дней жизни); `null` — не задан.
+  DateTime? get birthday => _birthday;
+
+  /// Дата старта «Марафона» (от неё считается число дней).
+  DateTime get marathonStart => _marathonStart;
+
+  /// Цель «Марафона» в днях (может быть сколь угодно большой; 0 — без цели).
+  int get marathonGoal => _marathonGoal;
+
+  /// Разблокирован ли раздел «Трекеры» (введён верный ключ).
+  bool get trackerUnlocked => _trackerUnlocked;
+
   AppStrings get strings => AppStrings(_locale);
 
   bool get isPc => Platform.isWindows;
@@ -157,6 +194,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool get showSplashAnimation => _showSplashAnimation;
   bool get showHubTasksTile => _showHubTasksTile;
   bool get showHubQutzemTile => _showHubQutzemTile;
+  bool get showHubTrackerTile => _showHubTrackerTile;
   bool get showHubSoonTiles => _showHubSoonTiles;
 
   String get mode => _mode;
@@ -421,6 +459,23 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _customTextColor = Color(
       _prefs?.getInt('custom_text_color') ?? const Color(0xFFF5F5F5).toARGB32(),
     );
+    _trackerAccent = Color(
+      _prefs?.getInt('tracker_accent_color') ?? AppTheme.accentTurquoise.toARGB32(),
+    );
+    final birthdayRaw = _prefs?.getString('birthday');
+    _birthday = birthdayRaw == null ? null : DateTime.tryParse(birthdayRaw);
+    final marathonRaw = _prefs?.getString('marathon_start');
+    final marathonParsed = marathonRaw == null
+        ? null
+        : DateTime.tryParse(marathonRaw);
+    if (marathonParsed != null) {
+      _marathonStart = DateTime(
+        marathonParsed.year,
+        marathonParsed.month,
+        marathonParsed.day,
+      );
+    }
+    _marathonGoal = _prefs?.getInt('marathon_goal') ?? 365;
     _groups = _prefs?.getStringList('groups') ?? [];
     _emptyFolders.addAll(_prefs?.getStringList('note_folders') ?? []);
     _notificationsEnabled = _prefs?.getBool('notifications_enabled') ?? true;
@@ -455,13 +510,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _showSplashAnimation = _prefs?.getBool('show_splash_animation') ?? true;
     _showHubTasksTile = _prefs?.getBool('hub_show_tasks_tile') ?? true;
     _showHubQutzemTile = _prefs?.getBool('hub_show_qutzem_tile') ?? true;
+    _showHubTrackerTile = _prefs?.getBool('hub_show_tracker_tile') ?? true;
     _showHubSoonTiles = _prefs?.getBool('hub_show_soon_tiles') ?? true;
+    _trackerUnlocked = _prefs?.getBool('tracker_unlocked') ?? false;
     _dailyGoal = _prefs?.getInt('daily_goal') ?? 1;
     _disabledBars = _prefs?.getStringList('bars_disabled') ?? const [];
     _savedVaultPaths = _prefs?.getStringList('saved_vault_paths') ?? [];
     final vaultPath =
         _prefs?.getString('obsidian_vault_path') ?? defaultVaultPath;
     _obsidian = ObsidianService(vaultPath);
+    _noteTemplates = _loadNoteTemplates();
+    _loadTrackerProfiles();
     await notifications.init();
     await notifications.requestPermissions();
     _tasks = await db.getTasks();
@@ -620,6 +679,204 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     list.insert(0, path);
     _savedVaultPaths = list.take(8).toList();
     await _prefs?.setStringList('saved_vault_paths', _savedVaultPaths);
+  }
+
+  // ── Пользовательские шаблоны заметок ───────────────────────────────
+
+  List<NoteTemplate> get noteTemplates => List.unmodifiable(_noteTemplates);
+
+  List<NoteTemplate> _loadNoteTemplates() {
+    final raw = _prefs?.getString('note_templates');
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      final data = jsonDecode(raw);
+      if (data is List) {
+        return [
+          for (final item in data)
+            if (item is Map)
+              NoteTemplate.fromJson(item.cast<String, Object?>()),
+        ];
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// Создаёт или обновляет пользовательский шаблон по [NoteTemplate.id].
+  Future<void> saveNoteTemplate(NoteTemplate template) async {
+    final list = List<NoteTemplate>.of(_noteTemplates);
+    final index = list.indexWhere((t) => t.id == template.id);
+    if (index >= 0) {
+      list[index] = template;
+    } else {
+      list.add(template);
+    }
+    _noteTemplates = list;
+    await _persistNoteTemplates();
+    notifyListeners();
+  }
+
+  Future<void> deleteNoteTemplate(String id) async {
+    _noteTemplates = _noteTemplates.where((t) => t.id != id).toList();
+    await _persistNoteTemplates();
+    notifyListeners();
+  }
+
+  Future<void> _persistNoteTemplates() async {
+    await _prefs?.setString(
+      'note_templates',
+      jsonEncode(_noteTemplates.map((t) => t.toJson()).toList()),
+    );
+  }
+
+  // ── Профили трекеров ───────────────────────────────────────────────
+
+  List<TrackerProfile> _trackerProfiles = [];
+  String _activeTrackerProfileId = '';
+
+  /// Все профили трекеров (не менее одного).
+  List<TrackerProfile> get trackerProfiles =>
+      List.unmodifiable(_trackerProfiles);
+
+  /// Активный профиль — из него берутся набор и настройки трекеров.
+  TrackerProfile get activeTrackerProfile {
+    if (_trackerProfiles.isEmpty) {
+      _trackerProfiles.add(
+        TrackerProfile(id: _newProfileId(), name: _defaultProfileName()),
+      );
+      _activeTrackerProfileId = _trackerProfiles.first.id;
+    }
+    return _trackerProfiles.firstWhere(
+      (p) => p.id == _activeTrackerProfileId,
+      orElse: () => _trackerProfiles.first,
+    );
+  }
+
+  String _defaultProfileName() => _locale == 'en' ? 'Me' : 'Я';
+
+  String _newProfileId() => DateTime.now().microsecondsSinceEpoch.toString();
+
+  void _loadTrackerProfiles() {
+    final raw = _prefs?.getString('tracker_profiles');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final data = jsonDecode(raw);
+        if (data is List) {
+          _trackerProfiles = [
+            for (final item in data)
+              if (item is Map) TrackerProfile.fromJson(item.cast<String, dynamic>()),
+          ];
+        }
+      } catch (_) {}
+    }
+    _activeTrackerProfileId =
+        _prefs?.getString('tracker_active_profile') ?? '';
+    if (_trackerProfiles.isEmpty) {
+      _trackerProfiles = [
+        TrackerProfile(id: _newProfileId(), name: _defaultProfileName()),
+      ];
+      _activeTrackerProfileId = _trackerProfiles.first.id;
+    }
+    if (!_trackerProfiles.any((p) => p.id == _activeTrackerProfileId)) {
+      _activeTrackerProfileId = _trackerProfiles.first.id;
+    }
+  }
+
+  Future<void> _persistTrackerProfiles() async {
+    await _prefs?.setString(
+      'tracker_profiles',
+      jsonEncode(_trackerProfiles.map((p) => p.toJson()).toList()),
+    );
+    await _prefs?.setString('tracker_active_profile', _activeTrackerProfileId);
+  }
+
+  Future<void> setActiveTrackerProfile(String id) async {
+    if (!_trackerProfiles.any((p) => p.id == id)) return;
+    _activeTrackerProfileId = id;
+    await _persistTrackerProfiles();
+    notifyListeners();
+  }
+
+  Future<void> addTrackerProfile(String name) async {
+    final trimmed = name.trim();
+    final profile = TrackerProfile(
+      id: _newProfileId(),
+      name: trimmed.isEmpty ? _defaultProfileName() : trimmed,
+    );
+    _trackerProfiles = [..._trackerProfiles, profile];
+    _activeTrackerProfileId = profile.id;
+    await _persistTrackerProfiles();
+    notifyListeners();
+  }
+
+  Future<void> renameTrackerProfile(String id, String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    for (final profile in _trackerProfiles) {
+      if (profile.id == id) profile.name = trimmed;
+    }
+    await _persistTrackerProfiles();
+    notifyListeners();
+  }
+
+  Future<void> deleteTrackerProfile(String id) async {
+    if (_trackerProfiles.length <= 1) return;
+    _trackerProfiles = _trackerProfiles.where((p) => p.id != id).toList();
+    if (!_trackerProfiles.any((p) => p.id == _activeTrackerProfileId)) {
+      _activeTrackerProfileId = _trackerProfiles.first.id;
+    }
+    await _persistTrackerProfiles();
+    notifyListeners();
+  }
+
+  /// Скрывает/показывает автоматически найденный трекер в активном профиле.
+  Future<void> setTrackerHidden(String name, bool hidden) async {
+    final profile = activeTrackerProfile;
+    if (hidden) {
+      profile.hidden.add(name);
+      profile.custom.removeWhere((c) => c.name == name);
+    } else {
+      profile.hidden.remove(name);
+    }
+    await _persistTrackerProfiles();
+    notifyListeners();
+  }
+
+  /// Добавляет трекер вручную (привычка `да/нет` или метрика).
+  Future<bool> addCustomTracker(String name, TrackerPropertyKind kind) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return false;
+    final profile = activeTrackerProfile;
+    if (profile.hasCustom(trimmed)) return false;
+    // Если это уже найденное свойство — достаточно снова его показать.
+    if (profile.hidden.remove(trimmed)) {
+      await _persistTrackerProfiles();
+      notifyListeners();
+      return true;
+    }
+    profile.custom.add(CustomTracker(name: trimmed, kind: kind));
+    await _persistTrackerProfiles();
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> removeCustomTracker(String name) async {
+    final profile = activeTrackerProfile;
+    profile.custom.removeWhere((c) => c.name == name);
+    await _persistTrackerProfiles();
+    notifyListeners();
+  }
+
+  /// Убирает трекер из активного профиля: авто-найденный — скрывает,
+  /// добавленный вручную — удаляет.
+  Future<void> removeTracker(String name) async {
+    final profile = activeTrackerProfile;
+    if (profile.hasCustom(name)) {
+      profile.custom.removeWhere((c) => c.name == name);
+    } else {
+      profile.hidden.add(name);
+    }
+    await _persistTrackerProfiles();
+    notifyListeners();
   }
 
   /// Разрешён ли доступ ко всем файлам телефона (Android 11+).
@@ -1099,9 +1356,32 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  Future<void> setShowHubTrackerTile(bool value) async {
+    _showHubTrackerTile = value;
+    await _prefs?.setBool('hub_show_tracker_tile', value);
+    notifyListeners();
+  }
+
   Future<void> setShowHubSoonTiles(bool value) async {
     _showHubSoonTiles = value;
     await _prefs?.setBool('hub_show_soon_tiles', value);
+    notifyListeners();
+  }
+
+  /// Разблокирует раздел «Трекеры», если введён верный ключ.
+  /// Возвращает true при успехе.
+  Future<bool> unlockTracker(String key) async {
+    if (!LicenseKey.isValid(key)) return false;
+    _trackerUnlocked = true;
+    await _prefs?.setBool('tracker_unlocked', true);
+    notifyListeners();
+    return true;
+  }
+
+  /// Снова закрывает раздел «Трекеры» (сброс лицензии).
+  Future<void> lockTracker() async {
+    _trackerUnlocked = false;
+    await _prefs?.setBool('tracker_unlocked', false);
     notifyListeners();
   }
 
@@ -1159,6 +1439,40 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> setCustomTextColor(Color color) async {
     _customTextColor = color;
     await _prefs?.setInt('custom_text_color', color.toARGB32());
+    notifyListeners();
+  }
+
+  Future<void> setTrackerAccent(Color color) async {
+    _trackerAccent = color;
+    await _prefs?.setInt('tracker_accent_color', color.toARGB32());
+    notifyListeners();
+  }
+
+  /// Задать день рождения (или сбросить, передав `null`) для трекера остатка
+  /// жизни. День обнуляется до начала суток, чтобы расчёт дней был ровным.
+  Future<void> setBirthday(DateTime? date) async {
+    _birthday = date == null
+        ? null
+        : DateTime(date.year, date.month, date.day);
+    if (_birthday == null) {
+      await _prefs?.remove('birthday');
+    } else {
+      await _prefs?.setString('birthday', _birthday!.toIso8601String());
+    }
+    notifyListeners();
+  }
+
+  /// Задать дату старта «Марафона» (день обнуляется до начала суток).
+  Future<void> setMarathonStart(DateTime date) async {
+    _marathonStart = DateTime(date.year, date.month, date.day);
+    await _prefs?.setString('marathon_start', _marathonStart.toIso8601String());
+    notifyListeners();
+  }
+
+  /// Задать цель «Марафона» в днях (0 — без цели).
+  Future<void> setMarathonGoal(int days) async {
+    _marathonGoal = days < 0 ? 0 : days;
+    await _prefs?.setInt('marathon_goal', _marathonGoal);
     notifyListeners();
   }
 

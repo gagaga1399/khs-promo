@@ -377,4 +377,101 @@ void main() {
       expect(await service.readDailyNoteBody(date), 'Текст заметки');
     });
   });
+
+  group('listMarkdownFiles', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      tempDir = await Directory.systemTemp.createTemp('khs_vault_list');
+    });
+
+    tearDown(() async {
+      if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    });
+
+    test('lists md files as relative slash paths, skipping dot folders', () async {
+      await Directory('${tempDir.path}/даты/2026').create(recursive: true);
+      await File(
+        '${tempDir.path}/даты/2026/2026-10-10.md',
+      ).writeAsString('a', encoding: utf8);
+      await File('${tempDir.path}/Заметка.md').writeAsString('b', encoding: utf8);
+      await File('${tempDir.path}/note.txt').writeAsString('c', encoding: utf8);
+      await Directory('${tempDir.path}/.obsidian').create();
+      await File(
+        '${tempDir.path}/.obsidian/config.md',
+      ).writeAsString('d', encoding: utf8);
+
+      final service = ObsidianService(tempDir.path);
+      final files = await service.listMarkdownFiles();
+
+      expect(files, containsAll(['даты/2026/2026-10-10.md', 'Заметка.md']));
+      expect(files.any((f) => f.contains('.obsidian')), isFalse);
+      expect(files.any((f) => f.endsWith('.txt')), isFalse);
+    });
+
+    test('empty when vault path is empty or missing', () async {
+      expect(await ObsidianService('').listMarkdownFiles(), isEmpty);
+      expect(
+        await ObsidianService('${tempDir.path}/нет-такой').listMarkdownFiles(),
+        isEmpty,
+      );
+    });
+  });
+
+  group('templates', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      tempDir = await Directory.systemTemp.createTemp('khs_vault_tpl');
+    });
+
+    tearDown(() async {
+      if (await tempDir.exists()) await tempDir.delete(recursive: true);
+    });
+
+    test('listTemplates reads the Templates plugin folder', () async {
+      await Directory('${tempDir.path}/.obsidian').create(recursive: true);
+      await File(
+        '${tempDir.path}/.obsidian/templates.json',
+      ).writeAsString('{"folder": "Шаблоны"}', encoding: utf8);
+      await Directory('${tempDir.path}/Шаблоны').create(recursive: true);
+      await File(
+        '${tempDir.path}/Шаблоны/Встреча.md',
+      ).writeAsString('# встреча', encoding: utf8);
+      await File(
+        '${tempDir.path}/Шаблоны/Дневник.md',
+      ).writeAsString('# день', encoding: utf8);
+
+      final service = ObsidianService(tempDir.path);
+      expect(await service.templateFolder(), 'Шаблоны');
+      final templates = await service.listTemplates();
+      expect(
+        templates,
+        containsAll(['Шаблоны/Встреча.md', 'Шаблоны/Дневник.md']),
+      );
+      expect(await service.readRelative('Шаблоны/Дневник.md'), '# день');
+    });
+
+    test('falls back to the daily note template folder', () async {
+      await Directory('${tempDir.path}/.obsidian').create(recursive: true);
+      await File(
+        '${tempDir.path}/.obsidian/daily-notes.json',
+      ).writeAsString('{"template": "Шаблоны/Ежедневно.md"}', encoding: utf8);
+      await Directory('${tempDir.path}/Шаблоны').create(recursive: true);
+      await File(
+        '${tempDir.path}/Шаблоны/Ежедневно.md',
+      ).writeAsString('# день', encoding: utf8);
+
+      final service = ObsidianService(tempDir.path);
+      expect(await service.templateFolder(), 'Шаблоны');
+      expect(await service.listTemplates(), ['Шаблоны/Ежедневно.md']);
+    });
+
+    test('empty when no templates folder is configured', () async {
+      final service = ObsidianService(tempDir.path);
+      expect(await service.templateFolder(), isNull);
+      expect(await service.listTemplates(), isEmpty);
+      expect(await service.readRelative('нет.md'), isNull);
+    });
+  });
 }

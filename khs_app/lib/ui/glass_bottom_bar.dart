@@ -168,6 +168,7 @@ class GlassBottomBar extends StatefulWidget {
     required this.items,
     required this.currentIndex,
     required this.onTap,
+    this.accent,
     this.hidden = false,
     this.onBack,
   });
@@ -175,6 +176,10 @@ class GlassBottomBar extends StatefulWidget {
   final List<GlassNavItem> items;
   final int currentIndex;
   final ValueChanged<int> onTap;
+
+  /// Акцент панели. По умолчанию — основной цвет темы; встроенные приложения
+  /// (трекеры) передают свой собственный акцент, чтобы не зависеть от хаба.
+  final Color? accent;
 
   /// Капсула уезжает вниз за экран, а [onBack] (если задан) показывает на её
   /// месте кнопку возврата. Высота виджета при этом не меняется: тело экрана
@@ -359,9 +364,8 @@ class _GlassBottomBarState extends State<GlassBottomBar>
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    // Акцент из темы: панель должна перекрашиваться вместе с приложением, а не
-    // держать свой собственный цвет.
-    final accent = Theme.of(context).colorScheme.primary;
+    // Акцент: свой у встроенных приложений, иначе — из темы хаба.
+    final accent = widget.accent ?? Theme.of(context).colorScheme.primary;
 
     return SafeArea(
       top: false,

@@ -1,5 +1,5 @@
 ﻿param(
-  [string]$Version = '1.2.31',
+  [string]$Version = '1.2.36',
   [string]$Repo = 'gagaga1399/khs-promo',
   [string]$UpdatesDir = 'C:\Users\user\Desktop\KHS-Windows\updates',
   [string]$TokenFile = 'C:\Users\user\AppData\Local\Temp\opencode\ghtoken.txt',
@@ -45,9 +45,7 @@ $windowsBtn = "<a class=`"btn btn-ghost`" href=`"$windowsUrl`" id=`"btnWindows`"
 $html = $html -replace '<a class="btn btn-primary" href="#" id="btnAndroid"[^>]*>', $androidBtn
 $html = $html -replace '<a class="btn btn-ghost" href="#" id="btnWindows"[^>]*>', $windowsBtn
 
-# Кнопки в блоке «Приложения центра» — те же файлы, отдельная разметка.
-$html = $html -replace '(<a[^>]*id="btnAndroidCard"[^>]*?)href="#"', ('$1href="' + $androidUrl + '"')
-$html = $html -replace '(<a[^>]*id="btnWindowsCard"[^>]*?)href="#"', ('$1href="' + $windowsUrl + '"')
+# Кнопка читалки APK в слайде «Скачать» — отдельный файл со своего релиза.
 $html = $html -replace '(<a[^>]*id="btnReaderApk"[^>]*?)href="#"', ('$1href="' + $qzUrl + '"')
 
 $apkBytes = (Get-Item $Apk).Length
@@ -62,8 +60,6 @@ $sizes = @"
     document.getElementById('verline').textContent = '$Version';
     document.getElementById('apkSize').textContent = '$(Fmt-Bytes $apkBytes)';
     document.getElementById('zipSize').textContent = '$(Fmt-Bytes $zipBytes)';
-    document.getElementById('apkSize3').textContent = '$(Fmt-Bytes $apkBytes)';
-    document.getElementById('zipSize3').textContent = '$(Fmt-Bytes $zipBytes)';
     document.getElementById('qzSize').textContent = '$(Fmt-Bytes $qzBytes)';
 "@
 
@@ -172,7 +168,7 @@ if (-not $SkipRelease) {
     } catch { return $null }
   }
   function New-Release($Tag) {
-    $body = "KHS $Version. Заметки теперь компактное дерево как в Obsidian: сворачиваемые папки, плотный список строк, анимации раскрытия, быстрое создание папок и заметок, хлебные крошки и подстраница задач. Подровнены отступы по всему приложению. Облачная синхронизация задач и заметок: вход по почте и через Google. Анимации: кольцо у кнопки быстрого добавления, свечение в календаре. Нижняя панель на настройках уезжает вниз, а её место занимает кнопка возврата. Починена проверка обновлений на ПК: сервер поднимался не всегда из-за адреса вида 192.168.0.107:4680."
+    $body = "KHS $Version. Новые трекеры привычек: свои метрики, записи за день, графики и серия дней; часть метрик открывается лицензионным ключом. Настройки Марафона — старт и цель в днях. Раздел «Дерево» (Temper) убран: хаб стал проще и легче. Цвета графиков зависят от типа метрики, серии дневных заметок починены. Промо-сайт переписан на полноэкранные слайды: знакомство, манифест, цикл метода, инструменты и файлы для скачивания — внизу, в финальном слайде."
     $payload = @{
       tag_name         = $Tag
       name             = "KHS $Version"

@@ -13,6 +13,7 @@ import 'notes_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
 import 'task_edit_screen.dart';
+import 'task_quick_capture_screen.dart';
 import 'widgets/quick_add_bar.dart';
 import 'widgets/task_tile.dart';
 
@@ -34,6 +35,18 @@ class _HomeScreenState extends State<HomeScreen> {
   int _widePrevIndex = 0;
   late final PageController _widePageController = PageController();
 
+  /// Подстраница быстрого ввода открывается один раз при входе в раздел.
+  bool _quickOpened = false;
+
+  /// Подстраница «Главной»: по центру быстрый ввод задачи, снизу — панель.
+  void _openQuickCapture() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TaskQuickCaptureScreen(onSelectTab: _wideGoTo),
+      ),
+    );
+  }
+
   void _wideGoTo(int i) {
     setState(() {
       if (_wideIndex != i) _widePrevIndex = _wideIndex;
@@ -44,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
     );
+    if (i == 0) _openQuickCapture();
   }
 
   /// Возврат из настроек: на предыдущую вкладку, и если мы уже там — на
@@ -65,6 +79,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final wide = width >= 980;
 
     if (!wide) return const MobileShell();
+
+    if (!_quickOpened) {
+      _quickOpened = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openQuickCapture();
+      });
+    }
 
     final design = state.isDesignMode;
 
@@ -158,6 +179,23 @@ class _MobileShellState extends State<MobileShell> {
   int _prevIndex = 0;
   late final PageController _pageController = PageController();
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openQuickCapture();
+    });
+  }
+
+  /// Подстраница «Главной»: по центру быстрый ввод задачи, снизу — панель.
+  void _openQuickCapture() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TaskQuickCaptureScreen(onSelectTab: _goTo),
+      ),
+    );
+  }
+
   void _goTo(int i) {
     setState(() {
       if (_index != i) _prevIndex = _index;
@@ -168,6 +206,7 @@ class _MobileShellState extends State<MobileShell> {
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
     );
+    if (i == 0) _openQuickCapture();
   }
 
   /// Возврат из настроек на предыдущую вкладку.
@@ -320,9 +359,11 @@ class _CenterPanel extends StatelessWidget {
                     },
                     onDelete: () => state.deleteTask(task),
                   ),
-              const SizedBox(height: 16),
-              const QuickAddBar(),
-              const SizedBox(height: 20),
+               const SizedBox(height: 16),
+               Hero(
+                 tag: kQuickAddHeroTag,
+                 child: const QuickAddBar(),
+               ),
               _EventsSection(),
               const SizedBox(height: 16),
               Padding(
@@ -612,9 +653,11 @@ class _NarrowDashboardState extends State<_NarrowDashboard> {
                     },
                     onDelete: () => state.deleteTask(task),
                   ),
-              const SizedBox(height: 16),
-              const QuickAddBar(),
-              const SizedBox(height: 16),
+               const SizedBox(height: 16),
+               Hero(
+                 tag: kQuickAddHeroTag,
+                 child: const QuickAddBar(),
+               ),
               const _EventsSection(height: 120),
             ],
           ),

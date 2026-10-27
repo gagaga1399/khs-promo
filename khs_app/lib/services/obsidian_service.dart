@@ -45,6 +45,26 @@ class ObsidianService {
 
   bool get isConfigured => vaultPath.trim().isNotEmpty;
 
+  /// Относительные пути всех markdown-заметок хранилища (сегменты через «/»),
+  /// кроме скрытых папок вроде `.obsidian`. Нужно проводнику заметок.
+  Future<List<String>> listMarkdownFiles() async {
+    final root = vaultPath.trim();
+    if (root.isEmpty) return const [];
+    final dir = Directory(root);
+    if (!await dir.exists()) return const [];
+    final out = <String>[];
+    await for (final entity in dir.list(recursive: true, followLinks: false)) {
+      if (entity is! File) continue;
+      final segments = p.split(p.relative(entity.path, from: root));
+      if (segments.isEmpty) continue;
+      if (!segments.last.toLowerCase().endsWith('.md')) continue;
+      if (segments.any((s) => s.startsWith('.'))) continue;
+      out.add(segments.join('/'));
+    }
+    out.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return out;
+  }
+
   static String dateString(DateTime d) {
     final m = d.month.toString().padLeft(2, '0');
     final day = d.day.toString().padLeft(2, '0');
@@ -129,6 +149,28 @@ class ObsidianService {
         : _defaultNotePath(date);
   }
 
+  /// Корни папок с ежедневными заметками — для обхода трекерами.
+  ///
+  /// Настройка Obsidian часто указывает на текущий месяц
+  /// (`даты/2026/месяцы/октябрь`), поэтому от неё берём путь до сегмента
+  /// `даты` включительно: так в обход попадут все годы и месяцы. Последним
+  /// добавляется стандартная папка `даты`.
+  Future<List<String>> dailyNoteRoots() async {
+    final roots = <String>[];
+    final folder = await _folderFromConfig();
+    if (folder != null) {
+      final segs = _safeSegments(folder);
+      final i = segs.indexOf('даты');
+      if (i >= 0) {
+        roots.add(p.join(vaultPath, p.joinAll(segs.sublist(0, i + 1))));
+      } else if (segs.isNotEmpty) {
+        roots.add(p.join(vaultPath, p.joinAll(segs)));
+      }
+    }
+    roots.add(p.join(vaultPath, 'даты'));
+    return <String>{...roots}.toList();
+  }
+
   /// Читает шаблон ежедневной заметки из настроек Obsidian
   /// (`.obsidian/daily-notes.json`, поле `template`). Если шаблона нет —
   /// возвращает `null`.
@@ -150,6 +192,69 @@ class ObsidianService {
       }
     } catch (_) {}
     return null;
+  }
+
+  /// Папка шаблонов Obsidian относительно хранилища (сегменты через «/») или
+  /// `null`, если она не настроена. Сначала берём папку плагина «Шаблоны»
+  /// (`.obsidian/templates.json`, поле `folder`), затем папку шаблона
+  /// ежедневной заметки (`.obsidian/daily-notes.json`, поле `template`).
+  Future<String?> templateFolder() async {
+    final dir = Directory(p.join(vaultPath, '.obsidian'));
+    if (!await dir.exists()) return null;
+
+    final templatesFile = File(p.join(vaultPath, '.obsidian', 'templates.json'));
+    if (await templatesFile.exists()) {
+      try {
+        final json = jsonDecode(await templatesFile.readAsString());
+        if (json is Map<String, dynamic> && json['folder'] is String) {
+          final folder = (json['folder'] as String).trim();
+          final segs = _safeSegments(folder);
+          if (segs.isNotEmpty) return segs.join('/');
+        }
+      } catch (_) {}
+    }
+
+    final dailyFile = File(p.join(vaultPath, '.obsidian', 'daily-notes.json'));
+    if (await dailyFile.exists()) {
+      try {
+        final json = jsonDecode(await dailyFile.readAsString());
+        if (json is Map<String, dynamic> && json['template'] is String) {
+          var rel = (json['template'] as String).trim();
+          if (rel.isEmpty) return null;
+          if (!rel.endsWith('.md')) rel = '$rel.md';
+          final segs = _safeSegments(rel);
+          if (segs.length >= 2) return segs.sublist(0, segs.length - 1).join('/');
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  /// Относительные пути markdown-шаблонов из папки шаблонов Obsidian
+  /// (сегменты через «/»). Пустой список, если папка не настроена.
+  Future<List<String>> listTemplates() async {
+    final folder = await templateFolder();
+    if (folder == null || folder.isEmpty) return const [];
+    final root = p.join(vaultPath, p.joinAll(_safeSegments(folder)));
+    final dir = Directory(root);
+    if (!await dir.exists()) return const [];
+    final out = <String>[];
+    await for (final entity in dir.list(recursive: true, followLinks: false)) {
+      if (entity is! File) continue;
+      if (!entity.path.toLowerCase().endsWith('.md')) continue;
+      out.add(p.split(p.relative(entity.path, from: vaultPath)).join('/'));
+    }
+    out.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return out;
+  }
+
+  /// Читает содержимое шаблона по относительному пути внутри хранилища.
+  Future<String?> readRelative(String relative) async {
+    final segs = _safeSegments(relative);
+    if (segs.isEmpty) return null;
+    final file = File(p.join(vaultPath, p.joinAll(segs)));
+    if (!await file.exists()) return null;
+    return file.readAsString(encoding: utf8);
   }
 
   /// Шаблон (если есть) + блок KHS в самом низу — для новой ежедневной заметки.

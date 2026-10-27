@@ -37,7 +37,6 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
   late final TextEditingController _titleController;
   late final QuillController _quillController;
   late final FocusNode _contentFocus;
-  late final ScrollController _scrollController;
   late bool _isDaily;
   late DateTime _date;
 
@@ -58,7 +57,6 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
         widget.date ??
         DateTime(now.year, now.month, now.day);
     _contentFocus = FocusNode();
-    _scrollController = ScrollController();
     _quillController = QuillController(
       document: markdownToQuillDocument(
         widget.note?.content ?? widget.initialContent,
@@ -82,7 +80,6 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
     _titleController.dispose();
     _quillController.dispose();
     _contentFocus.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -241,105 +238,110 @@ class _NotesEditorScreenState extends State<NotesEditorScreen>
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_isNew ? strings.t('createNote') : strings.t('editNote')),
+          title: TextField(
+            controller: _titleController,
+            autofocus: _isNew,
+            textInputAction: TextInputAction.next,
+            maxLines: 1,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).appBarTheme.titleTextStyle,
+            decoration: InputDecoration(
+              hintText:
+                  _isNew ? strings.t('createNote') : strings.t('noteTitleHint'),
+              hintStyle: Theme.of(context).appBarTheme.titleTextStyle,
+              filled: false,
+              border: InputBorder.none,
+              isDense: true,
+            ),
+          ),
           actions: [
             if (!_isNew)
               IconButton(
                 icon: const Icon(Icons.delete_outline),
+                tooltip: strings.t('delete'),
                 onPressed: _delete,
               ),
             IconButton(
-              icon: const Icon(Icons.check),
+              icon: const Icon(Icons.save_outlined),
               tooltip: strings.t('save'),
               onPressed: _save,
             ),
           ],
         ),
-        body: Column(
-          children: [
-            if (_isNew)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: SegmentedButton<bool>(
-                  segments: [
-                    ButtonSegment(
-                      value: true,
-                      icon: const Icon(Icons.calendar_today_outlined, size: 16),
-                      label: Text(strings.t('dailyNote')),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_isNew)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: SegmentedButton<bool>(
+                    segments: [
+                      ButtonSegment(
+                        value: true,
+                        icon: const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 16,
+                        ),
+                        label: Text(strings.t('dailyNote')),
+                      ),
+                      ButtonSegment(
+                        value: false,
+                        icon: const Icon(Icons.note_outlined, size: 16),
+                        label: Text(strings.t('standaloneNote')),
+                      ),
+                    ],
+                    selected: {_isDaily},
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    ButtonSegment(
-                      value: false,
-                      icon: const Icon(Icons.note_outlined, size: 16),
-                      label: Text(strings.t('standaloneNote')),
-                    ),
-                  ],
-                  selected: {_isDaily},
-                  showSelectedIcon: false,
-                  style: const ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    onSelectionChanged: (s) => setState(() {
+                      _isDaily = s.first;
+                      _dirty = true;
+                    }),
                   ),
-                  onSelectionChanged: (s) => setState(() {
-                    _isDaily = s.first;
-                    _dirty = true;
-                  }),
                 ),
-              ),
-            if (_isDaily)
-              ListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-                leading: const Icon(Icons.event, size: 20),
-                title: Text(
-                  strings.t('noteDate'),
-                  style: Theme.of(context).textTheme.bodySmall,
+              if (_isDaily)
+                ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                  leading: const Icon(Icons.event, size: 20),
+                  title: Text(
+                    strings.t('noteDate'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  subtitle: Text(
+                    dateFormat.format(_date),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  trailing: _isNew
+                      ? TextButton.icon(
+                          onPressed: _pickDate,
+                          icon: const Icon(Icons.edit_calendar, size: 18),
+                          label: Text(strings.t('chooseDate')),
+                        )
+                      : null,
                 ),
-                subtitle: Text(
-                  dateFormat.format(_date),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                trailing: _isNew
-                    ? TextButton.icon(
-                        onPressed: _pickDate,
-                        icon: const Icon(Icons.edit_calendar, size: 18),
-                        label: Text(strings.t('chooseDate')),
-                      )
-                    : null,
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-              child: TextField(
-                controller: _titleController,
-                autofocus: _isNew,
-                textInputAction: TextInputAction.next,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-                decoration: InputDecoration(
-                  hintText: strings.t('noteTitleHint'),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            const Divider(height: 16),
-            _buildToolbar(Theme.of(context), strings),
-            Expanded(
-              child: QuillEditor.basic(
+              if (_isNew || _isDaily) const Divider(height: 1),
+              _buildToolbar(Theme.of(context), strings),
+              const Divider(height: 1),
+              QuillEditor.basic(
                 controller: _quillController,
                 focusNode: _contentFocus,
-                scrollController: _scrollController,
                 config: QuillEditorConfig(
-                  expands: true,
-                  scrollable: true,
+                  expands: false,
+                  scrollable: false,
                   autoFocus: false,
                   scrollPhysics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                   placeholder: strings.t('noteContentHint'),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

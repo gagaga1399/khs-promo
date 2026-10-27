@@ -14,6 +14,10 @@ class LauncherShortcut {
   /// `--reader`. Сама читалка — встроенный модуль, отдельного приложения нет.
   static bool startReader = false;
 
+  /// Запуск сразу в трекеры: ярлык рабочего стола на Windows с аргументом
+  /// `--tracker`. Трекеры — встроенный модуль хаба.
+  static bool startTracker = false;
+
   /// Стартовый флаг из intent (Android) — «открыть сразу KHS Tasks».
   static Future<String?> initialStart() async {
     if (!Platform.isAndroid) return null;
