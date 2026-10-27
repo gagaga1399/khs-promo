@@ -1,11 +1,11 @@
-{
-    "android":  "khs-1.2.35.apk",
-    "android_sha256":  "0619e095655143e96290b3376963234aaf6c07be065d2082fa5b8d8424c5df48",
-    "android_size":  82983436,
-    "notes":  "Заметки теперь компактное дерево как в Obsidian: сворачиваемые папки, плотный список строк, анимации раскрытия, быстрое создание папок и заметок, хлебные крошки и подстраница задач. Подровнены отступы по всему приложению. Задачи и заметки синхронизируются с облаком через аккаунт: вход по почте и через Google. Починена проверка обновлений на ПК: сервер поднимался не всегда из-за адреса вида 192.168.0.107:4680.",
-    "signature":  "sGlvdS2ZrttWDwFVNLnMcsACtEyR2j6IuyjZwREWH/hLipTaK9OL7LvJSvnPyWPGpXlvbVMt0nnO8MO2GwJACw==",
-    "version":  "1.2.35",
-    "windows":  "khs-1.2.35-windows.zip",
-    "windows_sha256":  "d09748b30e50aaa1d56453728d6e0f860372c9a31d4f7e17a8dda415486c54b9",
-    "windows_size":  27068759
+﻿{
+    "android":  "khs-1.2.36.apk",
+    "android_sha256":  "2a24acdcc4ae3435c443804f762f5f0c478dccb387245275b2f5209de6ce8172",
+    "android_size":  84358012,
+    "notes":  "KHS 1.2.36: новые трекеры привычек, марафон, правки заметок.",
+    "signature":  "",
+    "version":  "1.2.36",
+    "windows":  "khs-1.2.36-windows.zip",
+    "windows_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "windows_size":  0
 }

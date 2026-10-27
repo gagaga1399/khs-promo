@@ -7,194 +7,287 @@
 <style>
   :root {
     --bg: #0a0a0a;
-    --panel: #141414;
-    --card: #111;
-    --line: #2b2b2b;
+    --panel: #131313;
+    --card: #101010;
+    --line: #262626;
+    --line-hi: #3a3a3a;
     --ink: #f2f2f2;
-    --muted: #8a8a8a;
-    --faint: #555;
+    --muted: #9b9b9b;
+    --faint: #5c5c5c;
     --ease: cubic-bezier(.22, 1, .36, 1);
+    --head-h: 64px;
+    --nav-w: 300px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; scroll-snap-type: y proximity; }
   body {
     font-family: "Segoe UI", Roboto, Arial, sans-serif;
-    background: var(--bg);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #161616 0%, transparent 60%),
+      var(--bg);
     color: var(--ink);
-    line-height: 1.6;
+    line-height: 1.7;
     letter-spacing: .1px;
     overflow-x: hidden;
   }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 48px); }
 
   /* ---------- Полоса прогресса прокрутки ---------- */
   #progress {
     position: fixed; inset: 0 auto auto 0; height: 2px; width: 0;
-    background: var(--ink); z-index: 40;
+    background: var(--ink); z-index: 60;
     transition: width .1s linear;
   }
 
-  /* ---------- Блоки ---------- */
+  /* ---------- Шапка ---------- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--head-h); z-index: 50;
+    display: flex; align-items: center;
+    background: rgba(10, 10, 10, .88);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  header .wrap { display: flex; align-items: center; gap: 20px; width: 100%; }
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+    font-weight: 800; font-size: 20px; letter-spacing: 2px;
+    text-decoration: none; color: var(--ink);
+  }
+  .logo img {
+    width: 34px; height: 34px; border-radius: 6px; object-fit: cover;
+    border: 1px solid var(--line);
+  }
+  .logo small { color: var(--faint); font-weight: 400; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; }
+  .head-cta { margin-left: auto; }
+
+  /* ---------- Гамбургер ---------- */
+  .nav-toggle {
+    width: 40px; height: 40px; border: 1px solid var(--line); background: transparent;
+    border-radius: 4px; cursor: pointer; display: grid; place-items: center; gap: 5px;
+    padding: 11px 9px; transition: border-color .2s;
+  }
+  .nav-toggle:hover { border-color: var(--line-hi); }
+  .nav-toggle span {
+    display: block; width: 100%; height: 1.5px; background: var(--ink);
+    transition: transform .3s var(--ease), opacity .2s;
+  }
+  .nav-toggle.is-open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+  .nav-toggle.is-open span:nth-child(2) { opacity: 0; }
+  .nav-toggle.is-open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+  /* ---------- Выдвижная панель слева ---------- */
+  #sidenav {
+    position: fixed; top: 0; left: 0; bottom: 0; width: var(--nav-w); max-width: 86vw;
+    z-index: 55; background: #0d0d0d; border-right: 1px solid var(--line);
+    transform: translateX(-100%); transition: transform .38s var(--ease);
+    display: flex; flex-direction: column; padding: 22px 0;
+    overflow-y: auto;
+  }
+  #sidenav.open { transform: translateX(0); }
+  .nav-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px 18px; border-bottom: 1px solid var(--line); margin-bottom: 10px;
+  }
+  .nav-head b { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .nav-close {
+    width: 34px; height: 34px; border: 1px solid var(--line); background: transparent;
+    color: var(--ink); border-radius: 4px; font-size: 18px; line-height: 1; cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .nav-close:hover { border-color: var(--line-hi); background: var(--panel); }
+  #sidenav a {
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 13px 24px; color: var(--muted); text-decoration: none;
+    font-size: 15px; letter-spacing: .3px;
+    border-left: 2px solid transparent;
+    transition: color .2s, background .2s, border-color .2s, padding-left .2s;
+  }
+  #sidenav a i {
+    font-style: normal; font-size: 11px; color: var(--faint);
+    font-variant-numeric: tabular-nums; letter-spacing: 1px;
+  }
+  #sidenav a:hover {
+    color: var(--ink); background: var(--panel);
+    border-left-color: var(--ink); padding-left: 30px;
+  }
+  .nav-foot {
+    margin-top: auto; padding: 18px 24px 4px; border-top: 1px solid var(--line);
+    color: var(--faint); font-size: 12.5px; line-height: 1.6;
+  }
+  .nav-foot b { color: var(--muted); font-weight: 700; }
+  #overlay {
+    position: fixed; inset: 0; z-index: 54; background: rgba(0, 0, 0, .62);
+    opacity: 0; visibility: hidden; transition: opacity .3s, visibility .3s;
+  }
+  #overlay.show { opacity: 1; visibility: visible; }
+
+  /* ---------- Полноэкранные слайды ---------- */
+  .slide {
+    min-height: 100dvh;
+    scroll-snap-align: start;
+    display: flex; align-items: center;
+    padding: calc(var(--head-h) + 48px) 0 72px;
+  }
+  .slide > .wrap { width: 100%; }
+
+  /* ---------- Блоки и нумерация ---------- */
   .block { counter-increment: block; position: relative; }
   body { counter-reset: block; }
-  .block > .sec-title::before {
-    content: counter(block, decimal-leading-zero);
-    display: inline-block;
-    margin-right: 14px;
-    color: var(--faint);
-    font-variant-numeric: tabular-nums;
+  .sec-title {
+    display: flex; align-items: center; gap: 18px;
+    font-size: 13px; font-weight: 700; margin-bottom: 34px;
+    letter-spacing: 4px; text-transform: uppercase; color: var(--muted);
   }
+  .sec-title::before {
+    content: counter(block, decimal-leading-zero);
+    color: var(--faint); font-variant-numeric: tabular-nums;
+    font-size: 12px; letter-spacing: 2px;
+  }
+  .sec-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  /* ---------- Растянутый текст ---------- */
+  .justify { text-align: justify; hyphens: auto; }
 
   /* ---------- Появление блоков при прокрутке ---------- */
   .reveal {
-    opacity: 0;
-    transform: translateY(34px);
-    transition:
-      opacity .8s var(--ease),
-      transform .8s var(--ease);
+    opacity: 0; transform: translateY(30px);
+    transition: opacity .8s var(--ease), transform .8s var(--ease);
     transition-delay: var(--d, 0ms);
     will-change: opacity, transform;
   }
   .reveal.is-visible { opacity: 1; transform: none; }
-  /* Пока скрипт не сработал, контент обязан быть виден: иначе при
-     отключённом JS страница осталась бы пустой. */
   .no-js .reveal { opacity: 1; transform: none; }
 
-  /* Мягкое подсвечивание строки при появлении. */
-  .hero .kicker, .hero h1, .hero .sub, .hero .btns, .hero .meta {
-    transition:
-      opacity .8s var(--ease),
-      transform .8s var(--ease),
-      letter-spacing 1.2s var(--ease);
-    transition-delay: var(--d, 0ms);
-  }
-
-  header { padding: 26px 0; }
-  .logo {
-    display: flex; align-items: center; gap: 14px;
-    font-weight: 800; font-size: 22px; letter-spacing: 2px;
-  }
-  .logo img {
-    width: 40px; height: 40px; border-radius: 6px; object-fit: cover;
-    border: 1px solid var(--line);
-  }
-  .logo small { color: var(--faint); font-weight: 400; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; }
-  .hero { padding: 40px 0 24px; }
+  /* ---------- Герой ---------- */
   .hero .kicker {
-    color: var(--muted); font-size: 13px; letter-spacing: 4px;
-    text-transform: uppercase; margin-bottom: 18px;
+    color: var(--muted); font-size: 13px; letter-spacing: 5px;
+    text-transform: uppercase; margin-bottom: 22px;
   }
   .hero h1 {
-    font-size: clamp(34px, 6vw, 58px); font-weight: 800;
-    letter-spacing: -1px; line-height: 1.05; text-transform: uppercase;
+    font-size: clamp(40px, 7.5vw, 84px); font-weight: 800;
+    letter-spacing: -1.5px; line-height: 1.02; text-transform: uppercase;
   }
-  .hero .sub { color: var(--muted); font-size: clamp(15px, 2vw, 18px); margin: 20px 0 0; max-width: 680px; }
-  .btns { display: flex; gap: 14px; justify-content: flex-start; flex-wrap: wrap; margin-top: 32px; }
+  .hero .sub {
+    color: var(--muted); font-size: clamp(16px, 1.6vw, 20px);
+    margin-top: 30px; max-width: 1040px;
+  }
+  .meta { margin-top: 26px; color: var(--faint); font-size: 14px; letter-spacing: .4px; }
+  #verline { color: var(--ink); font-weight: 700; }
+
+  /* ---------- Кнопки ---------- */
+  .btns { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 34px; }
   .btn {
     display: inline-flex; align-items: center; gap: 10px;
-    padding: 14px 26px; border-radius: 4px; text-decoration: none;
-    font-weight: 700; font-size: 14px; letter-spacing: .5px;
+    padding: 15px 30px; border-radius: 4px; text-decoration: none;
+    font-weight: 700; font-size: 14px; letter-spacing: .8px;
     text-transform: uppercase; border: 1px solid var(--ink);
-    transition: all .15s;
+    transition: background .15s, color .15s, transform .15s;
   }
+  .btn:active { transform: translateY(1px); }
   .btn-primary { background: var(--ink); color: var(--bg); }
   .btn-primary:hover { background: transparent; color: var(--ink); }
   .btn-ghost { background: transparent; color: var(--ink); }
   .btn-ghost:hover { background: var(--ink); color: var(--bg); }
-  .btn small { opacity: .7; font-weight: 400; text-transform: none; }
-  .meta { margin-top: 18px; color: var(--faint); font-size: 13px; }
-  #verline { color: var(--ink); font-weight: 700; }
-  section { padding: 48px 0; }
-
-  /* ---------- Заголовок блока ---------- */
-  .sec-title {
-    display: flex; align-items: center; gap: 18px;
-    font-size: 15px; font-weight: 700; margin-bottom: 26px;
-    letter-spacing: 4px; text-transform: uppercase; color: var(--muted);
+  .btn small { opacity: .7; font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .btn-line {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px; border: 1px solid var(--line); border-radius: 4px;
+    color: var(--ink); text-decoration: none;
+    font-size: 12.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+    transition: border-color .2s, background .2s;
   }
-  .sec-title::after {
-    content: ""; flex: 1; height: 1px; background: var(--line);
-  }
-
-  /* ---------- Манифест: каждый тезис отдельным блоком ---------- */
-  .manifest {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1px; background: var(--line); border: 1px solid var(--line);
-  }
-  .manifest p {
-    background: var(--card); padding: 26px 24px;
-    font-size: 16px; color: var(--muted);
-    transition: background .3s;
-  }
-  .manifest p:hover { background: var(--panel); }
-  .manifest .lead {
-    font-size: 20px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: .5px; color: var(--ink); grid-column: 1 / -1;
-  }
-  .manifest .em { color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+  .btn-line:hover { border-color: var(--ink); background: var(--panel); }
 
   /* ---------- Сетки карточек ---------- */
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
   .card {
-    background: var(--card); padding: 22px;
-    transition: background .3s, transform .3s var(--ease);
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 26px 24px;
+    transition: border-color .3s, background .3s;
   }
-  .card:hover { background: var(--panel); }
-  .card h3 { font-size: 15px; margin-bottom: 10px; letter-spacing: .5px; text-transform: uppercase; }
-  .card p { color: var(--muted); font-size: 14px; }
+  .card:hover { border-color: var(--line-hi); background: var(--panel); }
+  .card h3 { font-size: 15px; margin-bottom: 10px; letter-spacing: .8px; text-transform: uppercase; }
+  .card p { color: var(--muted); font-size: 14.5px; }
   .card .ico {
-    display: block; width: 32px; height: 32px; border: 1px solid var(--line);
-    border-radius: 4px; margin-bottom: 14px; display: grid; place-items: center;
+    width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 4px;
+    margin-bottom: 16px; display: grid; place-items: center;
     font-size: 16px; color: var(--ink);
   }
 
-  /* ---------- Цикл метода ---------- */
-  .cycle { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; counter-reset: step; }
+  /* ---------- Манифест ---------- */
+  .manifest { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .manifest p {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 28px 26px; font-size: 16.5px; color: var(--muted);
+    transition: border-color .3s;
+  }
+  .manifest p:hover { border-color: var(--line-hi); }
+  .manifest .lead {
+    grid-column: 1 / -1; background: transparent; border: 0; padding: 0 0 6px;
+    font-size: clamp(22px, 3vw, 34px); font-weight: 800; text-transform: uppercase;
+    letter-spacing: -.3px; line-height: 1.15; color: var(--ink);
+  }
+  .manifest .em { color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; }
+
+  /* ---------- Цикл ---------- */
+  .cycle { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; counter-reset: step; }
   .step {
-    counter-increment: step; position: relative;
-    border: 1px solid var(--line); background: var(--card);
-    padding: 28px 24px 26px;
+    counter-increment: step;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--card);
+    padding: 30px 26px 28px;
     transition: border-color .3s, background .3s;
   }
-  .step:hover { border-color: var(--faint); background: var(--panel); }
+  .step:hover { border-color: var(--line-hi); background: var(--panel); }
   .step::before {
     content: "0" counter(step);
-    display: block; font-size: 34px; font-weight: 800;
-    line-height: 1; margin-bottom: 16px; color: var(--faint);
+    display: block; font-size: 38px; font-weight: 800;
+    line-height: 1; margin-bottom: 18px; color: var(--faint);
     font-variant-numeric: tabular-nums;
   }
-  .step h3 { font-size: 15px; margin-bottom: 8px; letter-spacing: .5px; text-transform: uppercase; }
-  .step p { color: var(--muted); font-size: 14px; }
+  .step h3 { font-size: 15px; margin-bottom: 8px; letter-spacing: .8px; text-transform: uppercase; }
+  .step p { color: var(--muted); font-size: 14.5px; }
 
-  /* ---------- Скриншоты ---------- */
-  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--line); }
-  .shot {
-    aspect-ratio: 9/16; background: var(--panel);
-    display: grid; place-items: center; color: var(--faint); font-size: 13px;
-    overflow: hidden;
+  /* ---------- Слайд «Скачать» ---------- */
+  .dl-title {
+    font-size: clamp(28px, 4.5vw, 48px); font-weight: 800;
+    text-transform: uppercase; letter-spacing: -1px; line-height: 1.05;
+    margin-bottom: 16px;
   }
-  .shot img {
-    width: 100%; height: 100%; object-fit: cover; display: block;
-    opacity: 0; transform: scale(1.04);
-    transition: opacity .7s var(--ease), transform .7s var(--ease);
+  .dl-sub { color: var(--muted); font-size: clamp(15px, 1.5vw, 18px); max-width: 900px; }
+  .dl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 38px; }
+  .dl-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 32px 30px; display: flex; flex-direction: column;
+    transition: border-color .3s;
   }
-  .shot img.is-visible { opacity: 1; transform: none; }
-  #shotsSection { display: none; }
-  #shotsSection.show { display: block; }
+  .dl-card:hover { border-color: var(--line-hi); }
+  .dl-card .tag {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--faint); margin-bottom: 12px;
+  }
+  .dl-card h3 { font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin-bottom: 10px; }
+  .dl-card p { color: var(--muted); font-size: 14.5px; flex: 1; }
+  .dl-card .btns { margin-top: 26px; }
+  .dl-card .btn { padding: 13px 22px; font-size: 13px; }
 
   /* ---------- Подвал ---------- */
   footer {
-    padding: 30px 0 44px; text-align: center; color: var(--faint); font-size: 13px;
-    border-top: 1px solid var(--line); margin-top: 20px;
+    padding: 34px 0 48px; text-align: center;
+    color: var(--faint); font-size: 13.5px;
+    border-top: 1px solid var(--line);
   }
   footer a { color: var(--ink); text-decoration: none; }
   footer a:hover { text-decoration: underline; }
 
+  @media (max-width: 720px) {
+    .slide { min-height: auto; padding: calc(var(--head-h) + 36px) 0 56px; }
+    .head-cta { display: none; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-    .reveal,
-    .hero .kicker, .hero h1, .hero .sub, .hero .btns, .hero .meta,
-    .shot img {
+    html { scroll-behavior: auto; scroll-snap-type: none; }
+    .reveal {
       opacity: 1 !important; transform: none !important; transition: none !important;
     }
     #progress { display: none; }
@@ -207,92 +300,138 @@
 
 <header>
   <div class="wrap">
-    <div class="logo"><img src="/files/cover.png" alt="KHS"> KHS <small>метод</small></div>
+    <button class="nav-toggle" id="navToggle" aria-label="Меню" aria-expanded="false" aria-controls="sidenav">
+      <span></span><span></span><span></span>
+    </button>
+    <a class="logo" href="#heroSection"><img src="cover.png" alt="KHS"> KHS <small>метод</small></a>
+    <a class="btn-line head-cta" href="#downloadSection">Скачать</a>
   </div>
 </header>
 
-<div class="hero wrap block">
-  <div class="kicker reveal">Метод пересборки себя</div>
-  <h1 class="reveal">Убей<br>привычную<br>структуру</h1>
-  <p class="sub reveal">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS не разрушает ради хаоса — он заменяет то, что держит тебя в покое, на то, что ведёт в движение.</p>
-  <div class="btns reveal">
-    <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.35.apk" id="btnAndroid" target="_blank" rel="noopener">Скачать для Android <small id="apkSize"></small></a>
-    <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.35-windows.zip" id="btnWindows" target="_blank" rel="noopener">Скачать для Windows <small id="zipSize"></small></a>
+<nav id="sidenav" aria-label="Разделы сайта">
+  <div class="nav-head">
+    <b>Разделы</b>
+    <button class="nav-close" id="navClose" aria-label="Закрыть меню">×</button>
   </div>
-  <div class="meta reveal">Версия <span id="verline">1.2.35</span> · обновление по Wi-Fi из приложения</div>
-</div>
+  <a href="#heroSection"><i>01</i> Главная</a>
+  <a href="#manifestSection"><i>02</i> Манифест</a>
+  <a href="#cycleSection"><i>03</i> Цикл метода</a>
+  <a href="#toolsSection"><i>04</i> Инструменты</a>
+  <a href="#appsSection"><i>05</i> Приложения центра</a>
+  <a href="#downloadSection"><i>06</i> Скачать</a>
+  <div class="nav-foot">
+    Обновление по Wi-Fi прямо из приложения — версия в шапке страницы.
+  </div>
+</nav>
+<div id="overlay"></div>
 
-<section class="wrap block" id="appsSection">
-  <div class="sec-title reveal">Приложения центра</div>
-  <div class="grid">
-    <div class="card reveal">
-      <span class="ico">✔</span>
-      <h3>KHS Tasks</h3>
-      <p>Задачи и приоритеты, заметки дня, календарь. Живёт внутри хаба KHS.</p>
-      <p style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
-        <a id="btnAndroidCard" class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.35.apk" target="_blank" rel="noopener">Android <small id="apkSize3"></small></a>
-        <a id="btnWindowsCard" class="btn btn-ghost" style="padding:10px 16px;font-size:12px" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.35-windows.zip" target="_blank" rel="noopener">Windows <small id="zipSize3"></small></a>
-      </p>
-    </div>
-    <div class="card reveal">
-      <span class="ico">☰</span>
-      <h3>QutZem Reader</h3>
-      <p>Читалка книг и документов. Запускается прямо из хаба KHS отдельной плиткой.</p>
-      <p style="margin-top:16px">
-        <a id="btnReaderApk" class="btn btn-primary" style="padding:10px 16px;font-size:12px" href="https://github.com/gagaga1399/khs-reader-promo/releases/latest/download/qutzem-reader.apk" target="_blank" rel="noopener">Скачать APK <small id="qzSize"></small></a>
-      </p>
-    </div>
+<main>
+
+<section class="slide block hero" id="heroSection">
+  <div class="wrap">
+    <div class="kicker reveal">Метод пересборки себя</div>
+    <h1 class="reveal">Убей<br>привычную<br>структуру</h1>
+    <p class="sub justify reveal">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS не разрушает ради хаоса — он заменяет то, что держит тебя в покое, на то, что ведёт в движение.</p>
+    <div class="meta reveal">Версия <span id="verline">1.2.36</span> · обновление по Wi-Fi из приложения</div>
   </div>
 </section>
 
-<section class="wrap block">
-  <div class="sec-title reveal">Манифест</div>
-  <div class="manifest">
-    <p class="lead reveal">KHS — это метод пересборки себя.</p>
-    <p class="reveal">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS предлагает не разрушать ради хаоса, а заменять то, что держит тебя в покое, на то, что ведёт в движение.</p>
-    <p class="reveal">В основе — действие. Нет молитв, нет ритуалов. Есть <span class="em">выбор</span>.</p>
-    <p class="reveal">Каждый день ты либо укрепляешь старую рутину, либо строишь новую. KHS не говорит, что правильно. Он говорит: <span class="em">выбери и делай</span>.</p>
-    <p class="reveal">Цель — не «стать лучше». Цель — создать систему, в которой ты действуешь без борьбы. Когда привычка становится не обязанностью, а естественным состоянием.</p>
-    <p class="reveal">KHS не имеет конца. Ты не заканчиваешь. Ты продолжаешь. И всё завязано на <span class="em">дисциплине</span>.</p>
-  </div>
-</section>
-
-<section class="wrap block">
-  <div class="sec-title reveal">Цикл</div>
-  <div class="cycle">
-    <div class="step reveal">
-      <h3>Выбери</h3>
-      <p>Утром открываешь день и решаешь, что действительно важно. Приоритеты высокие, средние, низкие — решение каждый день, а не один раз на всю жизнь.</p>
-    </div>
-    <div class="step reveal">
-      <h3>Сделай</h3>
-      <p>Задача появляется одной фразой: дата, время и приоритет распознаются сами. Остаётся только нажать — и не дать списку разрастись.</p>
-    </div>
-    <div class="step reveal">
-      <h3>Закрой</h3>
-      <p>Вечером отмечаешь сделанное, пишешь заметку дня и видишь ритм на календаре. Завтрашний день собран из сегодняшнего.</p>
+<section class="slide block" id="manifestSection">
+  <div class="wrap">
+    <div class="sec-title reveal">Манифест</div>
+    <div class="manifest">
+      <p class="lead reveal">KHS — это метод пересборки себя.</p>
+      <p class="justify reveal">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS предлагает не разрушать ради хаоса, а заменять то, что держит тебя в покое, на то, что ведёт в движение.</p>
+      <p class="justify reveal">В основе — действие. Нет молитв, нет ритуалов. Есть <span class="em">выбор</span>.</p>
+      <p class="justify reveal">Каждый день ты либо укрепляешь старую рутину, либо строишь новую. KHS не говорит, что правильно. Он говорит: <span class="em">выбери и делай</span>.</p>
+      <p class="justify reveal">Цель — не «стать лучше». Цель — создать систему, в которой ты действуешь без борьбы. Когда привычка становится не обязанностью, а естественным состоянием.</p>
+      <p class="justify reveal">KHS не имеет конца. Ты не заканчиваешь. Ты продолжаешь. И всё завязано на <span class="em">дисциплине</span>.</p>
     </div>
   </div>
 </section>
 
-<section id="shotsSection" class="wrap block">
-  <div class="sec-title reveal">Скриншоты</div>
-  <div class="shots" id="shotsGrid"></div>
-</section>
-
-<section class="wrap block">
-  <div class="sec-title reveal">Инструменты метода</div>
-  <div class="grid">
-    <div class="card reveal"><span class="ico">✔</span><h3>Задачи и приоритеты</h3><p>Высокие / средние / низкие, фильтры, ежедневное планирование — выбор каждый день.</p></div>
-    <div class="card reveal"><span class="ico">⌛</span><h3>Календарь</h3><p>Все задачи на датах с маркерами — видно загруженные дни, ритм держится сам.</p></div>
-    <div class="card reveal"><span class="ico">✎</span><h3>Заметки дня</h3><p>Ежедневная заметка с датой и отдельные заметки — фиксируй, а не забывай.</p></div>
-    <div class="card reveal"><span class="ico">✚</span><h3>Быстрый ввод</h3><p>Добавляй задачи одним предложением — дата, время, приоритет распознаются автоматически.</p></div>
-    <div class="card reveal"><span class="ico">⇄</span><h3>Синк по Wi-Fi</h3><p>Телефон и ПК обмениваются данными в одной сети — система всегда с тобой.</p></div>
-    <div class="card reveal"><span class="ico">▦</span><h3>Obsidian</h3><p>Заметки пишутся в vault: ежедневные файлы в папке дат, остальные — в «заметки».</p></div>
-    <div class="card reveal"><span class="ico">◐</span><h3>Темы и цвет</h3><p>Системная, тёмная, светлая или своя — выбери фон и текст любой палитрой, вся тема меняется сразу.</p></div>
-    <div class="card reveal"><span class="ico">●</span><h3>Напоминания</h3><p>Уведомления в нужное время, оптимизация батареи подскажет. Действуй по сигналу.</p></div>
+<section class="slide block" id="cycleSection">
+  <div class="wrap">
+    <div class="sec-title reveal">Цикл</div>
+    <div class="cycle">
+      <div class="step reveal">
+        <h3>Выбери</h3>
+        <p class="justify">Утром открываешь день и решаешь, что действительно важно. Приоритеты высокие, средние, низкие — решение каждый день, а не один раз на всю жизнь.</p>
+      </div>
+      <div class="step reveal">
+        <h3>Сделай</h3>
+        <p class="justify">Задача появляется одной фразой: дата, время и приоритет распознаются сами. Остаётся только нажать — и не дать списку разрастись.</p>
+      </div>
+      <div class="step reveal">
+        <h3>Закрой</h3>
+        <p class="justify">Вечером отмечаешь сделанное, пишешь заметку дня и видишь ритм на календаре. Завтрашний день собран из сегодняшнего.</p>
+      </div>
+    </div>
   </div>
 </section>
+
+<section class="slide block" id="toolsSection">
+  <div class="wrap">
+    <div class="sec-title reveal">Инструменты метода</div>
+    <div class="grid">
+      <div class="card reveal"><div class="ico">✔</div><h3>Задачи и приоритеты</h3><p class="justify">Высокие / средние / низкие, фильтры, ежедневное планирование — выбор каждый день.</p></div>
+      <div class="card reveal"><div class="ico">⌛</div><h3>Календарь</h3><p class="justify">Все задачи на датах с маркерами — видно загруженные дни, ритм держится сам.</p></div>
+      <div class="card reveal"><div class="ico">✎</div><h3>Заметки дня</h3><p class="justify">Ежедневная заметка с датой и отдельные заметки — фиксируй, а не забывай.</p></div>
+      <div class="card reveal"><div class="ico">✚</div><h3>Быстрый ввод</h3><p class="justify">Добавляй задачи одним предложением — дата, время, приоритет распознаются автоматически.</p></div>
+      <div class="card reveal"><div class="ico">⇄</div><h3>Синк по Wi-Fi</h3><p class="justify">Телефон и ПК обмениваются данными в одной сети — система всегда с тобой.</p></div>
+      <div class="card reveal"><div class="ico">▦</div><h3>Obsidian</h3><p class="justify">Заметки пишутся в vault: ежедневные файлы в папке дат, остальные — в «заметки».</p></div>
+      <div class="card reveal"><div class="ico">◐</div><h3>Темы и цвет</h3><p class="justify">Системная, тёмная, светлая или своя — выбери фон и текст любой палитрой, вся тема меняется сразу.</p></div>
+      <div class="card reveal"><div class="ico">●</div><h3>Напоминания</h3><p class="justify">Уведомления в нужное время, оптимизация батареи подскажет. Действуй по сигналу.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="appsSection" class="slide block">
+  <div class="wrap">
+    <div class="sec-title reveal">Приложения центра</div>
+    <div class="grid">
+      <div class="card reveal">
+        <div class="ico">✔</div>
+        <h3>KHS Tasks</h3>
+        <p class="justify">Задачи и приоритеты, заметки дня, календарь, трекеры. Живёт внутри хаба KHS — вместе с остальными приложениями метода.</p>
+      </div>
+      <div class="card reveal">
+        <div class="ico">☰</div>
+        <h3>QutZem Reader</h3>
+        <p class="justify">Читалка книг и документов: FB2, EPUB, PDF и сканы. Запускается прямо из хаба KHS отдельной плиткой.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="downloadSection" class="slide block">
+  <div class="wrap">
+    <div class="sec-title reveal">Скачать</div>
+    <h2 class="dl-title reveal">Скачай то,<br>что нужно</h2>
+    <p class="dl-sub justify reveal">Одна сборка — весь метод: задачи, заметки, календарь и встроенная читалка. Обновление — по Wi-Fi прямо из приложения.</p>
+    <div class="dl-grid">
+      <div class="dl-card reveal">
+        <div class="tag">Хаб метода</div>
+        <h3>KHS Tasks</h3>
+        <p class="justify">Задачи, заметки, календарь, трекеры и читалка внутри. Windows-версия ставится на ПК и обменивается данными с телефоном по Wi-Fi.</p>
+        <div class="btns">
+          <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36.apk" id="btnAndroid" target="_blank" rel="noopener">Android <small id="apkSize"></small></a>
+          <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36-windows.zip" id="btnWindows" target="_blank" rel="noopener">Windows <small id="zipSize"></small></a>
+        </div>
+      </div>
+      <div class="dl-card reveal">
+        <div class="tag">Отдельное приложение</div>
+        <h3>QutZem Reader</h3>
+        <p class="justify">Читалка самостоятельным APK: книги, документы и сканы. Ставится отдельно или открывается плиткой из хаба — на выбор.</p>
+        <div class="btns">
+          <a class="btn btn-primary" id="btnReaderApk" href="https://github.com/gagaga1399/khs-reader-promo/releases/latest/download/qutzem-reader.apk" target="_blank" rel="noopener">Скачать APK <small id="qzSize"></small></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
 
 <footer>
   <div class="wrap">
@@ -304,14 +443,37 @@
 (function () {
   document.body.classList.remove('no-js');
 
+  // ---------- Выдвижная панель ----------
+  var nav = document.getElementById('sidenav');
+  var overlay = document.getElementById('overlay');
+  var toggle = document.getElementById('navToggle');
+  var closeBtn = document.getElementById('navClose');
+
+  function setNav(open) {
+    nav.classList.toggle('open', open);
+    overlay.classList.toggle('show', open);
+    toggle.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  toggle.addEventListener('click', function () {
+    setNav(!nav.classList.contains('open'));
+  });
+  closeBtn.addEventListener('click', function () { setNav(false); });
+  overlay.addEventListener('click', function () { setNav(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setNav(false);
+  });
+  nav.querySelectorAll('a[href^="#"]').forEach(function (a) {
+    a.addEventListener('click', function () { setNav(false); });
+  });
+
   // ---------- Появление блоков при прокрутке ----------
   var revealables = document.querySelectorAll('.reveal');
 
   if (!('IntersectionObserver' in window)) {
     revealables.forEach(function (el) { el.classList.add('is-visible'); });
   } else {
-    // Задержка растёт по индексу внутри блока: карточки выезжают
-    // одна за другой, а не все разом.
     document.querySelectorAll('.block').forEach(function (block) {
       block.querySelectorAll('.reveal').forEach(function (el, i) {
         el.style.setProperty('--d', Math.min(i, 8) * 70 + 'ms');
@@ -324,12 +486,7 @@
         entry.target.classList.add('is-visible');
         io.unobserve(entry.target);
       });
-    }, {
-      // Появление чуть раньше, чем элемент доедет до низа экрана: блок
-      // уже готов встречать взгляд, а не догонять его.
-      rootMargin: '0px 0px -12% 0px',
-      threshold: 0.05
-    });
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.05 });
 
     revealables.forEach(function (el) { io.observe(el); });
   }
@@ -353,42 +510,9 @@
   window.addEventListener('resize', updateProgress);
   updateProgress();
 
-  // ---------- Скриншоты ----------
-  var shots = ['shot-1.png','shot-2.png','shot-3.png','shot-4.png','shot-5.png','shot-6.png'];
-  var grid = document.getElementById('shotsGrid');
-  var shown = 0;
-  shots.forEach(function (name) {
-    var img = new Image();
-    img.alt = 'Скриншот KHS';
-    img.loading = 'lazy';
-    img.onload = function () {
-      var d = document.createElement('div');
-      d.className = 'shot reveal is-visible';
-      d.appendChild(img);
-      grid.appendChild(d);
-      shown++;
-      if (shown > 0) document.getElementById('shotsSection').classList.add('show');
-      if ('IntersectionObserver' in window) {
-        var shotIo = new IntersectionObserver(function (entries) {
-          entries.forEach(function (entry) {
-            if (!entry.isIntersecting) return;
-            entry.target.classList.add('is-visible');
-            shotIo.unobserve(entry.target);
-          });
-        }, { threshold: 0.1 });
-        shotIo.observe(img);
-      } else {
-        img.classList.add('is-visible');
-      }
-    };
-    img.src = '/files/' + name;
-  });
-
-      document.getElementById('verline').textContent = '1.2.35';
-    document.getElementById('apkSize').textContent = '79.1 MB';
-    document.getElementById('zipSize').textContent = '25.8 MB';
-    document.getElementById('apkSize3').textContent = '79.1 MB';
-    document.getElementById('zipSize3').textContent = '25.8 MB';
+      document.getElementById('verline').textContent = '1.2.36';
+    document.getElementById('apkSize').textContent = '80.5 MB';
+    document.getElementById('zipSize').textContent = '0.0 MB';
     document.getElementById('qzSize').textContent = '0.0 MB';
 function fmt(b) {
     var mb = b / 1024 / 1024;
