@@ -303,7 +303,7 @@
     <button class="nav-toggle" id="navToggle" aria-label="Меню" aria-expanded="false" aria-controls="sidenav">
       <span></span><span></span><span></span>
     </button>
-    <a class="logo" href="#heroSection"><img src="/files/cover.png" alt="KHS"> KHS <small>метод</small></a>
+    <a class="logo" href="#heroSection"><img src="cover.png" alt="KHS"> KHS <small>метод</small></a>
     <a class="btn-line head-cta" href="#downloadSection">Скачать</a>
   </div>
 </header>
@@ -332,7 +332,7 @@
     <div class="kicker reveal">Метод пересборки себя</div>
     <h1 class="reveal">Убей<br>привычную<br>структуру</h1>
     <p class="sub justify reveal">Привычная структура не враг, но она — твой потолок, если ты не готов её менять. KHS не разрушает ради хаоса — он заменяет то, что держит тебя в покое, на то, что ведёт в движение.</p>
-    <div class="meta reveal">Версия <span id="verline">…</span> · обновление по Wi-Fi из приложения</div>
+    <div class="meta reveal">Версия <span id="verline">1.2.36</span> · обновление по Wi-Fi из приложения</div>
   </div>
 </section>
 
@@ -415,8 +415,8 @@
         <h3>KHS Tasks</h3>
         <p class="justify">Задачи, заметки, календарь, трекеры и читалка внутри. Windows-версия ставится на ПК и обменивается данными с телефоном по Wi-Fi.</p>
         <div class="btns">
-          <a class="btn btn-primary" href="#" id="btnAndroid" target="_blank" rel="noopener">Android <small id="apkSize"></small></a>
-          <a class="btn btn-ghost" href="#" id="btnWindows" target="_blank" rel="noopener">Windows <small id="zipSize"></small></a>
+          <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36.apk" id="btnAndroid" target="_blank" rel="noopener">Android <small id="apkSize"></small></a>
+          <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36-windows.zip" id="btnWindows" target="_blank" rel="noopener">Windows <small id="zipSize"></small></a>
         </div>
       </div>
       <div class="dl-card reveal">
@@ -424,7 +424,7 @@
         <h3>QutZem Reader</h3>
         <p class="justify">Читалка самостоятельным APK: книги, документы и сканы. Ставится отдельно или открывается плиткой из хаба — на выбор.</p>
         <div class="btns">
-          <a class="btn btn-primary" id="btnReaderApk" href="#" target="_blank" rel="noopener">Скачать APK <small id="qzSize"></small></a>
+          <a class="btn btn-primary" id="btnReaderApk" href="https://github.com/gagaga1399/khs-reader-promo/releases/latest/download/qutzem-reader.apk" target="_blank" rel="noopener">Скачать APK <small id="qzSize"></small></a>
         </div>
       </div>
     </div>
@@ -435,7 +435,7 @@
 
 <footer>
   <div class="wrap">
-    KHS · метод, а не приложение · выбери и делай · <a href="/api/v1/update">update.json</a>
+    KHS · метод, а не приложение · выбери и делай · <a href="https://github.com/gagaga1399/khs-promo">update.json</a>
   </div>
 </footer>
 
@@ -510,28 +510,11 @@
   window.addEventListener('resize', updateProgress);
   updateProgress();
 
-  fetch('/api/v1/update')
-    .then(function (r) { return r.json(); })
-    .then(function (u) {
-      document.getElementById('verline').textContent = u.version || '…';
-      var android = document.getElementById('btnAndroid');
-      var windows = document.getElementById('btnWindows');
-      if (u.android) {
-        android.href = '/files/' + u.android;
-        document.getElementById('apkSize').textContent = u.android_size ? fmt(u.android_size) : '';
-      } else {
-        android.style.display = 'none';
-      }
-      if (u.windows) {
-        windows.href = '/files/' + u.windows;
-        document.getElementById('zipSize').textContent = u.windows_size ? fmt(u.windows_size) : '';
-      } else {
-        windows.style.display = 'none';
-      }
-    })
-    .catch(function () { document.getElementById('verline').textContent = 'ПК-сервер недоступен'; });
-
-  function fmt(b) {
+      document.getElementById('verline').textContent = '1.2.36';
+    document.getElementById('apkSize').textContent = '80.5 MB';
+    document.getElementById('zipSize').textContent = '0.0 MB';
+    document.getElementById('qzSize').textContent = '0.0 MB';
+function fmt(b) {
     var mb = b / 1024 / 1024;
     return (mb >= 1000 ? (mb/1024).toFixed(1) + ' GB' : mb.toFixed(1) + ' MB');
   }
