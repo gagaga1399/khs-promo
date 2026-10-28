@@ -11,6 +11,8 @@
   body{font-family:"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(1200px 600px at 80% -10%,#161616 0%,transparent 60%),var(--bg);color:var(--ink);line-height:1.7;letter-spacing:.1px;overflow-x:hidden}
   .wrap{max-width:1240px;margin:0 auto;padding:0 clamp(20px,4vw,48px)}
 
+  #progress{position:fixed;inset:0 auto auto 0;height:2px;width:0;background:var(--ink);z-index:60;transition:width .1s linear}
+
   header{position:fixed;top:0;left:0;right:0;height:var(--head-h);z-index:50;display:flex;align-items:center;background:rgba(10,10,10,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
   header .wrap{display:flex;align-items:center;gap:20px;width:100%}
   .logo{display:flex;align-items:center;gap:12px;font-weight:800;font-size:20px;letter-spacing:2px;text-decoration:none;color:var(--ink);cursor:pointer}
@@ -99,10 +101,12 @@
   footer a:hover{text-decoration:underline}
 
   @media(max-width:720px){.view{padding:36px 0 56px}.head-cta{display:none}}
-  @media(prefers-reduced-motion:reduce){.reveal{opacity:1!important;transform:none!important;transition:none!important}}
+  @media(prefers-reduced-motion:reduce){.reveal{opacity:1!important;transform:none!important;transition:none!important}#progress{display:none}}
 </style>
 </head>
 <body class="no-js">
+<div id="progress"></div>
+
 <header>
   <div class="wrap">
     <button class="nav-toggle" id="navToggle"><span></span><span></span><span></span></button>
@@ -120,10 +124,10 @@
   <div class="nav-link" data-view="manifest"><i>02</i> Манифест</div>
   <div class="nav-link" data-view="cycle"><i>03</i> Цикл работы</div>
   <div class="nav-link" data-view="tools"><i>04</i> Инструменты</div>
-  <div class="nav-link" data-view="khstasks"><i>05</i> KHS Tasks (хаб)</div>
+  <div class="nav-link" data-view="khstasks"><i>05</i> KHS Tasks</div>
   <div class="nav-link" data-view="reader"><i>06</i> QutZem Reader</div>
   <div class="nav-link" data-view="download"><i>07</i> Скачать</div>
-  <div class="nav-foot">KHS — хаб для фокуса и работы оффлайн.</div>
+  <div class="nav-foot">Хаб для фокуса и работы оффлайн.</div>
 </nav>
 <div id="overlay"></div>
 
@@ -132,10 +136,10 @@
     <div class="wrap">
       <div class="kicker reveal">ХАБ РЕШЕНИЙ ДЛЯ РАБОТЫ</div>
       <h1 class="reveal">УБЕЙ<br>ПРИВЫЧНУЮ<br>СТРУКТУРУ</h1>
-      <p class="sub justify reveal">KHS — минималистичный рабочий хаб. Структура служит тебе, а не наоборот.</p>
+      <p class="sub justify reveal">KHS — минималистичный рабочий хаб, где структура служит тебе, а не наоборот.</p>
       <div class="meta reveal">Версия <span id="verline">1.2.36</span></div>
       <div class="btns">
-        <div class="btn btn-primary reveal" data-view="khstasks">Перейти в KHS Tasks</div>
+        <div class="btn btn-primary reveal" data-view="khstasks">KHS Tasks</div>
         <div class="btn btn-ghost reveal" data-view="download">Скачать</div>
       </div>
     </div>
@@ -156,20 +160,20 @@
     <div class="wrap">
       <div class="sec-title reveal">Цикл работы</div>
       <div class="cycle">
-        <div class="step reveal"><h3>Фиксация</h3><p>Сфокусируйся на главном.</p></div>
-        <div class="step reveal"><h3>Действие</h3><p>Сделай одно важное действие.</p></div>
-        <div class="step reveal"><h3>Анализ</h3><p>Оцени и двигайся дальше.</p></div>
+        <div class="step reveal"><h3>Фиксация</h3><p>Фокус на главном.</p></div>
+        <div class="step reveal"><h3>Действие</h3><p>Одно важное действие.</p></div>
+        <div class="step reveal"><h3>Анализ</h3><p>Оценка и корректировка.</p></div>
       </div>
     </div>
   </section>
 
   <section class="view block" id="view-tools">
     <div class="wrap">
-      <div class="sec-title reveal">Инструменты хаба</div>
+      <div class="sec-title reveal">Инструменты</div>
       <div class="grid">
         <div class="card reveal"><div class="ico">🗂</div><h3>Задачи и привычки</h3><p>Трекинг в едином пространстве.</p></div>
-        <div class="card reveal"><div class="ico">🗒</div><h3>Заметки</h3><p>Быстрые заметки и связи.</p></div>
-        <div class="card reveal"><div class="ico">📶</div><h3>Оффлайн-режим</h3><p>Полностью автономно.</p></div>
+        <div class="card reveal"><div class="ico">🗒</div><h3>Заметки</h3><p>Быстрые заметки.</p></div>
+        <div class="card reveal"><div class="ico">📶</div><h3>Оффлайн</h3><p>Полностью автономно.</p></div>
       </div>
     </div>
   </section>
@@ -177,13 +181,13 @@
   <section class="view block" id="view-khstasks">
     <div class="wrap">
       <div class="sec-title reveal">KHS Tasks</div>
-      <h2 class="dl-title reveal">KHS Tasks — основной хаб</h2>
-      <p class="dl-sub justify reveal">Задачи, привычки, трекеры, заметки. Единое рабочее пространство KHS.</p>
+      <h2 class="dl-title reveal">KHS Tasks</h2>
+      <p class="dl-sub justify reveal">Основной хаб. Задачи, привычки, трекеры, заметки.</p>
       <div class="dl-grid">
         <div class="dl-card reveal">
           <div class="tag">ХАБ</div>
           <h3>KHS Tasks</h3>
-          <p>Скачать основной хаб для Android или Windows.</p>
+          <p>Скачать для Android или Windows.</p>
           <div class="btns">
             <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36.apk">Android APK</a>
             <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36-windows.zip">Windows ZIP</a>
@@ -197,12 +201,12 @@
     <div class="wrap">
       <div class="sec-title reveal">QutZem Reader</div>
       <h2 class="dl-title reveal">QutZem Reader</h2>
-      <p class="dl-sub justify reveal">Отдельный модуль для чтения книг.</p>
+      <p class="dl-sub justify reveal">Отдельный модуль для чтения.</p>
       <div class="dl-grid">
         <div class="dl-card reveal">
           <div class="tag">ЧИТАЛКА</div>
           <h3>QutZem Reader</h3>
-          <p>Поддержка FB2, EPUB, PDF. Локальная библиотека.</p>
+          <p>FB2, EPUB, PDF.</p>
           <div class="btns">
             <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-reader-promo/releases/latest/download/qutzem-reader.apk">Скачать APK</a>
           </div>
@@ -214,13 +218,11 @@
   <section class="view block" id="view-download">
     <div class="wrap">
       <div class="sec-title reveal">Скачать</div>
-      <h2 class="dl-title reveal">Файлы для скачивания</h2>
-      <p class="dl-sub justify reveal">Хаб и отдельные модули.</p>
+      <h2 class="dl-title reveal">Скачать</h2>
       <div class="dl-grid">
         <div class="dl-card reveal">
           <div class="tag">ХАБ</div>
           <h3>KHS Tasks</h3>
-          <p>Основной модуль хаба KHS.</p>
           <div class="btns">
             <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36.apk">Android APK</a>
             <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36-windows.zip">Windows ZIP</a>
@@ -229,7 +231,6 @@
         <div class="dl-card reveal">
           <div class="tag">ЧИТАЛКА</div>
           <h3>QutZem Reader</h3>
-          <p>Модуль для чтения.</p>
           <div class="btns">
             <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-reader-promo/releases/latest/download/qutzem-reader.apk">Скачать APK</a>
           </div>
@@ -245,6 +246,7 @@
 (function(){
   document.body.classList.remove('no-js');
   var nav=document.getElementById('sidenav'),overlay=document.getElementById('overlay'),toggle=document.getElementById('navToggle'),closeBtn=document.getElementById('navClose');
+  var progress=document.getElementById('progress');
   function setNav(o){nav.classList.toggle('open',o);overlay.classList.toggle('show',o);toggle.classList.toggle('is-open',o);}
   toggle.addEventListener('click',function(){setNav(!nav.classList.contains('open'));});
   closeBtn.addEventListener('click',function(){setNav(false);});
@@ -254,7 +256,7 @@
   function animateView(view){
     var items = view.querySelectorAll('.reveal');
     items.forEach(function(el){ el.classList.remove('is-visible'); });
-    items.forEach(function(el,i){ el.style.setProperty('--d', Math.min(i,14)*55 + 'ms'); });
+    items.forEach(function(el,i){ el.style.setProperty('--d', Math.min(i,12)*60 + 'ms'); });
     requestAnimationFrame(function(){ items.forEach(function(el){ el.classList.add('is-visible'); }); });
   }
 
@@ -270,6 +272,12 @@
   document.querySelectorAll('[data-view]').forEach(function(el){
     el.addEventListener('click',function(e){ var v=this.getAttribute('data-view'); if(v){ e.preventDefault(); showView(v); }});
   });
+
+  window.addEventListener('scroll',function(){
+    var max=document.documentElement.scrollHeight-window.innerHeight;
+    var p=max>0?(window.scrollY/max)*100:0;
+    if(progress) progress.style.width=Math.min(100,Math.max(0,p))+'%';
+  },{passive:true});
 
   document.getElementById('verline').textContent='1.2.36';
   animateView(document.querySelector('.view.active'));
