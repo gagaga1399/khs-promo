@@ -1,11 +1,11 @@
-﻿{
+{
+    "version":  "1.2.36",
     "android":  "khs-1.2.36.apk",
     "android_sha256":  "2a24acdcc4ae3435c443804f762f5f0c478dccb387245275b2f5209de6ce8172",
     "android_size":  84358012,
-    "notes":  "KHS 1.2.36: новые трекеры привычек, марафон, правки заметок.",
-    "signature":  "",
-    "version":  "1.2.36",
     "windows":  "khs-1.2.36-windows.zip",
-    "windows_sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "windows_size":  0
+    "windows_sha256":  "38df713022bbdd49d17ccda4310e0c0e6a42e00033ba2f03fb6ed99ac4689665",
+    "windows_size":  27844880,
+    "notes":  "KHS 1.2.36: обновлённый интерфейс задач, заметки и стабильность.",
+    "signature":  ""
 }
