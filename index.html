@@ -1,9 +1,18 @@
 <!DOCTYPE html>
+<!--
+  Структура продуктов KHS:
+  1. KHS — главный хаб-сборник: Tasks, Tracker, Reader.
+  2. KHS Tasks — инструмент задач и заметок.
+  3. KHS Tracker — инструмент привычек, метрик и прогресса.
+  4. QutZem Reader — читалка FB2, EPUB, PDF (только Android APK).
+  Скачивание хаба — в секции #download. Отдельные загрузки Tasks, Tracker
+  и Reader — в карточках секции #modules.
+-->
 <html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="KHS — минималистичный офлайн-хаб для фокуса и работы. KHS Tasks: задачи, привычки, трекеры и заметки. QutZem Reader: читалка FB2, EPUB, PDF. Android и Windows.">
+  <meta name="description" content="KHS — главный офлайн-хаб-сборник: задачи, трекеры, заметки и чтение. KHS Tasks — задачи и заметки. KHS Tracker — привычки, метрики и прогресс. QutZem Reader — читалка FB2, EPUB, PDF. Android и Windows.">
   <title>KHS — хаб для фокуса, задач и чтения</title>
   <style>
     :root {
@@ -379,9 +388,10 @@
           <div class="eyebrow reveal">Оффлайн · Локально · Минимализм</div>
           <h1 class="reveal">Рабочий хаб, который не мешает делать главное.</h1>
           <p class="lead reveal">
-            <strong>KHS</strong> — минималистичный хаб для фокуса и повседневной работы.
-            <strong>KHS Tasks</strong> объединяет задачи, привычки, трекеры и заметки в одном спокойном пространстве,
-            а <strong>QutZem Reader</strong> даёт отдельный модуль для чтения книг и документов.
+            <strong>KHS</strong> — главный хаб-сборник для фокуса и повседневной работы.
+            Внутри — <strong>KHS Tasks</strong> для задач и заметок, <strong>KHS Tracker</strong>
+            для привычек и прогресса и <strong>QutZem Reader</strong> для чтения книг и документов.
+            Инструменты можно скачать отдельно, но в хабе они собраны в одно пространство.
             Всё работает офлайн и хранит данные локально.
           </p>
           <div class="hero-actions">
@@ -403,9 +413,10 @@
             без лишней сложности и зависимости от постоянного подключения.
           </p>
           <ul class="signal-list">
-            <li><span class="dot" aria-hidden="true"></span><span><strong>KHS Tasks</strong> — задачи, привычки, трекеры, заметки.</span></li>
-            <li><span class="dot" aria-hidden="true"></span><span><strong>QutZem Reader</strong> — читалка для FB2, EPUB и PDF.</span></li>
-            <li><span class="dot" aria-hidden="true"></span><span><strong>Android и Windows</strong> — рабочий хаб на разных устройствах.</span></li>
+            <li><span class="dot" aria-hidden="true"></span><span><strong>KHS</strong> — главный хаб-сборник: задачи, трекеры и чтение в одном месте.</span></li>
+            <li><span class="dot" aria-hidden="true"></span><span><strong>KHS Tasks</strong> — отдельный инструмент для задач и заметок.</span></li>
+            <li><span class="dot" aria-hidden="true"></span><span><strong>KHS Tracker</strong> — отдельный инструмент для привычек и прогресса.</span></li>
+            <li><span class="dot" aria-hidden="true"></span><span><strong>QutZem Reader</strong> — отдельная читалка FB2, EPUB и PDF.</span></li>
           </ul>
         </aside>
       </div>
@@ -428,23 +439,43 @@
     <section id="modules">
       <div class="wrap">
         <div class="section-head">
-          <h2 class="reveal">Модули KHS</h2>
-          <p class="reveal">Основной хаб и отдельная читалка — разные задачи, единый подход: спокойно, быстро, по делу.</p>
+          <h2 class="reveal">Хаб и три инструмента</h2>
+          <p class="reveal">KHS — сборник инструментов: задачи, трекеры и чтение. Можно скачать весь хаб или только нужное.</p>
         </div>
         <div class="grid-2">
           <article class="module reveal">
-            <div class="module-head"><h3>KHS Tasks</h3><span class="tag">Основной хаб</span></div>
-            <p class="desc">Единое рабочее пространство KHS для организации дня и долгих целей: задачи, привычки, трекеры прогресса, заметки и фокус на важном.</p>
-            <div class="keywords" aria-label="Ключевые слова KHS Tasks"><span>задачи</span><span>привычки</span><span>трекеры</span><span>заметки</span><span>фокус</span><span>оффлайн</span><span>локально</span></div>
-            <ul class="feature-list"><li>Планирование задач и контроль выполнения.</li><li>Привычки и трекеры для регулярного прогресса.</li><li>Заметки рядом с рабочим контекстом.</li></ul>
-            <div class="module-actions"><a class="btn btn-primary" href="#download">Скачать KHS Tasks</a></div>
+            <div class="module-head"><h3>KHS</h3><span class="tag">Главный хаб</span></div>
+            <p class="desc">Главный хаб-сборник: задачи, привычки, трекеры, заметки и чтение в одном пространстве. KHS Tasks, KHS Tracker и QutZem Reader уже внутри.</p>
+            <div class="keywords" aria-label="Ключевые слова KHS"><span>хаб</span><span>задачи</span><span>трекеры</span><span>заметки</span><span>чтение</span><span>оффлайн</span></div>
+            <ul class="feature-list"><li>Объединяет Tasks, Tracker и Reader.</li><li>Единое локальное хранилище.</li><li>Один интерфейс для всего.</li></ul>
+            <div class="module-actions"><a class="btn btn-primary" href="#download">Скачать хаб</a></div>
+          </article>
+          <article class="module reveal">
+            <div class="module-head"><h3>KHS Tasks</h3><span class="tag">Задачи</span></div>
+            <p class="desc">Отдельный инструмент для задач и заметок: план на день, приоритеты, повторения и быстрый ввод. Можно скачать самостоятельно или открыть внутри хаба.</p>
+            <div class="keywords" aria-label="Ключевые слова KHS Tasks"><span>задачи</span><span>приоритеты</span><span>повторения</span><span>заметки</span><span>фокус</span></div>
+            <ul class="feature-list"><li>Планирование задач и контроль выполнения.</li><li>Приоритеты и повторяющиеся дела.</li><li>Заметки рядом с рабочим контекстом.</li></ul>
+            <div class="module-actions">
+              <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36.apk">Android APK</a>
+              <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36-windows.zip">Windows ZIP</a>
+            </div>
+          </article>
+          <article class="module reveal">
+            <div class="module-head"><h3>KHS Tracker</h3><span class="tag">Трекеры</span></div>
+            <p class="desc">Отдельный инструмент для привычек и метрик: записи по дням, серии, графики и прогресс. Можно скачать отдельно или открыть внутри хаба.</p>
+            <div class="keywords" aria-label="Ключевые слова KHS Tracker"><span>трекеры</span><span>привычки</span><span>метрики</span><span>серии</span><span>графики</span><span>прогресс</span></div>
+            <ul class="feature-list"><li>Свои метрики и записи за день.</li><li>Серии дней и наглядные графики.</li><li>Прогресс рядом с задачами.</li></ul>
+            <div class="module-actions">
+              <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36.apk">Android APK</a>
+              <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36-windows.zip">Windows ZIP</a>
+            </div>
           </article>
           <article class="module reveal">
             <div class="module-head"><h3>QutZem Reader</h3><span class="tag">Читалка</span></div>
-            <p class="desc">Отдельный модуль KHS для чтения. Подходит для книг и документов в популярных форматах, когда нужен спокойный офлайн-доступ к библиотеке.</p>
-            <div class="keywords" aria-label="Ключевые слова QutZem Reader"><span>читалка</span><span>книги</span><span>FB2</span><span>EPUB</span><span>PDF</span><span>документы</span><span>оффлайн</span></div>
-            <ul class="feature-list"><li>Поддержка форматов FB2, EPUB, PDF.</li><li>Локальная библиотека и чтение без лишних сервисов.</li><li>Отдельный модуль внутри экосистемы KHS.</li></ul>
-            <div class="module-actions"><a class="btn btn-ghost" href="#download">Скачать QutZem Reader</a></div>
+            <p class="desc">Отдельная читалка для книг и документов. Работает сама по себе и доступна как часть хаба.</p>
+            <div class="keywords" aria-label="Ключевые слова QutZem Reader"><span>читалка</span><span>книги</span><span>FB2</span><span>EPUB</span><span>PDF</span><span>оффлайн</span></div>
+            <ul class="feature-list"><li>Поддержка форматов FB2, EPUB, PDF.</li><li>Локальная библиотека.</li><li>Отдельное приложение экосистемы KHS.</li></ul>
+            <div class="module-actions"><a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/qutzem-reader.apk">Android APK</a></div>
           </article>
         </div>
       </div>
@@ -453,13 +484,16 @@
     <section id="features">
       <div class="wrap">
         <div class="section-head">
-          <h2 class="reveal">Что даёт KHS в работе</h2>
-          <p class="reveal">Простой цикл, который помогает не терять направление: зафиксировать, сделать, оценить и продолжить.</p>
+          <h2 class="reveal">Что внутри KHS</h2>
+          <p class="reveal">Конкретные инструменты, которые собраны в одном хабе — без переключения между сервисами.</p>
         </div>
         <div class="grid-3">
-          <article class="card reveal"><div class="tag">Цикл · 01</div><h3>Фиксация</h3><p>Запиши задачу, мысль или цель, пока она не потерялась. KHS помогает держать важное на виду.</p></article>
-          <article class="card reveal"><div class="tag">Цикл · 02</div><h3>Действие</h3><p>Сфокусируйся на следующем шаге. Минималистичная среда снижает трение между решением и действием.</p></article>
-          <article class="card reveal"><div class="tag">Цикл · 03</div><h3>Анализ</h3><p>Отмечай прогресс через привычки, трекеры и заметки — и корректируй маршрут без лишней бюрократии.</p></article>
+          <article class="card reveal"><div class="tag">01 · Задачи</div><h3>План на день</h3><p>Задачи, приоритеты, повторения и быстрый ввод — всё, чтобы не держать дела в голове.</p></article>
+          <article class="card reveal"><div class="tag">02 · Трекеры</div><h3>Прогресс и серии</h3><p>KHS Tracker хранит записи по дням, считает серии и показывает графики привычек и метрик.</p></article>
+          <article class="card reveal"><div class="tag">03 · Заметки</div><h3>Мысли рядом</h3><p>Быстрые заметки и дерево материалов живут в том же пространстве, что и рабочий контекст.</p></article>
+          <article class="card reveal"><div class="tag">04 · Чтение</div><h3>QutZem Reader</h3><p>FB2, EPUB и PDF открываются в отдельной читалке, которая встроена в хаб.</p></article>
+          <article class="card reveal"><div class="tag">05 · Оффлайн</div><h3>Без интернета</h3><p>Данные хранятся локально, поэтому работа не зависит от подключения и внешних сервисов.</p></article>
+          <article class="card reveal"><div class="tag">06 · Единый хаб</div><h3>Одно пространство</h3><p>KHS Tasks, KHS Tracker и QutZem Reader не разбрасывают внимание: всё собрано в одном приложении.</p></article>
         </div>
       </div>
     </section>
@@ -468,13 +502,13 @@
       <div class="wrap">
         <div class="download-panel reveal">
           <h2>Скачать KHS</h2>
-          <p><strong>KHS Tasks</strong> — основной хаб для задач, привычек, трекеров и заметок (Android APK, Windows ZIP). <strong>QutZem Reader</strong> — отдельная читалка для FB2, EPUB и PDF (Android APK).</p>
-          <div class="download-actions" aria-label="Ссылки на загрузку">
-            <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36.apk">KHS Tasks — Android APK</a>
-            <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36-windows.zip">KHS Tasks — Windows ZIP</a>
-            <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/qutzem-reader.apk">QutZem Reader — Android APK</a>
+          <p><strong>KHS</strong> — главный хаб: задачи, привычки, трекеры, заметки и чтение в одном приложении. Доступен для Android и Windows.</p>
+          <div class="download-actions" aria-label="Ссылки на загрузку хаба">
+            <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36.apk">KHS — Android APK</a>
+            <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36-windows.zip">KHS — Windows ZIP</a>
           </div>
-          <div class="fineprint">Ключевые слова: KHS, KHS Tasks, хаб, задачи, привычки, трекеры, заметки, офлайн, локально, фокус, минимализм, QutZem Reader, читалка, FB2, EPUB, PDF, Android, Windows.</div>
+          <div class="fineprint">Нужен только один инструмент? <a href="#modules">Скачайте KHS Tasks, KHS Tracker или QutZem Reader отдельно</a>.</div>
+          <div class="fineprint">Ключевые слова: KHS, хаб, KHS Tasks, KHS Tracker, задачи, привычки, трекеры, метрики, заметки, офлайн, локально, фокус, минимализм, QutZem Reader, читалка, FB2, EPUB, PDF, Android, Windows.</div>
         </div>
       </div>
     </section>
@@ -507,8 +541,12 @@
             behavior: reduce ? 'auto' : 'smooth',
             block: 'start'
           });
-          if (history && history.replaceState) {
-            history.replaceState(null, '', hash);
+          try {
+            if (history && history.replaceState) {
+              history.replaceState(null, '', hash);
+            }
+          } catch (err) {
+            // file:// и встроенные превью могут запрещать замену адреса.
           }
         });
       });
