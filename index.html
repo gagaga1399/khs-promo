@@ -316,6 +316,21 @@
     .download-panel p { margin: 12px 0 0; color: var(--muted); max-width: 62ch; }
     .download-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
     .fineprint { margin-top: 16px; color: var(--soft); font-size: 13px; }
+    .installer-note {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-top: 18px; padding: 11px 14px;
+      max-width: 70ch;
+      border: 1px solid rgba(79, 209, 197, .22);
+      border-radius: 12px;
+      background: rgba(79, 209, 197, .06);
+      color: var(--muted); font-size: 13px; line-height: 1.55;
+    }
+    .installer-note::before {
+      content: "✓";
+      flex: 0 0 auto;
+      color: #4FD1C5;
+      font-weight: 700;
+    }
     footer { padding: 34px 0 48px; color: var(--soft); font-size: 14px; }
     .footer-inner {
       display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -507,7 +522,7 @@
             <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.36.apk">KHS — Android APK</a>
             <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/KHS-Setup-1.2.36.exe">KHS — Windows установщик</a>
           </div>
-          <div class="fineprint">Для Windows скачивается установщик: он сам создаст ярлыки, добавит KHS в «Приложения и возможности» и не оставит папку с файлами.</div>
+          <div class="installer-note">Для Windows скачивается установщик: он сам создаст ярлыки, добавит KHS в «Приложения и возможности» и не оставит папку с файлами.</div>
           <div class="fineprint">Нужен только один инструмент? <a href="#modules">Скачайте KHS Tasks, KHS Tracker или QutZem Reader отдельно</a>.</div>
           <div class="fineprint">Ключевые слова: KHS, хаб, KHS Tasks, KHS Tracker, задачи, привычки, трекеры, метрики, заметки, офлайн, локально, фокус, минимализм, QutZem Reader, читалка, FB2, EPUB, PDF, Android, Windows.</div>
         </div>
