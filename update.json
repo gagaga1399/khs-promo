@@ -1,11 +1,11 @@
 {
-    "android":  "khs-1.2.36.apk",
-    "android_sha256":  "2a24acdcc4ae3435c443804f762f5f0c478dccb387245275b2f5209de6ce8172",
-    "android_size":  84358012,
-    "notes":  "KHS 1.2.36: установщик для Windows, свежий визуал и обновлённый сайт.",
-    "signature":  "XP1L1Nsr6tUcdg8bnJGP6dHv0TSrZMyiTy3qKm/zUR4379p5J2ISmQpsh9XKEsUAytMg9T7Q753mwCAmJXK+BQ==",
-    "version":  "1.2.36",
-    "windows":  "KHS-Setup-1.2.36.exe",
-    "windows_sha256":  "cac828c761bd59bd0c83fb57e03690cc83ebbd0770f9949554393c750a6e90b9",
-    "windows_size":  21541090
+    "android":  "khs-1.2.37.apk",
+    "android_sha256":  "95163fa3d4530dca93f2f3509a163bd402b89dc7e6f69302ec109deec63faf53",
+    "android_size":  85755952,
+    "notes":  "KHS 1.2.37: виджет расписания на Android — осталось уроков, отсчёт до звонка и ближайшие пункты дня. Новый раздел «Расписание» с уроками и тренировками, тренировки красным. Тап по виджету ведёт сразу на расписание. Настройки и нижняя панель стали быстрее, отсчёт читается естественно: «2 минуты», «1 урок остался».",
+    "signature":  "yPBAvN6+1FtrnU/QutCbV8f21hddFQqE7VMbGhOWwWN1jdxuLHQmEdvThDTzxQBMNiQqYsVNa+lDtPZqut3dAA==",
+    "version":  "1.2.37",
+    "windows":  "KHS-Setup-1.2.37.exe",
+    "windows_sha256":  "1de94fb459fcdeaab09de5016e01b386d1efd63ab698439da4c117f9007ad0f0",
+    "windows_size":  21273872
 }
