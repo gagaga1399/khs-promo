@@ -5,8 +5,8 @@
   2. KHS Tasks — инструмент задач и заметок внутри хаба.
   3. KHS Tracker — инструмент привычек, метрик и прогресса внутри хаба.
   4. QutZem Reader — читалка FB2, EPUB, PDF (в хабе и отдельным Android APK).
-  5. Дневник СГО — будущий раздел: расписание, домашка и оценки из школьного
-     дневника. Пока только заготовка «скоро», без загрузок.
+  5. Дневник СГО — рабочий раздел: расписание, домашка и оценки загружаются
+     с портала школы по логину и паролю; данные хранятся локально.
   Все загрузки — в секции #download; карточки #modules только описывают
   инструменты и не содержат кнопок скачивания.
 -->
@@ -14,7 +14,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="KHS — главный офлайн-хаб-сборник: задачи, трекеры, заметки и чтение. KHS Tasks — задачи и заметки. KHS Tracker — привычки, метрики и прогресс. QutZem Reader — читалка FB2, EPUB, PDF. Скоро — дневник СГО: расписание, домашка и оценки. Android и Windows.">
+  <meta name="description" content="KHS — главный офлайн-хаб-сборник: задачи, трекеры, заметки и чтение. KHS Tasks — задачи и заметки. KHS Tracker — привычки, метрики и прогресс. QutZem Reader — читалка FB2, EPUB, PDF. Дневник СГО: расписание, домашка и оценки из школьного портала. Android и Windows.">
   <title>KHS — хаб для фокуса, задач и чтения</title>
   <style>
     :root {
@@ -450,7 +450,7 @@
             Внутри — <strong>KHS Tasks</strong> для задач и заметок, <strong>KHS Tracker</strong>
             для привычек и прогресса и <strong>QutZem Reader</strong> для чтения книг и документов.
             Tasks и Tracker уже внутри хаба, а QutZem Reader можно поставить и отдельно.
-            Скоро появится дневник СГО — расписание, домашка и оценки.
+            Внутри — дневник СГО: расписание, домашка и оценки из школьного портала.
             Всё работает офлайн и хранит данные локально.
           </p>
           <div class="hero-actions">
@@ -476,7 +476,7 @@
             <li><span class="dot" aria-hidden="true"></span><span><strong>KHS Tasks</strong> — задачи и заметки внутри хаба.</span></li>
             <li><span class="dot" aria-hidden="true"></span><span><strong>KHS Tracker</strong> — привычки и прогресс внутри хаба.</span></li>
             <li><span class="dot" aria-hidden="true"></span><span><strong>QutZem Reader</strong> — отдельная читалка FB2, EPUB и PDF.</span></li>
-            <li><span class="dot" aria-hidden="true"></span><span><strong>Дневник СГО</strong> — скоро: расписание, домашка и оценки.</span></li>
+            <li><span class="dot" aria-hidden="true"></span><span><strong>Дневник СГО</strong> — расписание, домашка и оценки из школьного портала.</span></li>
           </ul>
         </aside>
       </div>
@@ -552,15 +552,15 @@
     <section id="diary">
       <div class="wrap">
         <div class="section-head">
-          <h2 class="reveal">Дневник СГО — скоро</h2>
-          <p class="reveal">Школьный дневник станет частью KHS: расписание, домашние задания и оценки будут рядом с задачами и заметками. Раздел уже готовится.</p>
+          <h2 class="reveal">Дневник СГО — подключён</h2>
+          <p class="reveal">KHS загружает школьный дневник напрямую с портала: расписание, домашние задания и оценки за выбранную неделю. Логин и пароль остаются на этом устройстве.</p>
         </div>
         <div class="grid-3">
-          <article class="card reveal"><div class="tag">01 · Расписание</div><h3>Уроки под рукой</h3><p>Расписание из СГО встанет в общий план дня: датированные уроки, кабинеты, замены и звонки — в том же месте, где тренировки и кружки.</p></article>
-          <article class="card reveal"><div class="tag">02 · Домашка</div><h3>Задания на завтра</h3><p>Домашние задания попадут в задачи. На главной — только следующий день, полный список — по нажатию, без ручного переноса.</p></article>
-          <article class="card reveal"><div class="tag">03 · Оценки</div><h3>Прогресс по предметам</h3><p>Средний балл, динамика и подсказки, что исправить. Оценки целиком — по всем предметам и за нужный период.</p></article>
+          <article class="card reveal"><div class="tag">01 · Расписание</div><h3>Уроки под рукой</h3><p>Расписание из СГО показывается в разделе дневника: дата, кабинет, учитель и замены — рядом с домашкой и оценками.</p></article>
+          <article class="card reveal"><div class="tag">02 · Домашка</div><h3>Задания на завтра</h3><p>Ближайшие задания видны на главной, полный список — в дневнике. Сроки приходят из СГО, без ручного переноса.</p></article>
+          <article class="card reveal"><div class="tag">03 · Оценки</div><h3>Прогресс по предметам</h3><p>Оценки из заданий с комментариями учителей — по всем предметам за выбранную неделю.</p></article>
         </div>
-        <div class="sgo-preview reveal" aria-label="Как данные СГО появятся в KHS">
+        <div class="sgo-preview reveal" aria-label="Как данные СГО выглядят в KHS">
           <article class="sgo-shot">
             <div class="sgo-shot-head"><span class="sgo-ico">▦</span><h3>Главная</h3><span class="sgo-badge">СГО</span></div>
             <p class="sgo-shot-sub">Домашка на завтра</p>
@@ -571,29 +571,29 @@
           </article>
           <article class="sgo-shot">
             <div class="sgo-shot-head"><span class="sgo-ico">▤</span><h3>Расписание</h3><span class="sgo-badge">СГО</span></div>
-            <p class="sgo-shot-sub">Уроки из СГО в плане дня</p>
+            <p class="sgo-shot-sub">Уроки из СГО за неделю</p>
             <div class="sgo-row"><span class="dot"></span><span>Алгебра</span><span class="time">08:30–09:10</span></div>
             <div class="sgo-row"><span class="dot"></span><span>Физика</span><span class="time">09:20–10:00</span></div>
             <div class="sgo-row"><span class="dot"></span><span>История</span><span class="time">13:10–13:50</span></div>
             <div class="sgo-connect">Подключить дневник →</div>
           </article>
           <article class="sgo-shot">
-            <div class="sgo-shot-head"><span class="sgo-ico">✎</span><h3>Заметки</h3><span class="sgo-badge">СГО</span></div>
-            <p class="sgo-shot-sub">Папка «Школа»</p>
-            <div class="sgo-row"><span class="dot"></span><span>Клетка и её органоиды</span></div>
-            <div class="sgo-row"><span class="dot"></span><span>Конспект по § 12</span></div>
-            <div class="sgo-row"><span class="dot"></span><span>Домашка: геометрия</span></div>
+            <div class="sgo-shot-head"><span class="sgo-ico">✎</span><h3>Оценки</h3><span class="sgo-badge">СГО</span></div>
+            <p class="sgo-shot-sub">Задания с оценками</p>
+            <div class="sgo-row"><span class="dot"></span><span>Алгебра</span><span class="due">5</span></div>
+            <div class="sgo-row"><span class="dot"></span><span>Физика</span><span class="due">4</span></div>
+            <div class="sgo-row"><span class="dot"></span><span>История</span><span class="due">5</span></div>
             <div class="sgo-connect">Подключить дневник →</div>
           </article>
         </div>
         <div class="download-panel diary-panel reveal">
-          <div class="tag">Скоро</div>
+          <div class="tag">Подключено</div>
           <h2>Подключение к школьному дневнику</h2>
           <p>Вход по логину и паролю школы. Пароль хранится только на устройстве и не попадает в синхронизацию, а в KHS приходят уже готовые расписание, домашка и оценки.</p>
-          <div class="keywords" aria-label="Что появится в дневнике СГО">
-            <span>расписание</span><span>домашка</span><span>оценки</span><span>средний балл</span><span>динамика</span><span>что исправить</span><span>СГО</span>
+          <div class="keywords" aria-label="Что умеет дневник СГО">
+            <span>расписание</span><span>домашка</span><span>оценки</span><span>кабинеты</span><span>замены</span><span>локально</span><span>СГО</span>
           </div>
-          <div class="fineprint">Раздел появится в следующих версиях KHS. Следи за обновлениями — подключение будет в разделе «Ещё».</div>
+          <div class="fineprint">Подключение находится в разделе «Ещё → Дневник СГО». Пароль и кэш дневника остаются на устройстве.</div>
         </div>
       </div>
     </section>
@@ -604,8 +604,8 @@
           <h2>Скачать KHS</h2>
           <p><strong>KHS</strong> — главный хаб: задачи, привычки, трекеры, заметки и чтение в одном приложении. Доступен для Android и Windows.</p>
           <div class="download-actions" aria-label="Ссылки на загрузку хаба">
-            <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.39.apk">KHS — Android APK</a>
-            <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/KHS-Setup-1.2.39.exe">KHS — Windows установщик</a>
+            <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.40.apk">KHS — Android APK</a>
+            <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/KHS-Setup-1.2.40.exe">KHS — Windows установщик</a>
             <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/qutzem-reader.apk">QutZem Reader — Android APK</a>
           </div>
           <div class="installer-note">Для Windows скачивается установщик: он сам создаст ярлыки, добавит KHS в «Приложения и возможности» и не оставит папку с файлами.</div>

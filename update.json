@@ -1,11 +1,11 @@
 {
-    "android":  "khs-1.2.39.apk",
-    "android_sha256":  "d800abed2003c44efb595de143ceb92dc5285c8d03eb209875cffb318aa83d69",
-    "android_size":  86381976,
-    "notes":  "KHS 1.2.39: внутренние окна — заметки, редактор расписания, вход в СГО, аккаунт и блокировка трекеров — переведены в единый стиль обзора: тёмный фон с цветными свечениями, hero-шапка и стеклянные карточки. В расписании можно листать недели вперёд и назад без ограничения и возвращаться на сегодня. Убраны лаг и «телепорт» вкладки расписания, а также подсказка с конкретным логином СГО.",
-    "signature":  "+1KEkdgVSxNKB5ImcqHfNTj+49TX6RM4bhC+S4JPaqUrSUib8XOq/+f0o+qIrl7HKxEAEAGwi8x3jLqS5cuwBg==",
-    "version":  "1.2.39",
-    "windows":  "KHS-Setup-1.2.39.exe",
-    "windows_sha256":  "81548ea4ba9b2952e026b84275a3935eab44f9ee2d6c9ba61dfd8ba8dbe4fe67",
-    "windows_size":  21335338
+    "android":  "khs-1.2.40.apk",
+    "android_sha256":  "586a04490b44f4ee35439da44758bc718a7bd3939f92be60412002c50e93beb1",
+    "android_size":  86529436,
+    "notes":  "KHS 1.2.40. Дневник «Сетевой город. Образование» подключён напрямую: расписание, домашние задания и оценки загружаются с портала школы по логину и паролю. Ближайшие задания СГО видны на главной. Пароль и кэш дневника хранятся только локально, без синхронизации и облака.",
+    "signature":  "3Xu0VOizvFuClu9uZm8zhXVNSut8xcCr2IhNftgmvijIj7At/GIE0OTsi1dUr5kwIeAJ1Ho5ZTZE/mTkGotqBg==",
+    "version":  "1.2.40",
+    "windows":  "KHS-Setup-1.2.40.exe",
+    "windows_sha256":  "b91b0ce72acbabc9970742a011d920446fddd7e22640ed7210e243b59977bfa7",
+    "windows_size":  21360262
 }
