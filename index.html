@@ -5,6 +5,8 @@
   2. KHS Tasks — инструмент задач и заметок внутри хаба.
   3. KHS Tracker — инструмент привычек, метрик и прогресса внутри хаба.
   4. QutZem Reader — читалка FB2, EPUB, PDF (в хабе и отдельным Android APK).
+  5. Дневник СГО — будущий раздел: расписание, домашка и оценки из школьного
+     дневника. Пока только заготовка «скоро», без загрузок.
   Все загрузки — в секции #download; карточки #modules только описывают
   инструменты и не содержат кнопок скачивания.
 -->
@@ -12,7 +14,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="KHS — главный офлайн-хаб-сборник: задачи, трекеры, заметки и чтение. KHS Tasks — задачи и заметки. KHS Tracker — привычки, метрики и прогресс. QutZem Reader — читалка FB2, EPUB, PDF. Android и Windows.">
+  <meta name="description" content="KHS — главный офлайн-хаб-сборник: задачи, трекеры, заметки и чтение. KHS Tasks — задачи и заметки. KHS Tracker — привычки, метрики и прогресс. QutZem Reader — читалка FB2, EPUB, PDF. Скоро — дневник СГО: расписание, домашка и оценки. Android и Windows.">
   <title>KHS — хаб для фокуса, задач и чтения</title>
   <style>
     :root {
@@ -314,6 +316,46 @@
     @keyframes sweep { 0%, 55%, 100% { transform: skewX(-18deg) translateX(-140%); } 72% { transform: skewX(-18deg) translateX(320%); } }
     .download-panel h2 { margin: 0; font-size: clamp(28px, 3.4vw, 44px); letter-spacing: -.03em; }
     .download-panel p { margin: 12px 0 0; color: var(--muted); max-width: 62ch; }
+    .diary-panel { margin-top: 16px; }
+
+    /* Превью заготовок СГО: главная, расписание, заметки */
+    .sgo-preview {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .sgo-shot {
+      padding: 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background:
+        radial-gradient(280px 160px at 100% 0%, rgba(79,209,197,.12), transparent 65%),
+        rgba(255,255,255,.03);
+    }
+    .sgo-shot-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .sgo-shot-head h3 { margin: 0; font-size: 16px; letter-spacing: -.01em; }
+    .sgo-ico {
+      width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center;
+      background: rgba(79,209,197,.14); color: #8ee8dd; font-size: 14px;
+    }
+    .sgo-badge {
+      margin-left: auto; padding: 4px 8px; border-radius: 999px;
+      font-size: 10px; font-weight: 800; letter-spacing: .12em;
+      color: #8ee8dd; border: 1px solid rgba(79,209,197,.3);
+      background: rgba(79,209,197,.1);
+    }
+    .sgo-shot-sub { margin: 0 0 8px; font-size: 12px; color: var(--soft); }
+    .sgo-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 6px; padding: 7px 9px; border-radius: 10px;
+      border: 1px solid var(--line); background: rgba(255,255,255,.03);
+      font-size: 12px; color: var(--muted);
+    }
+    .sgo-row .dot { width: 6px; height: 6px; border-radius: 50%; background: #4FD1C5; flex: 0 0 auto; }
+    .sgo-row .due { margin-left: auto; font-size: 10px; font-weight: 700; color: #FFD166; }
+    .sgo-row .time { margin-left: auto; font-size: 10px; font-weight: 700; color: #8ee8dd; }
+    .sgo-connect { margin-top: 10px; font-size: 12px; font-weight: 700; color: #8ee8dd; }
     .download-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
     .fineprint { margin-top: 16px; color: var(--soft); font-size: 13px; }
     .installer-note {
@@ -350,7 +392,7 @@
     .reveal.in { opacity: 1; transform: translateY(0) scale(1); }
 
     @media (max-width: 960px) {
-      .hero-grid, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+      .hero-grid, .grid-3, .grid-2, .sgo-preview { grid-template-columns: 1fr; }
       .section-head { flex-direction: column; align-items: flex-start; }
       h1 { max-width: none; }
     }
@@ -391,6 +433,7 @@
         <a class="hide-sm" href="#principles">Принципы</a>
         <a class="hide-sm" href="#modules">Модули</a>
         <a class="hide-sm" href="#features">Возможности</a>
+        <a class="hide-sm" href="#diary">Дневник</a>
         <a class="btn btn-ghost" href="#download">Скачать</a>
       </nav>
     </div>
@@ -407,6 +450,7 @@
             Внутри — <strong>KHS Tasks</strong> для задач и заметок, <strong>KHS Tracker</strong>
             для привычек и прогресса и <strong>QutZem Reader</strong> для чтения книг и документов.
             Tasks и Tracker уже внутри хаба, а QutZem Reader можно поставить и отдельно.
+            Скоро появится дневник СГО — расписание, домашка и оценки.
             Всё работает офлайн и хранит данные локально.
           </p>
           <div class="hero-actions">
@@ -432,6 +476,7 @@
             <li><span class="dot" aria-hidden="true"></span><span><strong>KHS Tasks</strong> — задачи и заметки внутри хаба.</span></li>
             <li><span class="dot" aria-hidden="true"></span><span><strong>KHS Tracker</strong> — привычки и прогресс внутри хаба.</span></li>
             <li><span class="dot" aria-hidden="true"></span><span><strong>QutZem Reader</strong> — отдельная читалка FB2, EPUB и PDF.</span></li>
+            <li><span class="dot" aria-hidden="true"></span><span><strong>Дневник СГО</strong> — скоро: расписание, домашка и оценки.</span></li>
           </ul>
         </aside>
       </div>
@@ -504,19 +549,68 @@
       </div>
     </section>
 
+    <section id="diary">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="reveal">Дневник СГО — скоро</h2>
+          <p class="reveal">Школьный дневник станет частью KHS: расписание, домашние задания и оценки будут рядом с задачами и заметками. Раздел уже готовится.</p>
+        </div>
+        <div class="grid-3">
+          <article class="card reveal"><div class="tag">01 · Расписание</div><h3>Уроки под рукой</h3><p>Расписание из СГО встанет в общий план дня: датированные уроки, кабинеты, замены и звонки — в том же месте, где тренировки и кружки.</p></article>
+          <article class="card reveal"><div class="tag">02 · Домашка</div><h3>Задания на завтра</h3><p>Домашние задания попадут в задачи. На главной — только следующий день, полный список — по нажатию, без ручного переноса.</p></article>
+          <article class="card reveal"><div class="tag">03 · Оценки</div><h3>Прогресс по предметам</h3><p>Средний балл, динамика и подсказки, что исправить. Оценки целиком — по всем предметам и за нужный период.</p></article>
+        </div>
+        <div class="sgo-preview reveal" aria-label="Как данные СГО появятся в KHS">
+          <article class="sgo-shot">
+            <div class="sgo-shot-head"><span class="sgo-ico">▦</span><h3>Главная</h3><span class="sgo-badge">СГО</span></div>
+            <p class="sgo-shot-sub">Домашка на завтра</p>
+            <div class="sgo-row"><span class="dot"></span><span>Геометрия: № 512–516</span><span class="due">завтра</span></div>
+            <div class="sgo-row"><span class="dot"></span><span>Физика: § 24, вопросы 1–4</span><span class="due">завтра</span></div>
+            <div class="sgo-row"><span class="dot"></span><span>История: конспект по § 12</span><span class="due">завтра</span></div>
+            <div class="sgo-connect">Подключить дневник →</div>
+          </article>
+          <article class="sgo-shot">
+            <div class="sgo-shot-head"><span class="sgo-ico">▤</span><h3>Расписание</h3><span class="sgo-badge">СГО</span></div>
+            <p class="sgo-shot-sub">Уроки из СГО в плане дня</p>
+            <div class="sgo-row"><span class="dot"></span><span>Алгебра</span><span class="time">08:30–09:10</span></div>
+            <div class="sgo-row"><span class="dot"></span><span>Физика</span><span class="time">09:20–10:00</span></div>
+            <div class="sgo-row"><span class="dot"></span><span>История</span><span class="time">13:10–13:50</span></div>
+            <div class="sgo-connect">Подключить дневник →</div>
+          </article>
+          <article class="sgo-shot">
+            <div class="sgo-shot-head"><span class="sgo-ico">✎</span><h3>Заметки</h3><span class="sgo-badge">СГО</span></div>
+            <p class="sgo-shot-sub">Папка «Школа»</p>
+            <div class="sgo-row"><span class="dot"></span><span>Клетка и её органоиды</span></div>
+            <div class="sgo-row"><span class="dot"></span><span>Конспект по § 12</span></div>
+            <div class="sgo-row"><span class="dot"></span><span>Домашка: геометрия</span></div>
+            <div class="sgo-connect">Подключить дневник →</div>
+          </article>
+        </div>
+        <div class="download-panel diary-panel reveal">
+          <div class="tag">Скоро</div>
+          <h2>Подключение к школьному дневнику</h2>
+          <p>Вход по логину и паролю школы. Пароль хранится только на устройстве и не попадает в синхронизацию, а в KHS приходят уже готовые расписание, домашка и оценки.</p>
+          <div class="keywords" aria-label="Что появится в дневнике СГО">
+            <span>расписание</span><span>домашка</span><span>оценки</span><span>средний балл</span><span>динамика</span><span>что исправить</span><span>СГО</span>
+          </div>
+          <div class="fineprint">Раздел появится в следующих версиях KHS. Следи за обновлениями — подключение будет в разделе «Ещё».</div>
+        </div>
+      </div>
+    </section>
+
     <section id="download">
       <div class="wrap">
         <div class="download-panel reveal">
           <h2>Скачать KHS</h2>
           <p><strong>KHS</strong> — главный хаб: задачи, привычки, трекеры, заметки и чтение в одном приложении. Доступен для Android и Windows.</p>
           <div class="download-actions" aria-label="Ссылки на загрузку хаба">
-            <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.38.apk">KHS — Android APK</a>
-            <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/KHS-Setup-1.2.38.exe">KHS — Windows установщик</a>
+            <a class="btn btn-primary" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/khs-1.2.39.apk">KHS — Android APK</a>
+            <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/KHS-Setup-1.2.39.exe">KHS — Windows установщик</a>
             <a class="btn btn-ghost" href="https://github.com/gagaga1399/khs-promo/releases/latest/download/qutzem-reader.apk">QutZem Reader — Android APK</a>
           </div>
           <div class="installer-note">Для Windows скачивается установщик: он сам создаст ярлыки, добавит KHS в «Приложения и возможности» и не оставит папку с файлами.</div>
           <div class="fineprint">KHS Tasks и KHS Tracker уже внутри хаба. Отдельно нужен только QutZem Reader — для него есть свой Android APK.</div>
-          <div class="fineprint">Ключевые слова: KHS, хаб, KHS Tasks, KHS Tracker, задачи, привычки, трекеры, метрики, заметки, расписание, виджет, офлайн, локально, фокус, минимализм, QutZem Reader, читалка, FB2, EPUB, PDF, Android, Windows.</div>
+          <div class="fineprint">Ключевые слова: KHS, хаб, KHS Tasks, KHS Tracker, задачи, привычки, трекеры, метрики, заметки, расписание, виджет, офлайн, локально, фокус, минимализм, QutZem Reader, читалка, FB2, EPUB, PDF, дневник СГО, школа, домашка, оценки, Android, Windows.</div>
         </div>
       </div>
     </section>
